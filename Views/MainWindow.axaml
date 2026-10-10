@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:services="using:BEN_TOOLBOX_2_0.Services"
         x:Class="BEN_TOOLBOX_2_0.Views.MainWindow"
         Title="BEN TOOLBOX 2.0"
         Width="1260" Height="790" MinWidth="900" MinHeight="600"
@@ -143,7 +144,7 @@
             <TextBlock Text="AVAILABLE UTILITIES  /  SELECT TO LAUNCH" Foreground="#76D0EA" FontSize="11" LetterSpacing="1.5"/>
             <ItemsControl x:Name="ToolsView">
               <ItemsControl.ItemTemplate>
-                <DataTemplate>
+                <DataTemplate x:DataType="services:ToolDefinition">
                   <Border Background="#112338" BorderBrush="#28516E" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,10">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
                       <StackPanel Spacing="6">
