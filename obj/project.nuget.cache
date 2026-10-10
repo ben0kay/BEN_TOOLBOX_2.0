@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "uASGTkRyMjc=",
+  "dgSpecHash": "+G2vwPwyfoM=",
   "success": true,
   "projectFilePath": "M:\\BACKUPS\\D_Drive\\2025_11_01_D_Drive_Backup_Manual\\My Media Content\\Applications\\BEN_TOOLBOX_2.0\\BEN_TOOLBOX_2_0.csproj",
   "expectedPackageFiles": [
@@ -29,6 +29,7 @@
     "C:\\Users\\Ben\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\8.0.0\\microsoft.extensions.dependencyinjection.abstractions.8.0.0.nupkg.sha512",
     "C:\\Users\\Ben\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\8.0.0\\microsoft.extensions.logging.abstractions.8.0.0.nupkg.sha512",
     "C:\\Users\\Ben\\.nuget\\packages\\microsoft.io.recyclablememorystream\\3.0.1\\microsoft.io.recyclablememorystream.3.0.1.nupkg.sha512",
+    "C:\\Users\\Ben\\.nuget\\packages\\sixlabors.imagesharp\\3.1.12\\sixlabors.imagesharp.3.1.12.nupkg.sha512",
     "C:\\Users\\Ben\\.nuget\\packages\\skiasharp\\3.119.4\\skiasharp.3.119.4.nupkg.sha512",
     "C:\\Users\\Ben\\.nuget\\packages\\skiasharp.nativeassets.linux\\3.119.4\\skiasharp.nativeassets.linux.3.119.4.nupkg.sha512",
     "C:\\Users\\Ben\\.nuget\\packages\\skiasharp.nativeassets.macos\\3.119.4\\skiasharp.nativeassets.macos.3.119.4.nupkg.sha512",
@@ -36,5 +37,66 @@
     "C:\\Users\\Ben\\.nuget\\packages\\skiasharp.nativeassets.win32\\3.119.4\\skiasharp.nativeassets.win32.3.119.4.nupkg.sha512",
     "C:\\Users\\Ben\\.nuget\\packages\\tmds.dbus.protocol\\0.94.1\\tmds.dbus.protocol.0.94.1.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'SixLabors.ImageSharp' 3.1.12 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-gwg2-r3hj-4w44",
+      "projectPath": "M:\\BACKUPS\\D_Drive\\2025_11_01_D_Drive_Backup_Manual\\My Media Content\\Applications\\BEN_TOOLBOX_2.0\\BEN_TOOLBOX_2_0.csproj",
+      "warningLevel": 1,
+      "filePath": "M:\\BACKUPS\\D_Drive\\2025_11_01_D_Drive_Backup_Manual\\My Media Content\\Applications\\BEN_TOOLBOX_2.0\\BEN_TOOLBOX_2_0.csproj",
+      "libraryId": "SixLabors.ImageSharp",
+      "targetGraphs": [
+        "net10.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'SixLabors.ImageSharp' 3.1.12 has a known high severity vulnerability, https://github.com/advisories/GHSA-j3p4-wp97-rph4",
+      "projectPath": "M:\\BACKUPS\\D_Drive\\2025_11_01_D_Drive_Backup_Manual\\My Media Content\\Applications\\BEN_TOOLBOX_2.0\\BEN_TOOLBOX_2_0.csproj",
+      "warningLevel": 1,
+      "filePath": "M:\\BACKUPS\\D_Drive\\2025_11_01_D_Drive_Backup_Manual\\My Media Content\\Applications\\BEN_TOOLBOX_2.0\\BEN_TOOLBOX_2_0.csproj",
+      "libraryId": "SixLabors.ImageSharp",
+      "targetGraphs": [
+        "net10.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'SixLabors.ImageSharp' 3.1.12 has a known high severity vulnerability, https://github.com/advisories/GHSA-j9gm-c75j-xc9q",
+      "projectPath": "M:\\BACKUPS\\D_Drive\\2025_11_01_D_Drive_Backup_Manual\\My Media Content\\Applications\\BEN_TOOLBOX_2.0\\BEN_TOOLBOX_2_0.csproj",
+      "warningLevel": 1,
+      "filePath": "M:\\BACKUPS\\D_Drive\\2025_11_01_D_Drive_Backup_Manual\\My Media Content\\Applications\\BEN_TOOLBOX_2.0\\BEN_TOOLBOX_2_0.csproj",
+      "libraryId": "SixLabors.ImageSharp",
+      "targetGraphs": [
+        "net10.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'SixLabors.ImageSharp' 3.1.12 has a known high severity vulnerability, https://github.com/advisories/GHSA-jjfr-hcj7-qf5w",
+      "projectPath": "M:\\BACKUPS\\D_Drive\\2025_11_01_D_Drive_Backup_Manual\\My Media Content\\Applications\\BEN_TOOLBOX_2.0\\BEN_TOOLBOX_2_0.csproj",
+      "warningLevel": 1,
+      "filePath": "M:\\BACKUPS\\D_Drive\\2025_11_01_D_Drive_Backup_Manual\\My Media Content\\Applications\\BEN_TOOLBOX_2.0\\BEN_TOOLBOX_2_0.csproj",
+      "libraryId": "SixLabors.ImageSharp",
+      "targetGraphs": [
+        "net10.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'SixLabors.ImageSharp' 3.1.12 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-wmxv-xphr-5c9g",
+      "projectPath": "M:\\BACKUPS\\D_Drive\\2025_11_01_D_Drive_Backup_Manual\\My Media Content\\Applications\\BEN_TOOLBOX_2.0\\BEN_TOOLBOX_2_0.csproj",
+      "warningLevel": 1,
+      "filePath": "M:\\BACKUPS\\D_Drive\\2025_11_01_D_Drive_Backup_Manual\\My Media Content\\Applications\\BEN_TOOLBOX_2.0\\BEN_TOOLBOX_2_0.csproj",
+      "libraryId": "SixLabors.ImageSharp",
+      "targetGraphs": [
+        "net10.0"
+      ]
+    }
+  ]
 }
