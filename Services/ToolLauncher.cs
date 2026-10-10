@@ -65,7 +65,8 @@ public sealed class ToolLauncher
         start.ArgumentList.Add("-STA");
         start.ArgumentList.Add("-File");
         start.ArgumentList.Add(script);
-        Process.Start(start) ?? throw new InvalidOperationException("Failed to start PowerShell.");
+        if (Process.Start(start) is null)
+            throw new InvalidOperationException("Failed to start PowerShell.");
     }
 
     private static string? FindToolRoot()
