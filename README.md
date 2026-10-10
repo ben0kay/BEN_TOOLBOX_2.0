@@ -2,7 +2,7 @@
 
 A modular desktop toolbox built with **Avalonia UI**, **C#**, and **.NET 10**, developed in VS Code.
 
-> Status: **Stage 2 — local tool launcher**. This is not yet a replacement for the working PowerShell toolbox.
+> Status: **Stage 3 — first native module under test**. This is not yet a replacement for the working PowerShell toolbox.
 
 ## Goals
 
@@ -78,3 +78,13 @@ Security requirements for the future API: device authentication, encrypted conne
 - Some older scripts may assume a particular folder or Godot project is present. Configure/select the correct project as required by each tool.
 - The future mobile API must use a separate permission-checked job engine; it must **not** expose this launcher directly.
 - Build outputs are ignored and removed from source control; a local `dotnet build` restores them.
+
+## Stage 3: Native Duplicate File Finder
+
+- The Duplicate File Finder launch button now opens an Avalonia-native window. All other utilities continue through the PowerShell launcher.
+- Scanner logic is isolated in `Services/DuplicateScanService.cs` for eventual use by a job engine and remote clients.
+- Source and destination each have independent recursive scan settings; same-name files can be SHA-256 verified.
+- Result selection offers a preview for standard bitmap formats; CSV export is available.
+- Recycle operations only allow verified matches, recheck before moving the source file to Windows Recycle Bin, and require confirmation. Destination files are never deleted.
+- The original PowerShell version remains unchanged as a fallback. **Test on disposable sample folders before any deletion involving personal photos.**
+- The native UI and filesystem operations require local Windows testing; this pass has not been compiled in the coding environment.

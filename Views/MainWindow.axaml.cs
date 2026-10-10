@@ -25,6 +25,14 @@ public partial class MainWindow : Window
         if (sender is not Button { Tag: ToolDefinition tool }) return;
         try
         {
+            if (tool.Id == "duplicates")
+            {
+                var native = new DuplicateFinderWindow();
+                native.Show(this);
+                InfoTitle.Text = "NATIVE DUPLICATE FINDER";
+                InfoDescription.Text = "Native Avalonia duplicate finder opened. The old PowerShell tool remains in the repository.";
+                return;
+            }
             _launcher.Launch(tool);
             InfoTitle.Text = "TOOL LAUNCH REQUESTED";
             InfoDescription.Text = tool.Name + " opened in a separate Windows PowerShell process.";
