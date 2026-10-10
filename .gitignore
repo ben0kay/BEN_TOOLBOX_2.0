@@ -1,0 +1,8 @@
+# .NET / Avalonia build artifacts
+**/bin/
+**/obj/
+.vs/
+.vscode/*.user
+*.user
+*.suo
+TestResults/

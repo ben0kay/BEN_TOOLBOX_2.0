@@ -139,6 +139,27 @@
               </Button>
             </Grid>
           </StackPanel>
+          <StackPanel x:Name="ToolListPanel" IsVisible="False" Spacing="12">
+            <TextBlock Text="AVAILABLE UTILITIES  /  SELECT TO LAUNCH" Foreground="#76D0EA" FontSize="11" LetterSpacing="1.5"/>
+            <ItemsControl x:Name="ToolsView">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="#112338" BorderBrush="#28516E" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,10">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
+                      <StackPanel Spacing="6">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="17" Foreground="#E7F7FF"/>
+                        <TextBlock Text="{Binding Description}" Foreground="#9DB6CA" TextWrapping="Wrap" FontSize="13"/>
+                        <TextBlock Text="{Binding Status}" Foreground="#75BED1" FontSize="11"/>
+                      </StackPanel>
+                      <Button Grid.Column="1" Content="LAUNCH  ›" MinWidth="124" VerticalAlignment="Center"
+                              Background="#16415A" Foreground="#AAEFFF" BorderBrush="#3E8EA8" BorderThickness="1"
+                              CornerRadius="5" Padding="14,10" Tag="{Binding}" Click="LaunchTool"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
           <Border Background="#0D1C2C" CornerRadius="7" BorderBrush="#25516D" BorderThickness="1" Padding="18">
             <StackPanel Spacing="6">
               <TextBlock x:Name="InfoTitle" Text="BUILD 1.1   /   SYSTEM READOUT" Foreground="#76D0EA" FontWeight="SemiBold" FontSize="11" LetterSpacing="1.5"/>

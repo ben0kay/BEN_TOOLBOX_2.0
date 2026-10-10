@@ -1,10 +1,13 @@
+using System;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using BEN_TOOLBOX_2_0.Services;
 
 namespace BEN_TOOLBOX_2_0.Views;
 
 public partial class MainWindow : Window
 {
+    private readonly ToolLauncher _launcher = new();
     public MainWindow()
     {
         InitializeComponent();
@@ -16,6 +19,33 @@ public partial class MainWindow : Window
     private void NavigateFiles(object? sender, RoutedEventArgs e) => ShowSection("Files");
     private void NavigateInspect(object? sender, RoutedEventArgs e) => ShowSection("Inspect");
     private void NavigateSettings(object? sender, RoutedEventArgs e) => ShowSection("Settings");
+
+    private async void LaunchTool(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: ToolDefinition tool }) return;
+        try
+        {
+            _launcher.Launch(tool);
+            InfoTitle.Text = "TOOL LAUNCH REQUESTED";
+            InfoDescription.Text = tool.Name + " opened in a separate Windows PowerShell process.";
+        }
+        catch (Exception ex)
+        {
+            var dialog = new Window
+            {
+                Title = "Unable to launch tool",
+                Width = 550, Height = 230,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Content = new TextBlock
+                {
+                    Text = ex.Message,
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                    Margin = new Avalonia.Thickness(24)
+                }
+            };
+            await dialog.ShowDialog(this);
+        }
+    }
 
     private void ShowSection(string section)
     {
@@ -31,33 +61,40 @@ public partial class MainWindow : Window
         FilesTile.IsVisible = dashboard;
         InspectTile.IsVisible = dashboard;
         SettingsTile.IsVisible = dashboard;
+        ToolListPanel.IsVisible = section is "Game" or "Files" or "Inspect";
+        ToolsView.ItemsSource = section switch
+        {
+            "Game" => ToolCatalog.ByCategory("Game"),
+            "Files" => ToolCatalog.ByCategory("Files"),
+            "Inspect" => ToolCatalog.ByCategory("Inspect"),
+            _ => null
+        };
 
-        // The same responsive card grid is reused for section summaries in Stage 1.
         switch (section)
         {
             case "Game":
                 PageKicker.Text = "WORKSPACE / GAME DEVELOPMENT";
                 PageTitle.Text = "Game Development";
-                PageSubtitle.Text = "Artwork, sprites, project resources and game creation utilities.";
-                SectionHeading.Text = "Coming in Stage 2";
-                InfoTitle.Text = "GAME DEVELOPMENT TOOLBOX";
-                InfoDescription.Text = "The existing Artwork Prompter, Sprite Splitter, Sprite Batch Tool and resource utilities will be connected here.";
+                PageSubtitle.Text = "Sprite processing, artwork prompts and resource utilities.";
+                SectionHeading.Text = "Game tools";
+                InfoTitle.Text = "GAME DEVELOPMENT / EXTERNAL UTILITIES";
+                InfoDescription.Text = "These scripts launch in their existing Windows PowerShell windows.";
                 break;
             case "Files":
                 PageKicker.Text = "WORKSPACE / FILE MANAGEMENT";
                 PageTitle.Text = "File Toolbox";
-                PageSubtitle.Text = "Keep your files organized and protected.";
-                SectionHeading.Text = "Coming in Stage 2";
-                InfoTitle.Text = "FILE MANAGEMENT TOOLS";
-                InfoDescription.Text = "Folder Backup and Duplicate File Finder will be accessible here once PowerShell tool launching is connected.";
+                PageSubtitle.Text = "Backups, duplicates and file management.";
+                SectionHeading.Text = "File tools";
+                InfoTitle.Text = "FILE MANAGEMENT / EXTERNAL UTILITIES";
+                InfoDescription.Text = "Review any destructive actions in the utility itself before confirming.";
                 break;
             case "Inspect":
                 PageKicker.Text = "WORKSPACE / INSPECTORS";
                 PageTitle.Text = "Project Inspectors";
-                PageSubtitle.Text = "Analyze content, resource usage and project settings.";
-                SectionHeading.Text = "Coming in Stage 2";
-                InfoTitle.Text = "PROJECT DIAGNOSTICS";
-                InfoDescription.Text = "Lighting, asset usage, file size and biome content inspectors will be organized here.";
+                PageSubtitle.Text = "Read project data, file sizes, lighting and asset references.";
+                SectionHeading.Text = "Inspectors";
+                InfoTitle.Text = "INSPECTION / EXTERNAL UTILITIES";
+                InfoDescription.Text = "Some inspectors expect a Godot project folder to be selected.";
                 break;
             case "Settings":
                 PageKicker.Text = "WORKSPACE / SETTINGS";
@@ -65,15 +102,15 @@ public partial class MainWindow : Window
                 PageSubtitle.Text = "Preferences and application customization.";
                 SectionHeading.Text = "Coming in a later stage";
                 InfoTitle.Text = "FUTURE SETTINGS";
-                InfoDescription.Text = "Appearance controls, saved preferences and toolbox paths will be implemented after the core tool integration.";
+                InfoDescription.Text = "Appearance controls, saved preferences and toolbox paths will follow.";
                 break;
             default:
                 PageKicker.Text = "CONTROL DECK  /  OVERVIEW";
                 PageTitle.Text = "Command Center";
                 PageSubtitle.Text = "Modular utilities  /  Developer operations  /  System oversight";
                 SectionHeading.Text = "Available modules";
-                InfoTitle.Text = "BUILD 1.1   /   SYSTEM READOUT";
-                InfoDescription.Text = "Interface online. Navigation active. Desktop tool execution remains offline until Stage 2.";
+                InfoTitle.Text = "BUILD 2.0   /   TOOL LAUNCHER";
+                InfoDescription.Text = "Choose a module to open approved local PowerShell utilities. Remote execution is not enabled.";
                 break;
         }
     }
