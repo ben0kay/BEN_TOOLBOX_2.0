@@ -2,13 +2,13 @@
 
 A modular desktop toolbox built with **Avalonia UI**, **C#**, and **.NET 10**, developed in VS Code.
 
-> Status: **Stage 1.1 — visual foundation**. This is not yet a replacement for the working PowerShell toolbox.
+> Status: **Stage 2 — local tool launcher**. This is not yet a replacement for the working PowerShell toolbox.
 
 ## Goals
 
 - A resizable, polished sci-fi-inspired desktop dashboard.
 - Separate pages for Game Development, File Toolbox, Inspectors, and Settings.
-- Preserve and gradually integrate tools from the original `../BEN_TOOLBOX/` directory without modifying them during UI development.
+- Preserve and gradually integrate tools from the original `BEN_TOOLBOX_OLDVERSION/` directory without modifying them during UI development.
 - Keep visual interfaces separate from the underlying tool execution logic, so the same approved tool operations can eventually be invoked locally or remotely.
 - Support a future **Android companion** that can request work from the Windows PC and see task progress/results.
 
@@ -19,12 +19,11 @@ Requirements: Windows, .NET 10 SDK, and optionally VS Code with Avalonia and C# 
 From the repository root:
 
 ```powershell
-cd BEN_TOOLBOX_2.0
 dotnet restore
 dotnet run
 ```
 
-The app currently displays a desktop shell and navigable placeholder sections. Actual tools do **not** launch yet.
+The Game, File and Inspectors sections now launch allowlisted existing scripts from `BEN_TOOLBOX_OLDVERSION/` in separate Windows PowerShell windows. Run on Windows from the cloned repository, keeping that folder alongside the app.
 
 ## Project layout
 
@@ -33,8 +32,9 @@ The app currently displays a desktop shell and navigable placeholder sections. A
 - `Views/MainWindow.axaml.cs` — Stage 1 navigation handlers
 - `ViewModels/` — future presentation state and commands
 - `Assets/` — icons and other bundled resources
+- `Services/ToolLauncher.cs` — allowlisted local PowerShell launching (not a remote API)
+- `BEN_TOOLBOX_OLDVERSION/` — unchanged legacy PowerShell tools
 - `BEN_TOOLBOX_2_0.csproj` — project dependencies and framework target
-- `../BEN_TOOLBOX/` — existing independent PowerShell utilities
 
 ## Roadmap
 
@@ -42,7 +42,7 @@ The app currently displays a desktop shell and navigable placeholder sections. A
 | --- | --- | --- |
 | 1 | Basic Avalonia dashboard, sidebar and navigation | Complete |
 | 1.1 | Sci-fi dashboard visual polish and tighter layout | Implemented; needs Windows visual/build testing |
-| 2 | Discover/catalog existing tools and launch approved PowerShell utilities | Planned |
+| 2 | Catalog ten existing tools and launch approved PowerShell utilities | Implemented; requires local Windows testing |
 | 3 | Shared tool engine and more integrated tool views | Planned |
 | 4 | Background jobs, progress, logs, history and cancellation | Planned |
 | 5 | Secured local-network API on Windows | Future |
@@ -64,9 +64,17 @@ Security requirements for the future API: device authentication, encrypted conne
 
 ## Development rules
 
-- Keep `../BEN_TOOLBOX/` intact until an integration is deliberately tested.
+- Keep `BEN_TOOLBOX_OLDVERSION/` intact until an integration is deliberately tested.
 - Prefer small, reviewable changes; preserve the project's ability to build and navigate.
 - Do not couple tools directly to view click handlers once the Tool Engine work starts.
 - Treat UI status badges as decorative until backed by actual telemetry.
 - Avoid committing `bin/`, `obj/`, user-specific editor state or other generated artifacts.
 - For now, test locally with `dotnet run` after each change.
+
+## Stage 2 notes
+
+- Tool lists are defined in `Services/ToolLauncher.cs`, not from arbitrary paths supplied by clients.
+- PowerShell execution is **local only**, Windows-specific, and currently launches independent windows.
+- Some older scripts may assume a particular folder or Godot project is present. Configure/select the correct project as required by each tool.
+- The future mobile API must use a separate permission-checked job engine; it must **not** expose this launcher directly.
+- Build outputs are ignored and removed from source control; a local `dotnet build` restores them.
