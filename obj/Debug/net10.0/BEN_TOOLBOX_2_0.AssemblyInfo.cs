@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BEN_TOOLBOX_2_0")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+42772ebcbb7a8313edec6a65e5db8473439fece8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9ae90815e0b54d744116597971baff8f986a5ec9")]
 [assembly: System.Reflection.AssemblyProductAttribute("BEN_TOOLBOX_2_0")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BEN_TOOLBOX_2_0")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
