@@ -25,6 +25,13 @@ public partial class MainWindow : Window
         if (sender is not Button { Tag: ToolDefinition tool }) return;
         try
         {
+            if (tool.Id == "sprite-splitter")
+            {
+                new SpriteSplitterWindow().Show(this);
+                InfoTitle.Text = "NATIVE SPRITE SPLITTER";
+                InfoDescription.Text = "Sprite Splitter now opens in Avalonia; the legacy PowerShell script remains available in the repository.";
+                return;
+            }
             if (tool.Id == "duplicates")
             {
                 var native = new DuplicateFinderWindow();

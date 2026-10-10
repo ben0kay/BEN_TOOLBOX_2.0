@@ -88,3 +88,12 @@ Security requirements for the future API: device authentication, encrypted conne
 - Recycle operations only allow verified matches, recheck before moving the source file to Windows Recycle Bin, and require confirmation. Destination files are never deleted.
 - The original PowerShell version remains unchanged as a fallback. **Test on disposable sample folders before any deletion involving personal photos.**
 - The native UI and filesystem operations require local Windows testing; this pass has not been compiled in the coding environment.
+
+## Stage 3.2 — native Sprite Splitter (testing)
+
+- Sprite Splitter launches a native Avalonia window; the original PowerShell tool is preserved.
+- Uses ImageSharp for PNG alpha-gap analysis, bounding-box extraction and PNG export, isolated in `Services/SpriteSplitService.cs`.
+- Supports suggesting cuts, manual click/drag of vertical cuts, removal, alpha threshold, gap, padding, individual/equal/square canvas exports and filename prefix.
+- Existing output files are not overwritten; an incomplete export attempts to remove its own outputs.
+- This initial pass uses a textual sprite region preview rather than thumbnail gallery. Test on sample PNGs before batch work.
+- Stage 3.3 will convert Sprite Batch Tool separately.
