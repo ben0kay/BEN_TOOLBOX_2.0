@@ -119,3 +119,10 @@ Security requirements for the future API: device authentication, encrypted conne
 - Existing files are never overwritten; sources are not modified. Background execution, cancellation, rollback attempts and file-conflict checks are included.
 - The original PowerShell version is preserved. **Godot Plant/Tree .tres generation and its parameters are not yet ported.** Use legacy tool when those features are needed.
 - Open Game Development → Sprite Batch Tool. Choose existing separate source and destination directories, preview, then export.
+
+## Stage 3.6 — Remaining native toolbox modules (first pass)
+
+- Artwork Design Prompter: native editable prompt fields, asset-category selection, transparency/shadow options, and clipboard copy. The extensive per-category legacy presets, randomization/locking, saved JSON customization and prompt export are **not yet ported**.
+- Asset Usage Finder: native read-only project scan for direct and transitive `res://` references, resource UIDs and PNG ImageFolder references, with cancellation and results copy. Some dynamic usage and full legacy reporting are not included.
+- Folder Backup: native preview and create-new dated backup folders with folder/extension exclusions, background execution, cancellation, and a summary/settings report. Sources are preserved. **Incomplete backups are retained and clearly marked** rather than silently removed. Legacy CSV/log/size/date filters and full reporting need parity work.
+- Original PowerShell versions are unchanged. Test on disposable data first; compile and compare behavior with legacy tools before regular use.

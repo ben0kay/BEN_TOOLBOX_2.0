@@ -39,6 +39,14 @@ public partial class MainWindow : Window
                 InfoDescription.Text = tool.Name + " opened in Avalonia. The legacy PowerShell script remains available.";
                 return;
             }
+            if (tool.Id == "artwork-prompter" || tool.Id == "asset-usage" || tool.Id == "folder-backup")
+            {
+                var kind = tool.Id == "artwork-prompter" ? "artwork" : tool.Id == "asset-usage" ? "usage" : "backup";
+                new RemainingToolsWindow(kind).Show(this);
+                InfoTitle.Text = "NATIVE TOOL";
+                InfoDescription.Text = tool.Name + " opened in Avalonia. The legacy PowerShell version is preserved.";
+                return;
+            }
             if (tool.Id == "sprite-batch")
             {
                 new SpriteBatchWindow().Show(this);
