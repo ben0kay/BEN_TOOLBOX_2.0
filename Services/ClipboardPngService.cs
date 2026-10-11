@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
+using SixLabors.ImageSharp;
 
 namespace BEN_TOOLBOX_2_0.Services;
 
