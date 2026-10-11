@@ -104,3 +104,11 @@ Security requirements for the future API: device authentication, encrypted conne
 - Resource Checker: checks static `res://` references in several Godot text formats against a selected project; does not replace comprehensive Godot validation or resolve every dynamic reference.
 - Both use cancellable background scanning and separate read-only services in `Services/InspectorServices.cs`.
 - Existing PowerShell versions remain unchanged and may have additional features; this is initial core functionality, not full feature parity.
+
+## Stage 3.4 — Native world inspectors (first pass)
+
+- **Lighting & Shadow Inspector:** exported C# defaults, shader uniforms, and selected scene/resource lighting or shadow settings, with filtering and file navigation.
+- **Biome Population Inspector:** registered surface biomes from `BiomeCatalog.tres`, saved vegetation/enemy weights, relative selection shares, basic artwork checks, target frequency and locally unregistered definitions.
+- Both are read-only, use background workers, and require selecting an external Godot project. Neither runs Godot nor claims live runtime values.
+- Services: `LightingInspectionService.cs` and `BiomeInspectionService.cs`; presentation: `WorldInspectorWindow.cs`.
+- Initial native parity only: compare against the preserved PowerShell versions on a real project before relying on reports.

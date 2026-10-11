@@ -25,6 +25,13 @@ public partial class MainWindow : Window
         if (sender is not Button { Tag: ToolDefinition tool }) return;
         try
         {
+            if (tool.Id == "lighting" || tool.Id == "biome")
+            {
+                new WorldInspectorWindow(tool.Id == "lighting" ? "lighting" : "biome").Show(this);
+                InfoTitle.Text = "NATIVE WORLD INSPECTOR";
+                InfoDescription.Text = tool.Name + " opened in Avalonia; the original PowerShell tool is preserved.";
+                return;
+            }
             if (tool.Id == "file-size" || tool.Id == "resource-checker")
             {
                 new InspectorWindow(tool.Id == "file-size" ? "size" : "resources").Show(this);
