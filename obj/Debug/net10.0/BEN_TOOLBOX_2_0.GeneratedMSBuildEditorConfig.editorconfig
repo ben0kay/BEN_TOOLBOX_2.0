@@ -8,8 +8,8 @@ build_property.AvaloniaNameGeneratorViewFileNamingStrategy = NamespaceAndClassNa
 build_property.AvaloniaNameGeneratorAttachDevTools = true
 build_property.AvaloniaUseCompiledBindingsByDefault = true
 build_property.AvaloniaMainPackageVersion = 12.1.4
-build_property.AvaloniaPreviewerNetCoreToolPath = C:\Users\BenRe\.nuget\packages\avalonia\12.1.4\buildTransitive\\..\tools\net8.0\designer\Avalonia.Designer.HostApp.dll
-build_property.AvaloniaResourcePaths = C:\Users\BenRe\Documents\GitHub\BEN_TOOLBOX_2.0\Assets\avalonia-logo.ico,C:\Users\BenRe\Documents\GitHub\BEN_TOOLBOX_2.0\App.axaml,C:\Users\BenRe\Documents\GitHub\BEN_TOOLBOX_2.0\Views\MainWindow.axaml
+build_property.AvaloniaPreviewerNetCoreToolPath = C:\Users\Ben\.nuget\packages\avalonia\12.1.4\buildTransitive\\..\tools\net8.0\designer\Avalonia.Designer.HostApp.dll
+build_property.AvaloniaResourcePaths = M:\BACKUPS\D_Drive\2025_11_01_D_Drive_Backup_Manual\My Media Content\Applications\BEN_TOOLBOX_2.0\Assets\avalonia-logo.ico,M:\BACKUPS\D_Drive\2025_11_01_D_Drive_Backup_Manual\My Media Content\Applications\BEN_TOOLBOX_2.0\App.axaml,M:\BACKUPS\D_Drive\2025_11_01_D_Drive_Backup_Manual\My Media Content\Applications\BEN_TOOLBOX_2.0\Views\MainWindow.axaml
 build_property.MvvmToolkitEnableINotifyPropertyChangingSupport = true
 build_property._MvvmToolkitIsUsingWindowsRuntimePack = false
 build_property.CsWinRTComponent = 
@@ -27,14 +27,14 @@ build_property.EnforceExtendedAnalyzerRules =
 build_property.EntryPointFilePath = 
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = BEN_TOOLBOX_2_0
-build_property.ProjectDir = C:\Users\BenRe\Documents\GitHub\BEN_TOOLBOX_2.0\
+build_property.ProjectDir = M:\BACKUPS\D_Drive\2025_11_01_D_Drive_Backup_Manual\My Media Content\Applications\BEN_TOOLBOX_2.0\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.EffectiveAnalysisLevelStyle = 10.0
 build_property.EnableCodeStyleSeverity = 
 
-[C:/Users/BenRe/Documents/GitHub/BEN_TOOLBOX_2.0/App.axaml]
+[M:/BACKUPS/D_Drive/2025_11_01_D_Drive_Backup_Manual/My Media Content/Applications/BEN_TOOLBOX_2.0/App.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/Users/BenRe/Documents/GitHub/BEN_TOOLBOX_2.0/Views/MainWindow.axaml]
+[M:/BACKUPS/D_Drive/2025_11_01_D_Drive_Backup_Manual/My Media Content/Applications/BEN_TOOLBOX_2.0/Views/MainWindow.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
