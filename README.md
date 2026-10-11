@@ -138,3 +138,10 @@ Choose a game project to locate exact resources. Last project/report paths are
 remembered separately; game data is never written.
 See [the inspector guide](Docs/ContentInspector.md) for export setup, schema
 limits, future editing plans and local verification.
+
+## Native Clipboard to PNG (Windows)
+
+1. Open **File Toolbox → Clipboard to PNG** and set an existing destination folder. This is remembered under LocalAppData.
+2. Snip with `Win+Shift+S`; press `Ctrl+Shift+V` globally to quick-save to `Screenshot_YYYYMMDD_0001.png`, or use Preview Clipboard and Save PNG in the tool.
+3. The app must be running to register the shortcut. It can be minimized; **closing it exits and unregisters the shortcut**. No tray/background launch on startup yet.
+4. The shortcut may fail to register if another application already uses it; check the dashboard status. PNG and DIB clipboard formats are supported. The source clipboard is not modified and existing PNGs are never overwritten.

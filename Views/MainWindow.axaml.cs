@@ -8,10 +8,17 @@ namespace BEN_TOOLBOX_2_0.Views;
 public partial class MainWindow : Window
 {
     private readonly ToolLauncher _launcher = new();
+    private ScreenshotHotkey? _screenshotHotkey;
     public MainWindow()
     {
         InitializeComponent();
         ShowSection("Dashboard");
+        if (OperatingSystem.IsWindows())
+        {
+            _screenshotHotkey = new ScreenshotHotkey(message => { InfoTitle.Text = "SCREENSHOT QUICK SAVE"; InfoDescription.Text = message; });
+            if (!_screenshotHotkey.Registered) InfoDescription.Text = "Screenshot hotkey Ctrl+Shift+V unavailable (already registered by another application).";
+        }
+        Closed += (_, _) => _screenshotHotkey?.Dispose();
     }
 
     private void NavigateDashboard(object? sender, RoutedEventArgs e) => ShowSection("Dashboard");
@@ -25,6 +32,13 @@ public partial class MainWindow : Window
         if (sender is not Button { Tag: ToolDefinition tool }) return;
         try
         {
+            if (tool.Id == "clipboard-png")
+            {
+                new ClipboardPngWindow().Show(this);
+                InfoTitle.Text = "CLIPBOARD TO PNG";
+                InfoDescription.Text = "Use Win+Shift+S, then Ctrl+Shift+V to quick-save while the toolbox is running.";
+                return;
+            }
             if (tool.Id == "content-inspector")
             {
                 new ContentInspectorWindow().Show(this);

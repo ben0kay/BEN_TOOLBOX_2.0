@@ -21,6 +21,7 @@ public static class ToolCatalog
         new("resource-checker","Game","Resource Checker","Check resource paths and artwork connections.","GameDev_Toolbox/Tools/ResourceChecker/ResourceChecker.ps1"),
         new("artwork-prompter","Game","Artwork Design Prompter","Compose prompts for game artwork and biomes.","GameDev_Toolbox/Tools/ArtworkDesignPrompter/ArtworkDesignPrompter.ps1"),
         new("folder-backup","Files","Folder Backup","Create dated folder backups with reports.","File_Toolbox/Tools/Backup/Backup.ps1"),
+        new("clipboard-png","Files","Clipboard to PNG","Save Windows snips from the clipboard as numbered PNG files.",""),
         new("duplicates","Files","Duplicate File Finder","Compare file names and content; optionally recycle verified matches.","File_Toolbox/Tools/DuplicateFileFinder/DuplicateFileFinder.ps1"),
         new("content-inspector","Inspect","Items & Resource Inspector","Browse items, drops, crafting recipes, biome bindings and validation reports.",""),
         new("lighting","Inspect","Lighting & Shadow Inspector","Inspect the main light and shadow configuration.","GameDev_Toolbox/Tools/Inspectors/LightingInspector/LightingInspector.ps1"),
