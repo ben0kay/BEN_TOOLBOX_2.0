@@ -9,7 +9,7 @@ namespace BEN_TOOLBOX_2_0.Services;
 // Explicit allowlist: no arbitrary commands or user-supplied script paths.
 public sealed record ToolDefinition(string Id, string Category, string Name, string Description, string RelativePath)
 {
-    public string Status => "WINDOWS POWERSHELL  /  LOCAL";
+    public string Status => Id == "content-inspector" ? "NATIVE AVALONIA  /  READ ONLY" : "WINDOWS POWERSHELL  /  LOCAL";
 }
 
 public static class ToolCatalog
@@ -22,6 +22,7 @@ public static class ToolCatalog
         new("artwork-prompter","Game","Artwork Design Prompter","Compose prompts for game artwork and biomes.","GameDev_Toolbox/Tools/ArtworkDesignPrompter/ArtworkDesignPrompter.ps1"),
         new("folder-backup","Files","Folder Backup","Create dated folder backups with reports.","File_Toolbox/Tools/Backup/Backup.ps1"),
         new("duplicates","Files","Duplicate File Finder","Compare file names and content; optionally recycle verified matches.","File_Toolbox/Tools/DuplicateFileFinder/DuplicateFileFinder.ps1"),
+        new("content-inspector","Inspect","Items & Resource Inspector","Browse items, drops, crafting recipes, biome bindings and validation reports.",""),
         new("lighting","Inspect","Lighting & Shadow Inspector","Inspect the main light and shadow configuration.","GameDev_Toolbox/Tools/Inspectors/LightingInspector/LightingInspector.ps1"),
         new("file-size","Inspect","File Size Inspector","Find large project assets and files.","GameDev_Toolbox/Tools/Inspectors/FileSizeInspector/FileSizeInspector.ps1"),
         new("biome","Inspect","Biome Population Inspector","Inspect biome content and species weights.","GameDev_Toolbox/Tools/Inspectors/BiomeContentInspector/BiomePopulationInspector.ps1"),
@@ -80,3 +81,4 @@ public sealed class ToolLauncher
         return null;
     }
 }
+

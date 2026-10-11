@@ -126,3 +126,15 @@ Security requirements for the future API: device authentication, encrypted conne
 - Asset Usage Finder: native read-only project scan for direct and transitive `res://` references, resource UIDs and PNG ImageFolder references, with cancellation and results copy. Some dynamic usage and full legacy reporting are not included.
 - Folder Backup: native preview and create-new dated backup folders with folder/extension exclusions, background execution, cancellation, and a summary/settings report. Sources are preserved. **Incomplete backups are retained and clearly marked** rather than silently removed. Legacy CSV/log/size/date filters and full reporting need parity work.
 - Original PowerShell versions are unchanged. Test on disposable data first; compile and compare behavior with legacy tools before regular use.
+
+
+## Items & Resource Inspector
+
+Project Inspectors now includes a native read-only content explorer for the
+isometric-new-2d schema-v1 export: items, harvest/ore/ground drops, crafting
+recipes, biome bindings, shared profiles and validation diagnostics. It starts
+with a labelled demo and can load/refresh ContentIndex.json from Content Pass 6.
+Choose a game project to locate exact resources. Last project/report paths are
+remembered separately; game data is never written.
+See [the inspector guide](Docs/ContentInspector.md) for export setup, schema
+limits, future editing plans and local verification.

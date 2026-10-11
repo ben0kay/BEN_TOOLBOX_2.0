@@ -25,6 +25,13 @@ public partial class MainWindow : Window
         if (sender is not Button { Tag: ToolDefinition tool }) return;
         try
         {
+            if (tool.Id == "content-inspector")
+            {
+                new ContentInspectorWindow().Show(this);
+                InfoTitle.Text = "ITEMS & RESOURCE INSPECTOR";
+                InfoDescription.Text = "Read-only content browser opened. Load your game export to inspect items, drops, recipes and biome bindings.";
+                return;
+            }
             if (tool.Id == "lighting" || tool.Id == "biome")
             {
                 new WorldInspectorWindow(tool.Id == "lighting" ? "lighting" : "biome").Show(this);
@@ -159,3 +166,4 @@ public partial class MainWindow : Window
         }
     }
 }
+
