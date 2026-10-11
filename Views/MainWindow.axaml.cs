@@ -25,6 +25,13 @@ public partial class MainWindow : Window
         if (sender is not Button { Tag: ToolDefinition tool }) return;
         try
         {
+            if (tool.Id == "file-size" || tool.Id == "resource-checker")
+            {
+                new InspectorWindow(tool.Id == "file-size" ? "size" : "resources").Show(this);
+                InfoTitle.Text = "NATIVE INSPECTOR";
+                InfoDescription.Text = tool.Name + " opened in Avalonia. The legacy PowerShell script remains available.";
+                return;
+            }
             if (tool.Id == "sprite-splitter")
             {
                 new SpriteSplitterWindow().Show(this);

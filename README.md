@@ -97,3 +97,10 @@ Security requirements for the future API: device authentication, encrypted conne
 - Existing output files are not overwritten; an incomplete export attempts to remove its own outputs.
 - This initial pass uses a textual sprite region preview rather than thumbnail gallery. Test on sample PNGs before batch work.
 - Stage 3.3 will convert Sprite Batch Tool separately.
+
+## Stage 3.3 — Native read-only inspectors (first pass)
+
+- File Size Inspector: ranks up to 200 largest files under a selected directory, skipping common generated folders.
+- Resource Checker: checks static `res://` references in several Godot text formats against a selected project; does not replace comprehensive Godot validation or resolve every dynamic reference.
+- Both use cancellable background scanning and separate read-only services in `Services/InspectorServices.cs`.
+- Existing PowerShell versions remain unchanged and may have additional features; this is initial core functionality, not full feature parity.
