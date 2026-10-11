@@ -112,3 +112,10 @@ Security requirements for the future API: device authentication, encrypted conne
 - Both are read-only, use background workers, and require selecting an external Godot project. Neither runs Godot nor claims live runtime values.
 - Services: `LightingInspectionService.cs` and `BiomeInspectionService.cs`; presentation: `WorldInspectorWindow.cs`.
 - Initial native parity only: compare against the preserved PowerShell versions on a real project before relying on reports.
+
+## Stage 3.5 — Native Sprite Batch Tool (first pass)
+
+- Native Avalonia batch PNG workflow: preview, 0–1 scale, numeric/letter suffix naming, optional species folders, and optional original copies in destination/RAW.
+- Existing files are never overwritten; sources are not modified. Background execution, cancellation, rollback attempts and file-conflict checks are included.
+- The original PowerShell version is preserved. **Godot Plant/Tree .tres generation and its parameters are not yet ported.** Use legacy tool when those features are needed.
+- Open Game Development → Sprite Batch Tool. Choose existing separate source and destination directories, preview, then export.

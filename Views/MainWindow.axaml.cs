@@ -39,6 +39,13 @@ public partial class MainWindow : Window
                 InfoDescription.Text = tool.Name + " opened in Avalonia. The legacy PowerShell script remains available.";
                 return;
             }
+            if (tool.Id == "sprite-batch")
+            {
+                new SpriteBatchWindow().Show(this);
+                InfoTitle.Text = "NATIVE SPRITE BATCH TOOL";
+                InfoDescription.Text = "Sprite Batch Tool opened in Avalonia; original PowerShell utility is preserved.";
+                return;
+            }
             if (tool.Id == "sprite-splitter")
             {
                 new SpriteSplitterWindow().Show(this);
