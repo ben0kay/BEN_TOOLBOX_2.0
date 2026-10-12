@@ -12,7 +12,7 @@ using SixLabors.ImageSharp.Processing;
 namespace BEN_TOOLBOX_2_0.Services;
 
 public sealed record SpriteBatchOptions(string Source, string Destination, string Prefix,
-    double Scale, int StartNumber, int Digits, bool LetterSuffixes, bool SpeciesFolders, bool ArchiveOriginals);
+    double Scale, int StartNumber, int Digits, bool LetterSuffixes, bool SpeciesFolders, bool ArchiveOriginals, string[]? SelectedFiles = null);
 public sealed record SpriteBatchEntry(string Source, string Output, int OriginalWidth, int OriginalHeight, int Width, int Height)
 {
     public string Display => $"{Path.GetFileName(Source)} → {Path.GetFileName(Output)}  |  {OriginalWidth}×{OriginalHeight} → {Width}×{Height}";
@@ -23,22 +23,35 @@ public static class SpriteBatchService
         Task.Run(() => Plan(options, ct), ct);
     private static IReadOnlyList<SpriteBatchEntry> Plan(SpriteBatchOptions o, CancellationToken ct)
     {
-        if (!Directory.Exists(o.Source) || !Directory.Exists(o.Destination))
+        if ((o.SelectedFiles is null && !Directory.Exists(o.Source)) || !Directory.Exists(o.Destination))
             throw new DirectoryNotFoundException("Choose existing source and destination folders.");
-        var source = Path.GetFullPath(o.Source);
+        var source = o.SelectedFiles is null ? Path.GetFullPath(o.Source) : null;
         var destination = Path.GetFullPath(o.Destination);
-        if ((File.GetAttributes(source) & FileAttributes.ReparsePoint) != 0 ||
+        if ((source != null && (File.GetAttributes(source) & FileAttributes.ReparsePoint) != 0) ||
             (File.GetAttributes(destination) & FileAttributes.ReparsePoint) != 0)
             throw new IOException("Linked root directories are not supported.");
         static bool Inside(string a,string b) => a.Equals(b,StringComparison.OrdinalIgnoreCase) ||
             a.StartsWith(Path.TrimEndingDirectorySeparator(b)+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase);
-        if (Inside(source,destination) || Inside(destination,source)) throw new IOException("Source and destination cannot overlap.");
+        if (source != null && (Inside(source,destination) || Inside(destination,source))) throw new IOException("Source and destination cannot overlap.");
         if (!double.IsFinite(o.Scale) || o.Scale <= 0 || o.Scale > 1) throw new ArgumentException("Scale must be > 0 and <= 1.");
         if (o.StartNumber < 0 || o.Digits is < 1 or > 8) throw new ArgumentException("Invalid start or digits.");
         if (string.IsNullOrEmpty(o.Prefix) || !System.Text.RegularExpressions.Regex.IsMatch(o.Prefix, "^[A-Za-z][A-Za-z0-9_]*$"))
             throw new ArgumentException("Prefix must start with a letter and contain only ASCII letters, digits, underscores.");
-        var files=Directory.EnumerateFiles(source).Where(p=>Path.GetExtension(p).Equals(".png",StringComparison.OrdinalIgnoreCase))
-            .OrderBy(Path.GetFileName,StringComparer.OrdinalIgnoreCase).ToArray();
+        var files = (o.SelectedFiles is null
+                ? Directory.EnumerateFiles(source!).ToArray()
+                : o.SelectedFiles.Select(Path.GetFullPath).ToArray())
+            .Where(p => Path.GetExtension(p).Equals(".png", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(p => p, StringComparer.OrdinalIgnoreCase).ToArray();
+        foreach (var file in files)
+        {
+            if (!File.Exists(file)) throw new FileNotFoundException("Selected PNG is missing.", file);
+            if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) != 0)
+                throw new IOException("Linked source files are not supported: " + file);
+            var full = Path.GetFullPath(file);
+            if (Inside(full, destination)) throw new IOException("Input image cannot live inside destination: " + full);
+        }
         if(files.Length==0)throw new IOException("No PNG files found.");
         if(!o.LetterSuffixes && (long)o.StartNumber+files.Length-1>int.MaxValue)throw new ArgumentException("Start number too large.");
         var result=new List<SpriteBatchEntry>();var used=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -86,7 +99,7 @@ public static class SpriteBatchService
                 if(!Directory.Exists(dir)){Directory.CreateDirectory(dir);folders.Add(dir);}
                 if(raw!=null)
                 {
-                    var archived=Path.Combine(raw,Path.GetFileName(entry.Source));
+                    var archived=Path.Combine(raw,$"{completed:D4}_{Path.GetFileName(entry.Source)}");
                     File.Copy(entry.Source,archived,false);written.Add(archived);
                 }
                 using var image=Image.Load<Rgba32>(entry.Source);

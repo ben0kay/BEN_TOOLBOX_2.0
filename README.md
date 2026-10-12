@@ -145,3 +145,10 @@ limits, future editing plans and local verification.
 2. Snip with `Win+Shift+S`; press `Ctrl+Shift+V` globally to quick-save to `Screenshot_YYYYMMDD_0001.png`, or use Preview Clipboard and Save PNG in the tool.
 3. The app must be running to register the shortcut. It can be minimized; **closing it exits and unregisters the shortcut**. No tray/background launch on startup yet.
 4. The shortcut may fail to register if another application already uses it; check the dashboard status. PNG and DIB clipboard formats are supported. The source clipboard is not modified and existing PNGs are never overwritten.
+
+### Sprite Batch: drop files or paste folder
+
+- Drag individual PNG images (including from multiple source directories) onto **DROP PNG FILES HERE**, or paste a source folder path / click **BROWSE** as before.
+- The most recently chosen input mode wins. Typing a folder path switches back to folder mode; dropping PNGs switches to selected-files mode.
+- Existing output folder field and Browse button remain unchanged. Preview and export use the same naming, scaling and create-new safeguards.
+- Dropped paths are deduplicated. RAW archival prefixes source filenames with a unique sequence number to avoid collisions for files from multiple folders.
