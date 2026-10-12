@@ -63,12 +63,12 @@ public sealed class SpriteBatchWindow : Window
         DragDrop.SetAllowDrop(dropZone, true);
         dropZone.AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {
-            e.DragEffects = e.Data.GetFiles()?.Any() == true ? DragDropEffects.Copy : DragDropEffects.None;
+            e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None;
             e.Handled = true;
         });
         dropZone.AddHandler(DragDrop.DropEvent, (_, e) =>
         {
-            var files = e.Data.GetFiles()?.Where(f => f.Path.IsFile)
+            var files = e.DataTransfer.TryGetFiles()?.Where(f => f.Path.IsFile)
                 .Select(f => f.Path.LocalPath)
                 .Where(f => Path.GetExtension(f).Equals(".png", StringComparison.OrdinalIgnoreCase))
                 .Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ?? Array.Empty<string>();
