@@ -25,18 +25,59 @@ public sealed record ArtworkSiblingPromptRequest(
     string Material, string Details, string Colours, string Notes,
     int Variations, bool Transparent, bool NoCastShadow,
     string? SiblingVariantId, string SiblingNotes,
-    bool PreserveStructure, bool PreserveTrunkRoots);
+    bool PreserveStructure, bool PreserveTrunkRoots,
+    bool MatchGroundFootprint, bool UseProjectReferences, string ReferenceRepositoryUrl);
 
 public sealed record ArtworkSiblingPromptResult(string MainPrompt, string? SiblingPrompt)
 {
     public string Combined => SiblingPrompt is null
-        ? MainPrompt
-        : "MAIN ARTWORK PROMPT" + Environment.NewLine + MainPrompt
-          + Environment.NewLine + Environment.NewLine + "SIBLING ARTWORK PROMPT" + Environment.NewLine + SiblingPrompt;
+        ? "OUTPUT REQUEST: Create exactly 1 image (the main artwork only). Do not create a contact sheet or extra variants."
+          + Environment.NewLine + Environment.NewLine + MainPrompt
+        : "OUTPUT REQUEST: Create exactly 2 SEPARATE images: image 1 is the healthy/main asset and image 2 is the matching transformed sibling."
+          + Environment.NewLine + "Return both as individual images, not a collage, composite, side-by-side picture or sprite sheet. No additional variations or third image."
+          + Environment.NewLine + "Keep the shared viewing angle, scale, pixel density and grounded base alignment consistent."
+          + Environment.NewLine + Environment.NewLine + "IMAGE 1 OF 2 — MAIN ARTWORK"
+          + Environment.NewLine + MainPrompt
+          + Environment.NewLine + Environment.NewLine + "IMAGE 2 OF 2 — SIBLING ARTWORK"
+          + Environment.NewLine + SiblingPrompt;
 }
 
 public static class ArtworkSiblingPromptService
 {
+    public const string DefaultFantasyRepository = "https://github.com/ben0kay/isometric-fantasy-2d";
+
+    // Actual asset paths verified against the production Fantasy 2D repository (October 2026).
+    // Do not invent filenames. Non-tree categories with no committed PNGs use a folder search hint.
+    private sealed record ProjectAssetReferences(string SearchRoot, string[] VerifiedPaths);
+
+    private static readonly Dictionary<string, ProjectAssetReferences> ProjectExamples = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Tree"] = new("WORLD/Content/Vegetation/Trees/",
+            new[]
+            {
+                "WORLD/Content/Vegetation/Trees/Oak/Sprites/tree_01.png",
+                "WORLD/Content/Vegetation/Trees/PinkBlossom/Sprites/tree_pink_blossom_01.png",
+                "WORLD/Content/Vegetation/Trees/Oak/Sprites/oak_charred.png"
+            }),
+        ["Shrub"] = new("WORLD/Content/Vegetation/", Array.Empty<string>()),
+        ["Plant"] = new("WORLD/Content/Vegetation/", Array.Empty<string>()),
+        ["Grass"] = new("WORLD/Content/Vegetation/Grass/Sprites/",
+            new[]
+            {
+                "WORLD/Content/Vegetation/Grass/Sprites/grass_small_01.png",
+                "WORLD/Content/Vegetation/Grass/Sprites/grass_small_02.png"
+            }),
+        ["Rock"] = new("WORLD/Content/Rocks/Sprites/",
+            new[] { "WORLD/Content/Rocks/Sprites/rock_01.webp" }),
+        ["Ore deposit"] = new("WORLD/Content/Rocks/", Array.Empty<string>()),
+        ["Creature"] = new("ENTITIES/", Array.Empty<string>()),
+        ["Alien creature"] = new("ENTITIES/", Array.Empty<string>()),
+        ["Prop"] = new("WORLD/Content/", Array.Empty<string>()),
+        ["Structure"] = new("WORLD/Content/", Array.Empty<string>()),
+        ["Surface patch"] = new("WORLD/Content/", Array.Empty<string>()),
+        ["Fungus"] = new("WORLD/Content/Vegetation/", Array.Empty<string>())
+    };
+
     public static readonly string[] Categories =
     {
         "Tree", "Shrub", "Plant", "Grass", "Fungus", "Rock", "Surface patch",
@@ -162,6 +203,8 @@ public static class ArtworkSiblingPromptService
         AppendOptional(main, "Details", request.Details);
         AppendOptional(main, "Colours", request.Colours);
         AppendPresentation(main, style, request.Transparent, request.NoCastShadow);
+        if (request.UseProjectReferences)
+            AppendProjectReferences(main, request);
         AppendOptional(main, "Additional requirements", request.Notes);
 
         if (string.IsNullOrWhiteSpace(request.SiblingVariantId))
@@ -187,12 +230,43 @@ public static class ArtworkSiblingPromptService
             sibling.AppendLine("Continuity: retain recognizable species/object identity, large structural landmarks, approximate size and the same sprite placement; allow the canopy or damaged outer silhouette to change as required.");
         if (request.PreserveTrunkRoots && (request.Category is "Tree" or "Shrub"))
             sibling.AppendLine("Keep the same main trunk and grounded root foundation intact, with the same base/anchor. Only the outer branches, canopy and surface treatment should substantially change unless explicitly requested.");
+        if (request.MatchGroundFootprint)
+            sibling.AppendLine("STRICT BASE MATCH: Preserve the EXACT same ground-contact foundation outline, lower trunk/root footprint, placement anchor and base shape as image 1. Do not shift, shrink, rotate or redraw the ground foundation differently. Only the canopy, upper branches and allowed material damage should change.");
         sibling.AppendLine("Match the main artwork's camera angle, asset scale, composition, texture treatment and visual style. If the main image is supplied, use it as the visual reference; otherwise follow the original description.");
         AppendPresentation(sibling, style, request.Transparent, request.NoCastShadow);
+        if (request.UseProjectReferences)
+            AppendProjectReferences(sibling, request);
         if (!string.IsNullOrWhiteSpace(request.Notes))
             sibling.AppendLine("Shared art direction (where compatible with variant): " + request.Notes.Trim());
         AppendOptional(sibling, "Additional sibling requirements", request.SiblingNotes);
         return new ArtworkSiblingPromptResult(main.ToString().TrimEnd(), sibling.ToString().TrimEnd());
+    }
+
+    private static void AppendProjectReferences(StringBuilder builder, ArtworkSiblingPromptRequest request)
+    {
+        var repo = request.ReferenceRepositoryUrl.Trim().TrimEnd('/');
+        if (!Uri.TryCreate(repo, UriKind.Absolute, out var parsed)
+            || parsed.Scheme != Uri.UriSchemeHttps
+            || !parsed.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
+            || parsed.Segments.Length < 3)
+            throw new ArgumentException("Enter a valid https://github.com/owner/repository URL for the artwork references.");
+
+        builder.AppendLine("PROJECT ARTWORK REFERENCES — IMPORTANT: Before generating, IF repository browsing is available, open the project README and examine existing artwork for the SAME category. Match its illustrated style, visual density, sprite scale, outline treatment, palette discipline and top-down/angled viewpoint rather than inventing a new art direction.");
+        builder.AppendLine("Project README: " + repo + "/blob/main/README.md");
+        if (repo.Equals(DefaultFantasyRepository, StringComparison.OrdinalIgnoreCase))
+        {
+            var references = ProjectExamples.TryGetValue(request.Category, out var found)
+                ? found : new ProjectAssetReferences("WORLD/Content/", Array.Empty<string>());
+            builder.AppendLine("Find related " + request.Category.ToLowerInvariant() + " sprites under: " + repo + "/tree/main/" + references.SearchRoot);
+            foreach (var path in references.VerifiedPaths)
+                builder.AppendLine("Existing example asset: " + repo + "/blob/main/" + path);
+            if (references.VerifiedPaths.Length == 0)
+                builder.AppendLine("No category-specific image path has been verified in this repository. Search relevant content/actor folders for PNG or WebP examples; do not assume a matching sprite already exists.");
+        }
+        else
+            builder.AppendLine("Search this repository for existing " + request.Category + " artwork PNG/WebP sprites, prioritizing actual game content assets over placeholder/debug files.");
+
+        builder.AppendLine("These are references to inspect, NOT proof they have been viewed. If this image-generation session cannot open the links, ask for reference PNGs to be attached for an exact style match; otherwise use the written style description as a fallback and do not claim to have reviewed the images.");
     }
 
     private static void AppendOptional(StringBuilder builder, string label, string? value)

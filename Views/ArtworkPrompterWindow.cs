@@ -27,13 +27,16 @@ public sealed class ArtworkPrompterWindow : Window
     private readonly ComboBox siblingVariant = new() { MinWidth = 225 };
     private readonly CheckBox preserveStructure = new() { Content = "Preserve identity, scale and core structure", IsChecked = true };
     private readonly CheckBox preserveTrunkRoots = new() { Content = "Keep main trunk and roots intact", IsChecked = true };
+    private readonly CheckBox matchGroundFootprint = new() { Content = "Match the exact ground/base silhouette in both images", IsChecked = true };
+    private readonly CheckBox useProjectReferences = new() { Content = "Automatically reference existing Fantasy 2D project artwork", IsChecked = true };
+    private readonly TextBox referenceRepository = new() { Text = ArtworkSiblingPromptService.DefaultFantasyRepository };
     private readonly TextBox siblingNotes = new() { PlaceholderText = "Optional extra instructions for the sibling", AcceptsReturn = true, Height = 64 };
     private readonly TextBlock presetDescription = new() { TextWrapping = TextWrapping.Wrap, Foreground = Brush.Parse("#B1D4DF") };
     private readonly TextBox mainOutput = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 275 };
     private readonly TextBox siblingOutput = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 275 };
     private readonly Button copyMain = new() { Content = "COPY MAIN" };
     private readonly Button copySibling = new() { Content = "COPY SIBLING" };
-    private readonly Button copyBoth = new() { Content = "COPY BOTH" };
+    private readonly Button copyBoth = new() { Content = "COPY BOTH (2 IMAGES)" };
     private readonly TextBlock status = new() { Text = "Ready", TextWrapping = TextWrapping.Wrap };
     private ArtworkSiblingPromptResult? latest;
 
@@ -80,6 +83,20 @@ public sealed class ArtworkPrompterWindow : Window
 
         body.Children.Add(new TextBlock
         {
+            Text = "PROJECT ARTWORK STYLE REFERENCE",
+            FontSize = 18, FontWeight = FontWeight.Bold, Foreground = Brush.Parse("#86E5F6"),
+            Margin = new Thickness(0, 8, 0, 0)
+        });
+        body.Children.Add(useProjectReferences);
+        body.Children.Add(Field("REFERENCE GITHUB REPOSITORY", referenceRepository));
+        body.Children.Add(new TextBlock
+        {
+            Text = "The prompt will automatically point the AI to this repository's README and category-relevant existing sprites (oak, blossom and charred oak for trees). Links are not image attachments: the AI must have browsing access or you must attach PNGs for a faithful visual match.",
+            TextWrapping = TextWrapping.Wrap, Foreground = Brush.Parse("#B1D4DF")
+        });
+
+        body.Children.Add(new TextBlock
+        {
             Text = "SIBLING ARTWORK",
             FontSize = 18, FontWeight = FontWeight.Bold, Foreground = Brush.Parse("#86E5F6"),
             Margin = new Thickness(0, 8, 0, 0)
@@ -89,6 +106,7 @@ public sealed class ArtworkPrompterWindow : Window
         body.Children.Add(presetDescription);
         body.Children.Add(preserveStructure);
         body.Children.Add(preserveTrunkRoots);
+        body.Children.Add(matchGroundFootprint);
         body.Children.Add(Field("VARIANT-SPECIFIC NOTES", siblingNotes));
         body.Children.Add(TwoColumns(
             Field("MAIN ARTWORK PROMPT", mainOutput),
@@ -120,7 +138,13 @@ public sealed class ArtworkPrompterWindow : Window
         noShadow.IsCheckedChanged += (_, _) => GeneratePrompts();
         preserveStructure.IsCheckedChanged += (_, _) => GeneratePrompts();
         preserveTrunkRoots.IsCheckedChanged += (_, _) => GeneratePrompts();
-        foreach (var input in new[] { subject, shape, material, details, colours, notes, siblingNotes })
+        matchGroundFootprint.IsCheckedChanged += (_, _) => GeneratePrompts();
+        useProjectReferences.IsCheckedChanged += (_, _) =>
+        {
+            referenceRepository.IsEnabled = useProjectReferences.IsChecked == true;
+            GeneratePrompts();
+        };
+        foreach (var input in new[] { subject, shape, material, details, colours, notes, siblingNotes, referenceRepository })
             input.TextChanged += (_, _) => GeneratePrompts();
 
         copyMain.Click += async (_, _) => await CopyAsync(latest?.MainPrompt, "Main prompt");
@@ -190,6 +214,7 @@ public sealed class ArtworkPrompterWindow : Window
         siblingNotes.IsEnabled = enabled;
         preserveStructure.IsEnabled = enabled;
         preserveTrunkRoots.IsEnabled = enabled;
+        matchGroundFootprint.IsEnabled = enabled;
     }
 
     private void GeneratePrompts()
@@ -212,7 +237,10 @@ public sealed class ArtworkPrompterWindow : Window
                     ? (siblingVariant.SelectedItem as ArtworkSiblingVariant)?.Id : null,
                 siblingNotes.Text ?? "",
                 preserveStructure.IsChecked == true,
-                preserveTrunkRoots.IsChecked == true);
+                preserveTrunkRoots.IsChecked == true,
+                matchGroundFootprint.IsChecked == true,
+                useProjectReferences.IsChecked == true,
+                referenceRepository.Text ?? "");
             latest = ArtworkSiblingPromptService.Compose(request);
             mainOutput.Text = latest.MainPrompt;
             siblingOutput.Text = latest.SiblingPrompt ?? "Enable sibling artwork to generate a companion prompt.";
@@ -221,7 +249,7 @@ public sealed class ArtworkPrompterWindow : Window
             copyBoth.IsEnabled = latest.SiblingPrompt is not null;
             status.Text = latest.SiblingPrompt is null
                 ? "Main prompt ready."
-                : "Main and sibling prompts ready. Copy separately or as a pair.";
+                : "2-image pair ready: one original and one matching sibling. COPY BOTH requests exactly 2 separate images.";
         }
         catch (ArgumentException ex)
         {
