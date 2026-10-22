@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input.Platform;
 using Avalonia.Layout;
 using Avalonia.Media;
 using BEN_TOOLBOX_2_0.Services;
@@ -19,14 +20,14 @@ public sealed class ArtworkPrompterWindow : Window
     private readonly TextBox material = new();
     private readonly TextBox details = new();
     private readonly TextBox colours = new();
-    private readonly TextBox notes = new() { Watermark = "Optional art-direction notes", AcceptsReturn = true, Height = 66 };
+    private readonly TextBox notes = new() { PlaceholderText = "Optional art-direction notes", AcceptsReturn = true, Height = 66 };
     private readonly CheckBox transparent = new() { Content = "Transparent background", IsChecked = true };
     private readonly CheckBox noShadow = new() { Content = "No cast shadow", IsChecked = true };
     private readonly CheckBox generateSibling = new() { Content = "Generate matching sibling artwork", IsChecked = true };
     private readonly ComboBox siblingVariant = new() { MinWidth = 225 };
     private readonly CheckBox preserveStructure = new() { Content = "Preserve identity, scale and core structure", IsChecked = true };
     private readonly CheckBox preserveTrunkRoots = new() { Content = "Keep main trunk and roots intact", IsChecked = true };
-    private readonly TextBox siblingNotes = new() { Watermark = "Optional extra instructions for the sibling", AcceptsReturn = true, Height = 64 };
+    private readonly TextBox siblingNotes = new() { PlaceholderText = "Optional extra instructions for the sibling", AcceptsReturn = true, Height = 64 };
     private readonly TextBlock presetDescription = new() { TextWrapping = TextWrapping.Wrap, Foreground = Brush.Parse("#B1D4DF") };
     private readonly TextBox mainOutput = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 275 };
     private readonly TextBox siblingOutput = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 275 };
@@ -112,16 +113,13 @@ public sealed class ArtworkPrompterWindow : Window
         };
         siblingVariant.SelectionChanged += (_, _) => { UpdateVariantHelp(); GeneratePrompts(); };
         style.SelectionChanged += (_, _) => GeneratePrompts();
-        generateSibling.Checked += (_, _) => { UpdateSiblingControls(); GeneratePrompts(); };
-        generateSibling.Unchecked += (_, _) => { UpdateSiblingControls(); GeneratePrompts(); };
-        transparent.Checked += (_, _) => GeneratePrompts();
-        transparent.Unchecked += (_, _) => GeneratePrompts();
-        noShadow.Checked += (_, _) => GeneratePrompts();
-        noShadow.Unchecked += (_, _) => GeneratePrompts();
-        preserveStructure.Checked += (_, _) => GeneratePrompts();
-        preserveStructure.Unchecked += (_, _) => GeneratePrompts();
-        preserveTrunkRoots.Checked += (_, _) => GeneratePrompts();
-        preserveTrunkRoots.Unchecked += (_, _) => GeneratePrompts();
+        // Avalonia 12 exposes the consolidated IsCheckedChanged event instead
+        // of the old Checked/Unchecked event pair.
+        generateSibling.IsCheckedChanged += (_, _) => { UpdateSiblingControls(); GeneratePrompts(); };
+        transparent.IsCheckedChanged += (_, _) => GeneratePrompts();
+        noShadow.IsCheckedChanged += (_, _) => GeneratePrompts();
+        preserveStructure.IsCheckedChanged += (_, _) => GeneratePrompts();
+        preserveTrunkRoots.IsCheckedChanged += (_, _) => GeneratePrompts();
         foreach (var input in new[] { subject, shape, material, details, colours, notes, siblingNotes })
             input.TextChanged += (_, _) => GeneratePrompts();
 
