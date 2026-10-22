@@ -60,10 +60,16 @@ public partial class MainWindow : Window
                 InfoDescription.Text = tool.Name + " opened in Avalonia. The legacy PowerShell script remains available.";
                 return;
             }
-            if (tool.Id == "artwork-prompter" || tool.Id == "asset-usage" || tool.Id == "folder-backup")
+            if (tool.Id == "artwork-prompter")
             {
-                var kind = tool.Id == "artwork-prompter" ? "artwork" : tool.Id == "asset-usage" ? "usage" : "backup";
-                new RemainingToolsWindow(kind).Show(this);
+                new ArtworkPrompterWindow().Show(this);
+                InfoTitle.Text = "NATIVE ARTWORK PROMPTER";
+                InfoDescription.Text = "Fantasy artwork prompts and matching sibling variants are ready.";
+                return;
+            }
+            if (tool.Id == "asset-usage" || tool.Id == "folder-backup")
+            {
+                new RemainingToolsWindow(tool.Id == "asset-usage" ? "usage" : "backup").Show(this);
                 InfoTitle.Text = "NATIVE TOOL";
                 InfoDescription.Text = tool.Name + " opened in Avalonia. The legacy PowerShell version is preserved.";
                 return;

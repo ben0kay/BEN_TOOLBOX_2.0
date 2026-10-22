@@ -122,7 +122,7 @@ Security requirements for the future API: device authentication, encrypted conne
 
 ## Stage 3.6 — Remaining native toolbox modules (first pass)
 
-- Artwork Design Prompter: native editable prompt fields, asset-category selection, transparency/shadow options, and clipboard copy. The extensive per-category legacy presets, randomization/locking, saved JSON customization and prompt export are **not yet ported**.
+- Artwork Design Prompter: dedicated Avalonia window with **fantasy top-down** or sci-fi/isometric direction, category examples, editable primary prompt, category-appropriate **sibling variants** (charred tree, leafless, autumn, snow, rain-wet, etc.), structure/root continuity controls, live main/sibling preview and independent/combined clipboard copy. Variant recipes are data-driven in Services/ArtworkSiblingPromptService.cs; see [usage and test guide](Docs/ArtworkPrompter.md). Legacy randomization/locking, saved preset customization and file export are **not yet ported**.
 - Asset Usage Finder: native read-only project scan for direct and transitive `res://` references, resource UIDs and PNG ImageFolder references, with cancellation and results copy. Some dynamic usage and full legacy reporting are not included.
 - Folder Backup: native preview and create-new dated backup folders with folder/extension exclusions, background execution, cancellation, and a summary/settings report. Sources are preserved. **Incomplete backups are retained and clearly marked** rather than silently removed. Legacy CSV/log/size/date filters and full reporting need parity work.
 - Original PowerShell versions are unchanged. Test on disposable data first; compile and compare behavior with legacy tools before regular use.
