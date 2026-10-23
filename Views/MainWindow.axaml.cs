@@ -84,6 +84,13 @@ public partial class MainWindow : Window
                 InfoDescription.Text = tool.Name + " opened in Avalonia. The legacy PowerShell version is preserved.";
                 return;
             }
+            if (tool.Id == "pixel-art-converter")
+            {
+                new PixelArtConverterWindow().Show(this);
+                InfoTitle.Text = "PIXEL ART CONVERTER";
+                InfoDescription.Text = "Shared pixel-detail preview; original dimensions retained. Export and handoff are planned.";
+                return;
+            }
             if (tool.Id == "sprite-batch")
             {
                 new SpriteBatchWindow().Show(this);

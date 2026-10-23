@@ -1,6 +1,6 @@
 # Pixel Art Converter — Avalonia Implementation Plan
 
-> **Status: PLANNED — NOT IMPLEMENTED**  
+> **Status: P0 specified; P2 preview coded, Windows validation pending. P1 processing dependency partially coded; P3–P5 pending.**
 > **Created: 2026-10-23**  
 > **Location:** Notes/Plans/PIXEL_ART_CONVERTER_IMPLEMENTATION_PLAN.md  
 > **Audience:** Codex and future development assistants  
@@ -20,6 +20,14 @@ Relevant repository files, inspected on 2026-10-23:
 - BEN_TOOLBOX_2_0.csproj — .NET 10, Avalonia 12.1.4, SixLabors.ImageSharp 3.1.12. Note ImageSharp advisories; address dependency upgrades in separate tested work.
 
 **Do not edit game repositories, rebuild the dashboard or modify unrelated tools.** Keep P0–P5 statuses and this plan's log honest. A GitHub commit is not evidence of a successful Windows build.
+
+## Updated conversion contract — 2026-10-23
+
+User clarification supersedes the original logical-resolution export design below: a 1000×1000 source at detail 64 is reduced to a 64×64 logical grid and enlarged back to **1000×1000 with nearest-neighbour**. Source canvas dimensions and alpha remain intact. Non-square grids follow source aspect ratio. Logical width is capped at source width. This is pixelation; palette quantization is a separate deferred option. All queued files share one setting; only selected preview is processed.
+
+P0 and P2 requested first; the minimum P1 processor needed for actual previews is included. Current UI: append/deduplicate PNG paths, auto-select first, select another with shared settings, remove/clear, integer slider 16–512 and 32/64/96/128/256 presets, box/nearest source sampling, checkerboard, sharp fit preview, debounce and serialized latest-request-wins processing. Input limits: 8192 per side / 32 million pixels. Invalid image content reports a selected-preview error rather than a successful fake image. No eager thumbnail decoding, export or Batch handoff yet.
+
+Historical design below is retained for context; any instruction saying exported dimensions equal logical grid dimensions is **superseded** by this contract. P3/P4 must use the same original-canvas processing pipeline.
 
 ## 1. User-approved workflow
 
@@ -127,9 +135,9 @@ Standalone output is equally important as handoff.
 
 | Phase | Work | Status | Acceptance gate |
 | --- | --- | --- | --- |
-| **P0 — Investigate & contracts** | Read actual code, agree width/alpha/resampler conventions, queue/options contracts | **NOT STARTED** | Behaviour specified, source API compatibility confirmed |
+| **P0 — Investigate & contracts** | Read actual code, agree width/alpha/resampler conventions, queue/options contracts | **SPECIFIED; see updated contract** | Behaviour specified, source API compatibility confirmed |
 | **P1 — Core processor** | ImageSharp deterministic pixelation, aspect/alpha and tests | **NOT STARTED** | 1254-square to 128-square, non-square and alpha cases correct |
-| **P2 — Multi-file live UI** | Register native tool; drag/drop/add; auto-select first; click-to-preview; debounced pixel slider | **NOT STARTED** | Selected image updates smoothly; no conversion of all files on each change |
+| **P2 — Multi-file live UI** | Register native tool; drag/drop/add; auto-select first; click-to-preview; debounced pixel slider | **CODED; Windows validation pending** | Selected image updates smoothly; no conversion of all files on each change |
 | **P3 — Own export/rename** | Destination, naming plan, Export Selected/All, progress/cancel, no overwrite | **NOT STARTED** | Correct PNGs and filenames; source unchanged |
 | **P4 — Sprite Batch handoff** | Temp staging lease, preloaded receiver, nearest resample option | **NOT STARTED** | Converted images already in Batch without previous final export; resize/rename once |
 | **P5 — Regression & docs** | Tests, performance, Windows UI, README/plan progress | **NOT STARTED** | Reproducible end-to-end workflow and tests |
@@ -209,3 +217,7 @@ Standalone output is equally important as handoff.
 - **2026-10-23 — Plan created.** Reviewed current Toolbox navigation, ToolCatalog, Sprite Batch UI and path-based service, Sprite Splitter and .NET/ImageSharp project references. Requirements confirmed: multi-PNG queue, auto-select first, selected-file live pixel width slider, selected row changes preview, direct Converter export/rename **and** converted-image pre-final-output handoff to Sprite Batch. **No implementation code changed. P0–P5 not started.**
 
 **Next Codex task:** Start with P0 and P1. Implement pure ImageSharp conversion and unit/smoke tests; then move to P2 interactive UI, P3 native exporter and P4 typed temporary handoff. Implement in small, tested commits.
+
+- **2026-10-23 — P0/P2 preview implementation:** Updated user contract to retain original canvas size; added core processing dependency and native queued live preview. No .NET SDK in implementation environment, so build, service execution and Windows visual testing remain unverified. P1 full test gate remains pending; P3/P4 not implemented.
+
+Service smoke check (written, not executed here): `dotnet run --project Tests/PixelArtSmoke/PixelArtSmoke.csproj`. Checks retained canvas sizes at all five presets, hard pixel blocks, transparent non-square source, unchanged source hash, and cancellation.

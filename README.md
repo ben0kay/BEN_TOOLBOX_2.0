@@ -155,3 +155,7 @@ Eventually separate **desktop/mobile presentation**, a shared **typed tool/job e
 ---
 
 **README status:** Native tools, D1/D2 dashboard and D3 graph code recorded as of 2026-10-23. D2 measurements were visible in a user screenshot; D3 needs a Windows build/screenshot and its smoke test. D4/D5 remain future work. GPU sensor percentages/temperatures are not connected.
+
+### Pixel Art Converter preview
+
+Game Development → Pixel Art Converter provides a multi-PNG queue and shared live detail slider (including 32/64/96/128/256 presets). Logical pixels are enlarged sharply back to each source’s original canvas dimensions; alpha is preserved. Only the selected image is processed. Preview implementation awaits Windows build/visual validation. Export and Sprite Batch handoff remain planned. See [the implementation plan](Notes/Plans/PIXEL_ART_CONVERTER_IMPLEMENTATION_PLAN.md).
