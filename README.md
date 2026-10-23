@@ -16,6 +16,8 @@ The current dashboard uses a dark navy/cyan design, left navigation and four **A
 
 The mockup is a **visual specification**, not a source of accurate system data. Its illustrated processor, GPU, RAM, clock, percentages and drive capacities are fictional examples. Do **not** hardcode them into the production UI.
 
+**Implementation handoff:** [Dashboard V2 D1–D5 implementation plan](Docs/DashboardV2ImplementationPlan.md) — phase checklist, proposed architecture, scope, performance constraints and Windows acceptance tests. Start at D1; none of D1–D5 is implemented yet.
+
 ### Dashboard V2 — agreed next direction (PLANNED)
 
 - **Retain** the existing left sidebar, four top-level sections and **Available modules** tiles **under** the new dashboard information panels.
