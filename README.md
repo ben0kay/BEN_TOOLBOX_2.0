@@ -10,9 +10,9 @@ The current dashboard uses a dark navy/cyan design, left navigation and four **A
 
 **Reference mockup (design target, NOT an implemented screenshot):**
 
-![BEN TOOLBOX 2.0 Dashboard V2 design concept](Dashboard-V2-Concept.png)
+![BEN TOOLBOX 2.0 Dashboard V2 design concept](toolbox%20dashboard%20concept.png)
 
-[Open Dashboard V2 reference PNG](Dashboard-V2-Concept.png)
+[Open Dashboard V2 reference PNG](toolbox%20dashboard%20concept.png)
 
 The mockup is a **visual specification**, not a source of accurate system data. Its illustrated processor, GPU, RAM, clock, percentages and drive capacities are fictional examples. Do **not** hardcode them into the production UI.
 
@@ -106,7 +106,7 @@ For tools that inspect Godot content, choose the correct project root containing
 | `Docs/` | Feature guides and current technical notes |
 | `Tests/SpriteInventorySmoke/` | Independent sprite-header smoke tests (excluded from main app compile) |
 | `BEN_TOOLBOX_OLDVERSION/` | Preserved legacy PowerShell tools |
-| `Dashboard-V2-Concept.png` | **Visual design reference only**, not part of the current working dashboard |
+| `toolbox dashboard concept.png` | **Visual design reference only**, not part of the current working dashboard |
 
 Important tool details:
 
