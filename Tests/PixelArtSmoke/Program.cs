@@ -21,6 +21,19 @@ try
         if (output.Width != 1000 || output.Height != 1000) throw new Exception("Canvas dimensions changed.");
         if (!output[0, 0].Equals(output[1, 1])) throw new Exception("Logical pixels were smoothed during enlargement.");
     }
+    foreach (var mode in new[] { PixelPalette.Auto16, PixelPalette.Auto32, PixelPalette.Auto64, PixelPalette.Endesga32, PixelPalette.Grayscale16 })
+    {
+        var options = new PixelArtOptions(64, true, mode, true, 1.1, 1.2, 0.9, 0.5);
+        var bytes = PixelArtService.Preview(path, options, CancellationToken.None, logicalPreview: true);
+        if (!bytes.SequenceEqual(PixelArtService.Preview(path, options, CancellationToken.None, logicalPreview: true)))
+            throw new Exception("Palette pipeline is not deterministic.");
+        using var reduced = Image.Load<Rgba32>(bytes);
+        if (reduced.Width != 64 || reduced.Height != 64) throw new Exception("Logical preview dimensions incorrect.");
+        var colours = new HashSet<Rgba32>();
+        for (int y = 0; y < reduced.Height; y++) for (int x = 0; x < reduced.Width; x++) colours.Add(reduced[x,y]);
+        int limit = mode is PixelPalette.Auto16 or PixelPalette.Grayscale16 ? 16 : mode == PixelPalette.Auto64 ? 64 : 32;
+        if (colours.Count > limit) throw new Exception("Palette colour limit exceeded.");
+    }
     if (!hash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(path)))) throw new Exception("Original changed.");
     using (var transparent = new Image<Rgba32>(1200, 800)) transparent.SaveAsPng(path);
     using (var output = Image.Load<Rgba32>(PixelArtService.Preview(path, new(64), CancellationToken.None)))

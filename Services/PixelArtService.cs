@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -7,14 +9,22 @@ using SixLabors.ImageSharp.Processing;
 
 namespace BEN_TOOLBOX_2_0.Services;
 
-public sealed record PixelArtOptions(int LogicalWidth = 128, bool NearestSource = false);
+public enum PixelPalette { Original, Auto16, Auto32, Auto64, Endesga32, Grayscale16 }
+public sealed record PixelArtOptions(int LogicalWidth = 128, bool NearestSource = false,
+    PixelPalette Palette = PixelPalette.Original, bool Perceptual = true,
+    double Brightness = 1, double Contrast = 1, double Saturation = 1, double Dither = 0);
 
-// A coarse logical grid, magnified sharply back to the source canvas. No palette quantization.
+// Shared logical-grid pipeline. Preview can skip enlargement; final output retains the source canvas.
 public static class PixelArtService
 {
-    public static byte[] Preview(string path, PixelArtOptions options, CancellationToken token)
+    public static byte[] Preview(string path, PixelArtOptions options, CancellationToken token, bool logicalPreview = false)
     {
         if (options.LogicalWidth is < 16 or > 512) throw new ArgumentException("Detail must be 16–512.");
+        if (!double.IsFinite(options.Brightness) || options.Brightness is < 0 or > 2 ||
+            !double.IsFinite(options.Contrast) || options.Contrast is < 0 or > 2 ||
+            !double.IsFinite(options.Saturation) || options.Saturation is < 0 or > 2 ||
+            !double.IsFinite(options.Dither) || options.Dither is < 0 or > 1 || !Enum.IsDefined(options.Palette))
+            throw new ArgumentException("Invalid colour settings.");
         token.ThrowIfCancellationRequested();
         var info = Image.Identify(path) ?? throw new IOException("Unreadable PNG.");
         if (info.Width > 8192 || info.Height > 8192 || (long)info.Width * info.Height > 32000000)
@@ -27,10 +37,90 @@ public static class PixelArtService
         image.Mutate(x => x.Resize(gridWidth, gridHeight,
             options.NearestSource ? KnownResamplers.NearestNeighbor : KnownResamplers.Box));
         token.ThrowIfCancellationRequested();
-        image.Mutate(x => x.Resize(width, height, KnownResamplers.NearestNeighbor));
+        image.Mutate(x => x.Brightness((float)options.Brightness).Contrast((float)options.Contrast).Saturate((float)options.Saturation));
+        ApplyPalette(image, options, token);
+        if (!logicalPreview) image.Mutate(x => x.Resize(width, height, KnownResamplers.NearestNeighbor));
         token.ThrowIfCancellationRequested();
         using var stream = new MemoryStream();
         image.SaveAsPng(stream);
         return stream.ToArray();
+    }
+
+    private static readonly int[] Bayer = { 0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5 };
+    private const string Endesga = "be4a2f d77643 ead4aa e4a672 b86f50 733e39 3e2731 a22633 e43b44 f77622 feae34 fee761 63c74d 3e8948 265c42 193c3e 124e89 0099db 2ce8f5 ffffff c0cbdc 8b9bb4 5a6988 3a4466 262b44 181425 ff0044 68386c b55088 f6757a e8b796 c28569";
+    private static void ApplyPalette(Image<Rgba32> image, PixelArtOptions options, CancellationToken token)
+    {
+        if (options.Palette == PixelPalette.Original) return;
+        Rgba32[] palette = options.Palette switch
+        {
+            PixelPalette.Endesga32 => Endesga.Split(' ').Select(h => new Rgba32(Convert.ToByte(h[..2],16), Convert.ToByte(h.Substring(2,2),16), Convert.ToByte(h[4..],16))).ToArray(),
+            PixelPalette.Grayscale16 => Enumerable.Range(0,16).Select(i => new Rgba32((byte)(i*17),(byte)(i*17),(byte)(i*17))).ToArray(),
+            _ => AutomaticPalette(image, options.Palette == PixelPalette.Auto16 ? 16 : options.Palette == PixelPalette.Auto32 ? 32 : 64, token)
+        };
+        if (palette.Length == 0) return;
+        var colours = palette.Select(p => Coordinates(p.R,p.G,p.B,options.Perceptual)).ToArray();
+        for (int y=0;y<image.Height;y++)
+        {
+            token.ThrowIfCancellationRequested();
+            for (int x=0;x<image.Width;x++)
+            {
+                var p=image[x,y]; if(p.A==0) continue;
+                double offset = ((Bayer[(y%4)*4+x%4]+0.5)/16-0.5)*options.Dither*64;
+                var target=Coordinates(Math.Clamp(p.R+offset,0,255),Math.Clamp(p.G+offset,0,255),Math.Clamp(p.B+offset,0,255),options.Perceptual);
+                int best=0; double distance=double.MaxValue;
+                for(int i=0;i<colours.Length;i++)
+                {
+                    var c=colours[i]; double d=(target.x-c.x)*(target.x-c.x)+(target.y-c.y)*(target.y-c.y)+(target.z-c.z)*(target.z-c.z);
+                    if(d<distance){distance=d;best=i;}
+                }
+                var chosen=palette[best]; chosen.A=p.A; image[x,y]=chosen;
+            }
+        }
+    }
+    // Weighted median-cut over a bounded 5-bit RGB histogram; fully transparent pixels are excluded.
+    private static Rgba32[] AutomaticPalette(Image<Rgba32> image,int count,CancellationToken token)
+    {
+        var histogram=new Dictionary<int,(long r,long g,long b,long weight)>();
+        for(int y=0;y<image.Height;y++)
+        {
+            token.ThrowIfCancellationRequested();
+            for(int x=0;x<image.Width;x++)
+            {
+                var p=image[x,y]; if(p.A==0)continue;
+                int key=(p.R>>3)*1024+(p.G>>3)*32+(p.B>>3);
+                histogram.TryGetValue(key,out var h);
+                histogram[key]=(h.r+p.R*p.A,h.g+p.G*p.A,h.b+p.B*p.A,h.weight+p.A);
+            }
+        }
+        var initial=histogram.OrderBy(h=>h.Key).Select(h=>(r:(double)h.Value.r/h.Value.weight,g:(double)h.Value.g/h.Value.weight,b:(double)h.Value.b/h.Value.weight,w:h.Value.weight)).ToList();
+        if(initial.Count==0)return Array.Empty<Rgba32>();
+        var boxes=new List<List<(double r,double g,double b,long w)>>{initial};
+        while(boxes.Count<count)
+        {
+            token.ThrowIfCancellationRequested();
+            int index=-1,axis=0; double score=-1;
+            for(int i=0;i<boxes.Count;i++)
+            {
+                var box=boxes[i];if(box.Count<2)continue;
+                double[] ranges={box.Max(p=>p.r)-box.Min(p=>p.r),box.Max(p=>p.g)-box.Min(p=>p.g),box.Max(p=>p.b)-box.Min(p=>p.b)};
+                for(int a=0;a<3;a++)if(ranges[a]>score){score=ranges[a];index=i;axis=a;}
+            }
+            if(index<0)break;
+            var selected=boxes[index].OrderBy(p=>axis==0?p.r:axis==1?p.g:p.b).ToList();
+            long half=selected.Sum(p=>p.w)/2, sum=0;int split=0;
+            do {sum+=selected[split++].w;}while(split<selected.Count-1&&sum<half);
+            boxes[index]=selected.Take(split).ToList();boxes.Add(selected.Skip(split).ToList());
+        }
+        return boxes.Select(box=>{double w=box.Sum(p=>p.w);return new Rgba32((byte)Math.Round(box.Sum(p=>p.r*p.w)/w),(byte)Math.Round(box.Sum(p=>p.g*p.w)/w),(byte)Math.Round(box.Sum(p=>p.b*p.w)/w));}).ToArray();
+    }
+    private static (double x,double y,double z) Coordinates(double r,double g,double b,bool perceptual)
+    {
+        if(!perceptual)return(r/255,g/255,b/255);
+        static double Linear(double v){v/=255;return v<=0.04045?v/12.92:Math.Pow((v+0.055)/1.055,2.4);}
+        r=Linear(r);g=Linear(g);b=Linear(b);
+        double l=Math.Cbrt(0.4122214708*r+0.5363325363*g+0.0514459929*b),
+            m=Math.Cbrt(0.2119034982*r+0.6806995451*g+0.1073969566*b),
+            s=Math.Cbrt(0.0883024619*r+0.2817188376*g+0.6299787005*b);
+        return(0.2104542553*l+0.793617785*m-0.0040720468*s,1.9779984951*l-2.428592205*m+0.4505937099*s,0.0259040371*l+0.7827717662*m-0.808675766*s);
     }
 }

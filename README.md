@@ -159,3 +159,5 @@ Eventually separate **desktop/mobile presentation**, a shared **typed tool/job e
 ### Pixel Art Converter preview
 
 Game Development → Pixel Art Converter provides a multi-PNG queue and shared live detail slider (including 32/64/96/128/256 presets). Logical pixels are enlarged sharply back to each source’s original canvas dimensions; alpha is preserved. Only the selected image is processed. Preview implementation awaits Windows build/visual validation. Export and Sprite Batch handoff remain planned. See [the implementation plan](Notes/Plans/PIXEL_ART_CONVERTER_IMPLEMENTATION_PLAN.md).
+
+Pixel preview refinements: automatic 16/32/64-colour palettes, Endesga 32/grayscale, RGB or perceptual matching, brightness/contrast/saturation, optional Bayer dithering, and logical-grid Fit/integer zoom. Settings are shared across queued files; automatic palettes derive from each individual image. Windows build/visual validation remains pending.

@@ -221,3 +221,11 @@ Standalone output is equally important as handoff.
 - **2026-10-23 — P0/P2 preview implementation:** Updated user contract to retain original canvas size; added core processing dependency and native queued live preview. No .NET SDK in implementation environment, so build, service execution and Windows visual testing remain unverified. P1 full test gate remains pending; P3/P4 not implemented.
 
 Service smoke check (written, not executed here): `dotnet run --project Tests/PixelArtSmoke/PixelArtSmoke.csproj`. Checks retained canvas sizes at all five presets, hard pixel blocks, transparent non-square source, unchanged source hash, and cancellation.
+
+### P2 colour and preview refinement — 2026-10-23
+
+Coded: Original, automatic 16/32/64 (deterministic alpha-weighted median-cut), Endesga 32 and grayscale palettes; RGB/Oklab colour matching; brightness/contrast/saturation (0–2); optional Bayer 4×4 dithering (0–1, default 0, only with palette mapping). Palette mapping retains alpha and excludes fully transparent pixels from automatic palette estimation. Automatic palettes are derived separately for each image under the shared settings; a locked cross-image automatic palette is not implemented.
+
+Preview uses the processed logical bitmap directly with Fit and 1/2/3/4/6/8× zoom, scrollable when enlarged. These zoom factors use Avalonia device-independent units; display scaling can affect physical-pixel alignment. Conversion's default full-canvas result still preserves source dimensions. Preview changes use the existing serialized, debounced latest-request-wins pipeline. Palette and adjustment work happens on the logical grid, avoiding full-resolution per-pixel colour matching.
+
+Smoke coverage expanded for deterministic palette conversion, palette limits, and logical preview dimensions. Build/test execution and Windows visual validation remain pending: no .NET SDK available in the implementation environment. P3 export and P4 handoff are still pending.
