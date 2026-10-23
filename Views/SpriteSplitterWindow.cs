@@ -26,6 +26,7 @@ public sealed class SpriteSplitterWindow : Window
     private readonly ComboBox canvasMode = new() { ItemsSource=new[] {"Individual crop","Equal rectangle","Equal square"},SelectedIndex=0 };
     private readonly ListBox regionList = new() { MinHeight=110,MaxHeight=180 };
     private readonly List<int> cuts = new();
+    private List<SpriteRegion>? cachedRegions;
     private string? source;
     private int imageWidth,imageHeight;
     private int? selectedCut;
@@ -49,6 +50,10 @@ public sealed class SpriteSplitterWindow : Window
         controls.Children.Add(Labeled("Padding",padding));
         controls.Children.Add(Labeled("Canvas",canvasMode));
         root.Children.Add(controls);
+        root.Children.Add(new TextBlock {
+            Text="Canvas changes the exported PNG size; the source-sheet preview does not resize.",
+            FontSize=11,Foreground=Brush.Parse("#8CAFC6"),TextWrapping=TextWrapping.Wrap
+        });
         var frame=new Border { Height=390,BorderThickness=new Thickness(1),BorderBrush=Brush.Parse("#2A7089"),Background=Brush.Parse("#122132"),ClipToBounds=true };
         var imageGrid=new Grid();
         imageGrid.Children.Add(sheet);imageGrid.Children.Add(overlays);
@@ -67,7 +72,8 @@ public sealed class SpriteSplitterWindow : Window
         overlays.PointerPressed+=PointerDown;overlays.PointerMoved+=PointerMove;overlays.PointerReleased+=PointerUp;
         overlays.SizeChanged+=(_,_)=>RenderCuts();
         threshold.ValueChanged+=(_,_)=>Refresh();
-        canvasMode.SelectionChanged+=(_,_)=>Refresh();
+        canvasMode.SelectionChanged+=(_,_)=>Refresh(recalculateRegions:false);
+        padding.ValueChanged+=(_,_)=>Refresh(recalculateRegions:false);
     }
     private static Control Labeled(string title,Control control)
     {
@@ -150,15 +156,35 @@ public sealed class SpriteSplitterWindow : Window
     {
         dragging=false;e.Pointer.Capture(null);cuts.Sort();Refresh();
     }
-    private void Refresh()
+    private void Refresh(bool recalculateRegions = true)
     {
         RenderCuts();
-        if(source==null)return;
+        if(source==null) { cachedRegions=null; return; }
         try
         {
-            var regions=SpriteSplitService.Regions(source,cuts,(byte)(threshold.Value??0));
-            regionList.ItemsSource=regions.Select((r,i)=>$"Sprite {i+1:D2}  /  {r.Width} x {r.Height}  /  x={r.X} y={r.Y}").ToArray();
-            info.Text=$"{Path.GetFileName(source)}  /  {imageWidth} x {imageHeight}  /  {cuts.Count} cuts  /  {regions.Count} sprites";
+            // Canvas/padding edits are presentation-only; don't rescan/decode the PNG.
+            if(recalculateRegions || cachedRegions==null)
+                cachedRegions=SpriteSplitService.Regions(source,cuts,(byte)(threshold.Value??0));
+            var regions=cachedRegions;
+            int p=(int)(padding.Value??0);
+            int mode=canvasMode.SelectedIndex;
+            string modeName=mode switch {
+                1=>"EQUAL RECTANGLE",
+                2=>"EQUAL SQUARE",
+                _=>"INDIVIDUAL CROP"
+            };
+            regionList.ItemsSource=regions.Select((r,i)=>
+            {
+                var size=SpriteSplitService.ExportCanvasSize(regions,r,p,mode);
+                return $"Sprite {i+1:D2}  /  Art {r.Width} x {r.Height}  /  Export {size.Width} x {size.Height} px  /  x={r.X} y={r.Y}";
+            }).ToArray();
+
+            string outputDetail = regions.Count==0
+                ? "No visible sprites"
+                : mode==0
+                    ? "each sprite uses its own canvas"
+                    : $"ALL EXPORTS {SpriteSplitService.ExportCanvasSize(regions,regions[0],p,mode).Width} x {SpriteSplitService.ExportCanvasSize(regions,regions[0],p,mode).Height} px";
+            info.Text=$"{Path.GetFileName(source)}  /  {imageWidth} x {imageHeight}  /  {cuts.Count} cuts  /  {regions.Count} sprites  /  {modeName}: {outputDetail}";
         }
         catch(Exception e){info.Text="Preview error: "+e.Message;}
     }

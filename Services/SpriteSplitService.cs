@@ -61,6 +61,22 @@ public static class SpriteSplitService
         return result;
     }
 
+    // Shared calculation for the UI export preview and actual PNG exporter.
+    public static (int Width, int Height) ExportCanvasSize(IReadOnlyList<SpriteRegion> regions,
+        SpriteRegion region, int padding, int mode)
+    {
+        if (padding < 0 || mode < 0 || mode > 2)
+            throw new ArgumentException("Invalid canvas settings.");
+        if (mode == 0)
+            return (checked(region.Width + 2 * padding), checked(region.Height + 2 * padding));
+        if (regions.Count == 0)
+            throw new InvalidOperationException("No sprites to size.");
+        int width = checked(regions.Max(r => r.Width) + 2 * padding);
+        int height = checked(regions.Max(r => r.Height) + 2 * padding);
+        if (mode == 2) width = height = Math.Max(width, height);
+        return (width, height);
+    }
+
     // mode: 0 individual crop, 1 equal-size rectangle, 2 equal-size square
     public static IReadOnlyList<string> Export(string path, string destination, string prefix, IEnumerable<int> cuts,
         byte threshold, int padding, int mode)
@@ -73,16 +89,13 @@ public static class SpriteSplitService
         using var image=Image.Load<Rgba32>(path);
         var regions=Regions(path,cuts,threshold);
         if (regions.Count==0) throw new InvalidOperationException("No opaque sprites found.");
-        int width=regions.Max(r=>r.Width)+2*padding, height=regions.Max(r=>r.Height)+2*padding;
-        if(mode==2) width=height=Math.Max(width,height);
         var output=new List<(string Path,Image<Rgba32> Bitmap)>();
         try
         {
             for(int i=0;i<regions.Count;i++)
             {
                 var region=regions[i];
-                int w=mode==0?region.Width+2*padding:width;
-                int h=mode==0?region.Height+2*padding:height;
+                var (w, h) = ExportCanvasSize(regions, region, padding, mode);
                 string name=$"{prefix}_{i+1:D2}.png";
                 string target=Path.Combine(destination,name);
                 if(File.Exists(target)) throw new IOException("File already exists: "+target);
