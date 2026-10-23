@@ -193,10 +193,21 @@ public sealed class SpriteSplitterWindow : Window
         if(source==null){await Alert("Open a PNG first.");return;}
         try
         {
-            var files=await Task.Run(()=>SpriteSplitService.Export(source,destination.Text??"",prefix.Text??"",cuts.ToArray(),
-                (byte)(threshold.Value??0),(int)(padding.Value??0),canvasMode.SelectedIndex));
+            // Snapshot ALL Avalonia control values and mutable cut positions on the UI thread.
+            // Only plain data is passed to Task.Run; controls must never be read from a worker.
+            string inputFile=source;
+            string exportFolder=destination.Text??"";
+            string filePrefix=prefix.Text??"";
+            int[] exportCuts=cuts.ToArray();
+            byte alphaThreshold=(byte)(threshold.Value??0);
+            int exportPadding=(int)(padding.Value??0);
+            int exportMode=canvasMode.SelectedIndex;
+
+            var files=await Task.Run(()=>SpriteSplitService.Export(
+                inputFile,exportFolder,filePrefix,exportCuts,alphaThreshold,exportPadding,exportMode));
+
             info.Text=$"Exported {files.Count} PNGs. Original source preserved.";
-            await Alert($"Exported {files.Count} PNGs to {destination.Text}");
+            await Alert($"Exported {files.Count} PNGs to {exportFolder}");
         }
         catch(Exception e){await Alert(e.Message);}
     }
