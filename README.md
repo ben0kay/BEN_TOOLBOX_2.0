@@ -101,8 +101,8 @@ Security requirements for the future API: device authentication, encrypted conne
 ## Stage 3.3 — Native read-only inspectors (first pass)
 
 - File Size Inspector: ranks up to 200 largest files under a selected directory, skipping common generated folders.
-- Resource Checker: checks static `res://` references in several Godot text formats against a selected project; does not replace comprehensive Godot validation or resolve every dynamic reference.
-- Both use cancellable background scanning and separate read-only services in `Services/InspectorServices.cs`.
+- Resource Checker now has **Resource Integrity** and **Sprite Inventory** tabs. Integrity still checks static `res://` references (not a full Godot validator); Inventory lists PNG/WebP/JPEG/GIF/BMP dimensions, file sizes and paths with search, size filters, sorting and one lazy scaled preview. Neither tab writes to the selected project.
+- Integrity/file-size scanning remains in `Services/InspectorServices.cs`; the new header-only, cancellable Sprite Inventory runs in `Services/SpriteInventoryService.cs`. See [Sprite Inventory guide and smoke tests](Docs/SpriteInventory.md).
 - Existing PowerShell versions remain unchanged and may have additional features; this is initial core functionality, not full feature parity.
 
 ## Stage 3.4 — Native world inspectors (first pass)
