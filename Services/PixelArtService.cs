@@ -9,10 +9,10 @@ using SixLabors.ImageSharp.Processing;
 
 namespace BEN_TOOLBOX_2_0.Services;
 
-public enum PixelPalette { Original, Auto16, Auto32, Auto64, Endesga32, Grayscale16 }
+public enum PixelPalette { Original, Auto16, Auto32, Auto64, Endesga32, Grayscale16, Custom }
 public sealed record PixelArtOptions(int LogicalWidth = 128, bool NearestSource = false,
     PixelPalette Palette = PixelPalette.Original, bool Perceptual = true,
-    double Brightness = 1, double Contrast = 1, double Saturation = 1, double Dither = 0);
+    double Brightness = 1, double Contrast = 1, double Saturation = 1, double Dither = 0, string[]? CustomColours = null);
 
 // Shared logical-grid pipeline. Preview can skip enlargement; final output retains the source canvas.
 public static class PixelArtService
@@ -48,11 +48,14 @@ public static class PixelArtService
 
     private static readonly int[] Bayer = { 0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5 };
     private const string Endesga = "be4a2f d77643 ead4aa e4a672 b86f50 733e39 3e2731 a22633 e43b44 f77622 feae34 fee761 63c74d 3e8948 265c42 193c3e 124e89 0099db 2ce8f5 ffffff c0cbdc 8b9bb4 5a6988 3a4466 262b44 181425 ff0044 68386c b55088 f6757a e8b796 c28569";
+    public static string[] EndesgaColours() => Endesga.Split(' ').Select(h => "#" + h.ToUpperInvariant()).ToArray();
+    private static Rgba32 ParseColour(string h) => new(Convert.ToByte(h.Substring(1,2),16),Convert.ToByte(h.Substring(3,2),16),Convert.ToByte(h.Substring(5,2),16));
     private static void ApplyPalette(Image<Rgba32> image, PixelArtOptions options, CancellationToken token)
     {
         if (options.Palette == PixelPalette.Original) return;
         Rgba32[] palette = options.Palette switch
         {
+            PixelPalette.Custom => PixelPalettePresets.Validate(options.CustomColours ?? Array.Empty<string>()).Select(ParseColour).ToArray(),
             PixelPalette.Endesga32 => Endesga.Split(' ').Select(h => new Rgba32(Convert.ToByte(h[..2],16), Convert.ToByte(h.Substring(2,2),16), Convert.ToByte(h[4..],16))).ToArray(),
             PixelPalette.Grayscale16 => Enumerable.Range(0,16).Select(i => new Rgba32((byte)(i*17),(byte)(i*17),(byte)(i*17))).ToArray(),
             _ => AutomaticPalette(image, options.Palette == PixelPalette.Auto16 ? 16 : options.Palette == PixelPalette.Auto32 ? 32 : 64, token)

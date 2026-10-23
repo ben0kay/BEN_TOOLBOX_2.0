@@ -23,6 +23,9 @@ public sealed class PixelArtConverterWindow : Window
     private readonly TextBlock settings = new(), status = new() { Text = "Add PNGs. Originals remain unchanged.", TextWrapping = TextWrapping.Wrap };
     private readonly CheckBox nearest = new() { Content = "Nearest source sampling (already pixelated art)" };
     private readonly PixelViewport preview = new();
+    private readonly ObservableCollection<string> paletteNames = new() { "Original colours", "Automatic 16", "Automatic 32", "Automatic 64", "Endesga 32", "Grayscale 16", "Custom draft" };
+    private System.Collections.Generic.List<PixelPalettePreset> savedPalettes = new();
+    private string[] draftColours = PixelArtService.EndesgaColours();
     private readonly ComboBox palette = new() { ItemsSource = new[] { "Original colours", "Automatic 16", "Automatic 32", "Automatic 64", "Endesga 32", "Grayscale 16" }, SelectedIndex = 0, MinWidth = 170 };
     private readonly ComboBox matching = new() { ItemsSource = new[] { "Perceptual (Oklab)", "RGB" }, SelectedIndex = 0, MinWidth = 160 };
     private readonly Slider brightness = ColourSlider(), contrast = ColourSlider(), saturation = ColourSlider();
@@ -51,7 +54,21 @@ public sealed class PixelArtConverterWindow : Window
             button.Click += (_, _) => detail.Value = value; presets.Children.Add(button);
         }
         controls.Children.Add(presets); controls.Children.Add(nearest);
+        palette.ItemsSource = paletteNames;
+        ReloadPalettes();
         var colourControls = new WrapPanel { ItemSpacing = 14, LineSpacing = 8 };
+        var editPalette = new Button { Content = "EDIT / CREATE PALETTE" };
+        editPalette.Click += async (_, _) =>
+        {
+            var initial = palette.SelectedIndex >= 7 && palette.SelectedIndex - 7 < savedPalettes.Count
+                ? savedPalettes[palette.SelectedIndex-7].Colours.ToArray()
+                : palette.SelectedIndex == 6 ? draftColours.ToArray() : PixelArtService.EndesgaColours();
+            var editor = new PixelPaletteEditorWindow(initial,
+                colours => { draftColours = colours; if (palette.SelectedIndex == 6) RequestPreview(); else palette.SelectedIndex = 6; },
+                (name, colours) => { draftColours = colours; ReloadPalettes(); palette.SelectedIndex = 7 + savedPalettes.FindIndex(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)); });
+            await editor.ShowDialog(this);
+        };
+        colourControls.Children.Add(editPalette);
         colourControls.Children.Add(Field("PALETTE", palette)); colourControls.Children.Add(Field("COLOUR MATCHING", matching));
         colourControls.Children.Add(Adjustment("BRIGHTNESS", brightness)); colourControls.Children.Add(Adjustment("CONTRAST", contrast));
         colourControls.Children.Add(Adjustment("SATURATION", saturation)); colourControls.Children.Add(Adjustment("BAYER 4×4 STRENGTH", dither));
@@ -99,6 +116,14 @@ public sealed class PixelArtConverterWindow : Window
         RequestPreview();
     }
 
+    private void ReloadPalettes()
+    {
+        savedPalettes = PixelPalettePresets.Load(out var warning);
+        while (paletteNames.Count > 7) paletteNames.RemoveAt(paletteNames.Count - 1);
+        foreach (var preset in savedPalettes) paletteNames.Add("Saved: " + preset.Name);
+        if (warning.Length > 0) status.Text = warning;
+    }
+
     private void AddFiles(System.Collections.Generic.IEnumerable<string> paths)
     {
         int rejected = 0;
@@ -125,8 +150,9 @@ public sealed class PixelArtConverterWindow : Window
         var token = cancellation.Token;
         string? path = queue.SelectedItem as string;
         var options = new PixelArtOptions((int)Math.Round(detail.Value), nearest.IsChecked == true,
-            (PixelPalette)Math.Max(0, palette.SelectedIndex), matching.SelectedIndex == 0,
-            brightness.Value, contrast.Value, saturation.Value, dither.Value);
+            palette.SelectedIndex >= 6 ? PixelPalette.Custom : (PixelPalette)Math.Max(0, palette.SelectedIndex), matching.SelectedIndex == 0,
+            brightness.Value, contrast.Value, saturation.Value, dither.Value,
+            palette.SelectedIndex >= 7 && palette.SelectedIndex - 7 < savedPalettes.Count ? savedPalettes[palette.SelectedIndex-7].Colours.ToArray() : draftColours.ToArray());
         settings.Text = $"LOGICAL PIXEL WIDTH: {options.LogicalWidth} • smaller = chunkier • {files.Count} files";
         preview.Source = null; bitmap?.Dispose(); bitmap = null;
         if (path is null) { status.Text = "Drop PNGs here or choose ADD PNGs."; pending = null; cancellation.Dispose(); return; }

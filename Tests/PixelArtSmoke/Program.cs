@@ -34,6 +34,17 @@ try
         int limit = mode is PixelPalette.Auto16 or PixelPalette.Grayscale16 ? 16 : mode == PixelPalette.Auto64 ? 64 : 32;
         if (colours.Count > limit) throw new Exception("Palette colour limit exceeded.");
     }
+    var customOptions = new PixelArtOptions(64, true, PixelPalette.Custom, CustomColours: new[] { "#123456", "#ABCDEF" });
+    using (var custom = Image.Load<Rgba32>(PixelArtService.Preview(path, customOptions, CancellationToken.None, logicalPreview: true)))
+        for (int y=0;y<custom.Height;y++) for (int x=0;x<custom.Width;x++)
+        {
+            var pixel = custom[x,y];
+            if (pixel.A != 255 || !(pixel.Equals(new Rgba32(0x12,0x34,0x56)) || pixel.Equals(new Rgba32(0xAB,0xCD,0xEF))))
+                throw new Exception("Custom palette/alpha mismatch.");
+        }
+    if (PixelArtService.EndesgaColours().Length != 32) throw new Exception("Built-in palette changed.");
+    try { PixelPalettePresets.Validate(new[] { "not hex" }); throw new Exception("Invalid palette accepted."); }
+    catch (ArgumentException) { }
     if (!hash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(path)))) throw new Exception("Original changed.");
     using (var transparent = new Image<Rgba32>(1200, 800)) transparent.SaveAsPng(path);
     using (var output = Image.Load<Rgba32>(PixelArtService.Preview(path, new(64), CancellationToken.None)))

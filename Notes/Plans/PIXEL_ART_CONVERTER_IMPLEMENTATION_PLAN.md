@@ -233,3 +233,9 @@ Smoke coverage expanded for deterministic palette conversion, palette limits, an
 ### Preview navigation refinement — 2026-10-23
 
 Replaced zoom dropdown with pointer-centred mouse-wheel zoom and left/middle-button drag panning. Double-click or Fit Preview resets framing. Nearest-neighbour image rendering retained. Zoom/pan affects only the viewport, never logical detail or output settings. Uses a clipped custom drawing control without reprocessing image data during navigation. Windows build and pointer-interaction testing pending.
+
+### Custom palette editor — 2026-10-23
+
+Coded: Edit/Create Palette opens an editor seeded from Endesga 32, the custom draft, or a selected saved palette. Clickable numbered swatches, RGB sliders and validated six-digit hex entry publish copied palette snapshots into the selected preview. Save as New Preset stores named palette-only presets under LocalApplicationData/BEN_TOOLBOX_2_0/PixelPalettes; presets reload into the palette dropdown on subsequent launches. Built-in Endesga data is never mutated. Existing names are rejected; use a new name for revisions. Presets contain palette colours only, not image paths or all converter settings. Source alpha is preserved by custom colour mapping. Storage uses temporary writes and rename; malformed saved files are reported. Editor changes remain an unsaved draft until saved. Original/automatic modes start a new editor from Endesga; automatic-palette extraction into the editor remains future work.
+
+Added smoke coverage for custom palette mapping, alpha, invalid hex rejection and built-in colour count. .NET SDK is unavailable here; build, test execution, saved-preset restart, and Windows UI validation remain pending. P3 export and P4 handoff remain pending.
