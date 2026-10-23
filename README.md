@@ -16,9 +16,9 @@ The current dashboard uses a dark navy/cyan design, left navigation and four **A
 
 The mockup is a **visual specification**, not a source of accurate system data. Its illustrated processor, GPU, RAM, clock, percentages and drive capacities are fictional examples. Do **not** hardcode them into the production UI.
 
-**Implementation handoff:** [Dashboard V2 D1–D5 implementation plan](Docs/DashboardV2ImplementationPlan.md) — phase checklist, architecture options, scope, performance constraints and Windows acceptance tests. **D1 was visually accepted by the user. D2 local clock and system telemetry plus a 1920×1080 window default are coded; Windows build/runtime verification is pending. D3–D5 have not started.**
+**Implementation handoff:** [Dashboard V2 D1–D5 implementation plan](Docs/DashboardV2ImplementationPlan.md) — phase checklist, architecture options, scope, performance constraints and Windows acceptance tests. **D1 visuals and D2 real telemetry have been seen running in a Windows screenshot. D3 CPU/RAM sparklines and bounded history are coded but await Windows build/visual testing; D4–D5 are planned.**
 
-### Dashboard V2 — implementation status: D1 accepted; D2 coded (testing pending)
+### Dashboard V2 — D1/D2 running; D3 coded (Windows testing pending)
 
 - **Retain** the existing left sidebar, four top-level sections and **Available modules** tiles **under** the new dashboard information panels.
 - Keep the dark navy background and restrained cyan accents; add subtle technical **grid overlays, corner brackets, fine dividers, HUD labels and micro-detail** without sacrificing legibility.
@@ -32,7 +32,13 @@ The mockup is a **visual specification**, not a source of accurate system data. 
 
 **Performance contract for V2:** One shared, lightweight telemetry source; sample CPU/memory/drive at a reasonable cadence (e.g. every 2–5 seconds), with a small bounded graph history. Time display may refresh more frequently, but only while needed. **Suspend polling and graph updates when the dashboard is not visible**, avoid per-control timers/full redraws, cache static decorative geometry, and dispose event subscriptions/timers correctly. Keep Windows-specific monitoring code separate from Avalonia layout. Do not require administrator privileges or add a heavy monitoring dependency just for a dashboard effect.
 
-**D1/D2 implementation:** The dashboard has HUD panels, CPU/RAM graph frames and the original four module tiles. The window now **requests 1920×1080 on launch** but is reduced to fit the primary screen working area when required; the panels adapt to narrower widths. **D2 connects real local time/date, app uptime, Windows system-wide CPU load, total/used physical RAM, CPU model and accessible fixed-system-drive space.** Monitoring runs only when the dashboard is visible, with a shared sampling loop for CPU/RAM (~2 seconds) and drive data (~30 seconds). **GPU sensor readings and D3 history graphs remain unconnected, explicitly labelled placeholders.** Windows compile and runtime testing of D2 are outstanding; see the [plan](Docs/DashboardV2ImplementationPlan.md).
+**D1–D3 implementation:** The dashboard has a 1920×1080 preferred window size (clamped to the display working area), responsive HUD/status/hardware cards, and the original four module navigation tiles. **D2** provides actual local time/date, app uptime, Windows system-wide CPU load, physical RAM, CPU model and fixed-system-drive statistics. **D3** introduces live **cyan CPU and amber RAM sparklines** based on the **same CPU/RAM readings every ~2 seconds**; a bounded **60-sample history** covers roughly two minutes, with missing readings shown as gaps, not fake zeroes. Graphs do not have their own timers. Switching away from the dashboard stops telemetry; on return, both charts begin fresh. Disk data still refreshes about every 30 seconds. GPU utilization/temperature and VRAM remain labelled as unconnected. **D3 is coded but has not yet passed Windows build and visual validation**; see the [plan](Docs/DashboardV2ImplementationPlan.md).
+
+To validate the D3 history model independently on a machine with the .NET 10 SDK:
+
+```powershell
+dotnet run --project Tests/TelemetryHistorySmoke/TelemetryHistorySmoke.csproj
+```
 
 ## What the application does today
 
@@ -132,7 +138,7 @@ Important tool details:
 | Avalonia shell / four workspaces | **Implemented** | Refine visuals without breaking navigation |
 | Core native tools | **First passes implemented** | Resolve local build/runtime issues and compare with legacy feature parity |
 | Native read-only inspectors | **First passes implemented** | Better validation/reporting where useful, without duplicating scanner responsibilities |
-| **Dashboard V2 — BTX-02** | **D1 accepted; D2 coded — Windows verification pending** | D3 CPU/RAM history graphs; D4 polish; D5 testing; advanced GPU readings deferred |
+| **Dashboard V2 — BTX-02** | **D1/D2 seen running; D3 coded — Windows verification pending** | D4 visual polish; D5 verification; advanced GPU readings deferred |
 | Shared project/workspace selection | **Planned** | Remember user-selected local Godot projects and offer useful deep links; do not assume a project folder |
 | Shared job engine | **Planned** | Typed jobs, progress, bounded concurrency, cancellation, logs and safe lifecycle |
 | Native feature parity / content authoring | **Incremental / future** | Port selected remaining PowerShell features; explore reusable Godot asset and Resource authoring with schema validation |
@@ -146,4 +152,4 @@ Eventually separate **desktop/mobile presentation**, a shared **typed tool/job e
 
 ---
 
-**README status:** Native tools plus Dashboard D1/D2 code recorded as of 2026-10-23. User approved the D1 appearance. D2 is **not yet Windows build/runtime verified**; D3–D5 remain future work. Do not treat concept-image readings or unconnected GPU sensors as live.
+**README status:** Native tools, D1/D2 dashboard and D3 graph code recorded as of 2026-10-23. D2 measurements were visible in a user screenshot; D3 needs a Windows build/screenshot and its smoke test. D4/D5 remain future work. GPU sensor percentages/temperatures are not connected.

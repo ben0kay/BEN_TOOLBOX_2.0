@@ -1,6 +1,6 @@
 # Dashboard V2 Implementation Plan — BTX-02 Command Center
 
-> **Status: D1 VISUALLY ACCEPTED BY USER; D2 CODED — WINDOWS BUILD/RUNTIME VERIFICATION PENDING; D3–D5 NOT STARTED**  
+> **Status: D1 VISUALLY ACCEPTED; D2 USER SCREENSHOT CONFIRMED READINGS; D3 CODED — WINDOWS BUILD/VISUAL TEST PENDING; D4–D5 NOT STARTED**  
 > **Last audited:** 2026-10-23  
 > **Repository:** [ben0kay/BEN_TOOLBOX_2.0](https://github.com/ben0kay/BEN_TOOLBOX_2.0) (main)  
 > **Purpose:** Implementation handoff for a future developer / ChatGPT / Codex session. This document describes work to perform; it does **not** claim that the design mockup or telemetry are already implemented.
@@ -16,7 +16,7 @@ Before writing code:
 5. **Only implement the phase requested**; keep commits small, preserve the existing tool windows and update the status table below and relevant README after completing each phase.
 6. Do not treat proposed files or services in this plan as already existing; check the repo first. Respect any newer user preferences or repository instructions.
 
-**Current baseline verified 2026-10-23:** Avalonia 12.1.4 / C# / .NET 10; main dashboard in `Views/MainWindow.axaml`, navigation and tool launching in `Views/MainWindow.axaml.cs`. Main window now requests 1920 × 1080 with 900 × 600 minimum (working-area clamp on smaller displays) and a 242 px left sidebar. Dashboard includes a hero/status panel and four navigation tiles (Game Development, File Toolbox, Inspectors, Settings). The same MainWindow contains alternate tool-list sections; `ShowSection()` toggles dashboard/tiles and other workspaces. Several native tool windows and services already work. **D1 static visuals were accepted by the user. D2 local clock/physical RAM/CPU/disk providers and dynamic wide-window layout are now coded, but Windows build/runtime measurement verification is still outstanding. No D3 history graph renderer exists.**
+**Current baseline verified 2026-10-23:** Avalonia 12.1.4 / C# / .NET 10; main dashboard in `Views/MainWindow.axaml`, navigation and tool launching in `Views/MainWindow.axaml.cs`. Main window now requests 1920 × 1080 with 900 × 600 minimum (working-area clamp on smaller displays) and a 242 px left sidebar. Dashboard includes a hero/status panel and four navigation tiles (Game Development, File Toolbox, Inspectors, Settings). The same MainWindow contains alternate tool-list sections; `ShowSection()` toggles dashboard/tiles and other workspaces. Several native tool windows and services already work. **D1 was visually accepted. A real D2 screenshot showed clock, CPU, RAM, disk and uptime reading from the Windows computer; formal regression/performance testing remains for D5. D3 graph control and rolling history are coded, but D3 has not yet been compiled or visually accepted on Windows.**
 
 ## 1. User-approved visual direction
 
@@ -46,8 +46,8 @@ Aim for the visual character in the concept PNG: a premium dark navy, futuristic
 | Phase | Work | Status | Validation gate |
 | --- | --- | --- | --- |
 | **D1** | Dashboard layout foundation / static HUD styling | **VISUALLY ACCEPTED BY USER — FORMAL BUILD/REGRESSION STILL PENDING** | UI builds; four module buttons and all navigation work; layout resembles target at multiple sizes |
-| **D2** | Real local clock, CPU/RAM & disk data, hardware descriptions | **CODED — WINDOWS BUILD/RUNTIME TEST PENDING** | Readings are real and labelled; safe unavailable fallbacks; no fake values |
-| **D3** | Tiny telemetry graphs and bounded sampling lifecycle | **NOT STARTED** | Graphs reflect samples; no redundant polls; no updates when dashboard hidden |
+| **D2** | Real local clock, CPU/RAM & disk data, hardware descriptions | **USER SCREENSHOT CONFIRMED READINGS — FORMAL REGRESSION PENDING** | Readings are real and labelled; safe unavailable fallbacks; no fake values |
+| **D3** | Tiny telemetry graphs and bounded sampling lifecycle | **CODED — WINDOWS BUILD/VISUAL TEST PENDING** | Graphs reflect samples; no redundant polls; no updates when dashboard hidden |
 | **D4** | Final sci-fi styling and visual polish | **NOT STARTED** | Smooth, legible, restrained glow; no excessive idle render/animation |
 | **D5** | Windows tests, performance audit, regression pass, docs reconciliation | **NOT STARTED** | Checks below completed and known issues recorded |
 
@@ -191,6 +191,8 @@ These names are **suggestions**. Work with the repo as it exists when implementa
 
 **2026-10-23 — Top-right application close control.** After the user confirmed the D2 dashboard layout looked good but noted that no window X was visible in the screenshot, a native Avalonia **Close BEN TOOLBOX** button was added beside the Local Terminal / Online indicator in the main header. It calls `Window.Close()` through `CloseToolbox` and uses the existing `Closed` handlers for hotkey/telemetry cleanup. The OS titlebar remains unchanged; this button provides an in-app close affordance even if native decorations are not visible in a particular capture or window setup. **Windows runtime testing pending.** No D3 features added.
 
+**2026-10-23 — D3 coded; Windows test pending.** Added `Services/TelemetryHistory.cs`: bounded 60-position ring buffer, chronological retrieval, CPU/RAM usage clamped to 0–100%, null and nonfinite values recorded as gaps rather than zero. Added `Views/Dashboard/Controls/TelemetrySparkline.cs`: custom Avalonia `Control.Render(DrawingContext)`, static pens, three subdued horizontal reference lines, cyan CPU / amber RAM traces and last-valid sample dot, only invalidated on `AddSample`, `ClearSamples`, or layout resize. Added `Tests/TelemetryHistorySmoke/`: minimal console smoke test for wrapping, ordering, clamping, missing readings and reset. Replaced D3 placeholders inside the D2 telemetry cards in `Views/MainWindow.axaml`; the existing `RefreshDashboardTelemetryAsync` feeds both graphs **from the same 2-second D2 sampler** on the Avalonia UI continuation, with no extra timer or sensor calls. `SetDashboardActive(true)` clears old charts and resets the CPU delta baseline when re-entering dashboard; hidden dashboard gets no new samples/invalidations. D2 drive refresh remains every 30 seconds. **No GPU readings, animated loop, third-party graph library or background graphics task.** Static checks completed for markup and integration, but `dotnet build` / Windows UI evaluation and smoke-test execution are still **outstanding** in this environment. D4/D5 not started.
+
 Future implementers: append date, commit SHA, files changed, what was tested (and where), user feedback, known errors and the next recommended task. Keep the phase table above in sync.
 
-**Next action:** Pull D2, run `dotnet build` and `dotnet run` on Windows. Check actual CPU/RAM readings versus Task Manager and disk versus Explorer, refresh/idle sampling, correct local clock, navigation stop/resume, 1920×1080 initial sizing and 900×600 minimum layout. Fix any Avalonia/Windows build or UI issues, then continue to **D3 sparklines** after acceptance.
+**Next action:** Pull D3 and run `dotnet build`, `dotnet run` and `dotnet run --project Tests/TelemetryHistorySmoke/TelemetryHistorySmoke.csproj` on Windows. Let the Dashboard display for at least 15–30 seconds; CPU and RAM should draw real cyan/amber histories with changing readings and no fabricated graph. Navigate to Inspectors then back: collection must restart, no duplicate timer. Compare Task Manager and monitor resource usage. Send a D3 screenshot for acceptance before **D4 visual polish**.

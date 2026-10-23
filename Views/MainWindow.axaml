@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:services="using:BEN_TOOLBOX_2_0.Services"
+        xmlns:dashboard="using:BEN_TOOLBOX_2_0.Views.Dashboard.Controls"
         x:Class="BEN_TOOLBOX_2_0.Views.MainWindow"
         Title="BEN TOOLBOX 2.0"
         Width="1920" Height="1080" MinWidth="900" MinHeight="600"
@@ -194,7 +195,7 @@
               <Border x:Name="DashboardTelemetryCard" Classes="hud" Width="432" MinHeight="222" Margin="0,0,0,12" Padding="14" Background="#0F2135">
                 <StackPanel Spacing="11">
                   <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Classes="hud-label" Text="▥  SYSTEM TELEMETRY  /  D2"/>
+                    <TextBlock Classes="hud-label" Text="▥  SYSTEM TELEMETRY  /  LIVE HISTORY"/>
                     <TextBlock Grid.Column="1" x:Name="DashboardTelemetryStateText" Text="CONNECTING" Foreground="#E1B36B" FontSize="9" FontWeight="SemiBold"/>
                   </Grid>
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
@@ -203,12 +204,12 @@
                         <TextBlock Classes="hud-label" Text="CPU USAGE" FontSize="9"/>
                         <TextBlock x:Name="DashboardCpuValueText" Text="—" FontSize="27" FontWeight="SemiBold" Foreground="#6CCFE7"/>
                         <Grid Height="64" ClipToBounds="True" Background="#0A1B2A">
-                          <StackPanel VerticalAlignment="Center" Spacing="16" Opacity="0.3" IsHitTestVisible="False">
-                            <Border Height="1" Background="#316481"/>
-                            <Border Height="1" Background="#316481"/>
-                            <Border Height="1" Background="#316481"/>
-                          </StackPanel>
-                          <TextBlock Text="AWAITING D3" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#67869E" FontSize="10" LetterSpacing="1"/>
+                          <dashboard:TelemetrySparkline x:Name="DashboardCpuGraph" Height="64"
+                                                       IsHitTestVisible="False"/>
+                          <TextBlock x:Name="DashboardCpuGraphEmpty" Text="COLLECTING SAMPLES"
+                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                     Foreground="#67869E" FontSize="10" LetterSpacing="1"
+                                     IsHitTestVisible="False"/>
                         </Grid>
                         <TextBlock x:Name="DashboardCpuDetailText" Text="Sampling system load..." FontSize="10" Foreground="#8DA9BB"/>
                       </StackPanel>
@@ -218,12 +219,12 @@
                         <TextBlock Text="RAM USAGE" Foreground="#E2B46D" FontSize="9" FontWeight="SemiBold" LetterSpacing="1.4"/>
                         <TextBlock x:Name="DashboardRamValueText" Text="—" FontSize="27" FontWeight="SemiBold" Foreground="#E1B66F"/>
                         <Grid Height="64" ClipToBounds="True" Background="#101C28">
-                          <StackPanel VerticalAlignment="Center" Spacing="16" Opacity="0.25" IsHitTestVisible="False">
-                            <Border Height="1" Background="#8E7043"/>
-                            <Border Height="1" Background="#8E7043"/>
-                            <Border Height="1" Background="#8E7043"/>
-                          </StackPanel>
-                          <TextBlock Text="AWAITING D3" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#9B7E57" FontSize="10" LetterSpacing="1"/>
+                          <dashboard:TelemetrySparkline x:Name="DashboardRamGraph" UseAmber="True"
+                                                       Height="64" IsHitTestVisible="False"/>
+                          <TextBlock x:Name="DashboardRamGraphEmpty" Text="COLLECTING SAMPLES"
+                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                     Foreground="#9B7E57" FontSize="10" LetterSpacing="1"
+                                     IsHitTestVisible="False"/>
                         </Grid>
                         <TextBlock x:Name="DashboardRamDetailText" Text="Checking physical RAM..." FontSize="10" Foreground="#A7A194"/>
                       </StackPanel>

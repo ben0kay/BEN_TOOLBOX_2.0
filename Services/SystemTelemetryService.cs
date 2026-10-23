@@ -25,6 +25,12 @@ public sealed class SystemTelemetryService
     private readonly object _cpuLock = new();
     private (ulong idle, ulong kernel, ulong user)? _previousCpu;
 
+    // Prevent a sample on dashboard re-entry from averaging in minutes spent elsewhere.
+    public void ResetCpuBaseline()
+    {
+        lock (_cpuLock) _previousCpu = null;
+    }
+
     public SystemTelemetrySample Sample(bool includeDrives)
     {
         // A read may fail independently; never turn missing samples into manufactured 0% usage.

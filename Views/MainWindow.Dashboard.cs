@@ -80,6 +80,12 @@ public partial class MainWindow
         if (active)
         {
             _dashboardCancellation = new CancellationTokenSource();
+            // Returning from another section starts a fresh history; don't present stale charts.
+            DashboardCpuGraph.ClearSamples();
+            DashboardRamGraph.ClearSamples();
+            DashboardCpuGraphEmpty.IsVisible = true;
+            DashboardRamGraphEmpty.IsVisible = true;
+            _dashboardTelemetry.ResetCpuBaseline();
             _dashboardSeconds = 0;
             UpdateDashboardClock();
             _dashboardTimer.Start();
@@ -128,12 +134,19 @@ public partial class MainWindow
             if (token.IsCancellationRequested || !_dashboardActive || generation != _dashboardGeneration)
                 return;
 
+            // The D2 sampling pipeline is the single source for both values and D3 charts.
+            // Failed readings are added as gaps, never fabricated as a 0% measurement.
+            DashboardCpuGraph.AddSample(sample.CpuPercent);
+            DashboardRamGraph.AddSample(sample.Memory?.UsagePercent);
+            DashboardCpuGraphEmpty.IsVisible = DashboardCpuGraph.ValidSampleCount == 0;
+            DashboardRamGraphEmpty.IsVisible = DashboardRamGraph.ValidSampleCount == 0;
+
             if (sample.CpuPercent is double cpu)
             {
                 var display = cpu.ToString("N0") + "%";
                 DashboardCpuValueText.Text = display;
                 DashboardCpuLoadText.Text = display;
-                DashboardCpuDetailText.Text = "System-wide processor utilization";
+                DashboardCpuDetailText.Text = "System-wide load  /  2s · last 2 min";
             }
             else
             {
@@ -147,7 +160,7 @@ public partial class MainWindow
                 var display = memory.UsagePercent.ToString("N0") + "%";
                 DashboardRamValueText.Text = display;
                 DashboardRamDetailText.Text =
-                    $"{SystemHardwareService.FormatGiB(memory.UsedBytes)} / {SystemHardwareService.FormatGiB(memory.TotalBytes)} used";
+                    $"{SystemHardwareService.FormatGiB(memory.UsedBytes)} / {SystemHardwareService.FormatGiB(memory.TotalBytes)} used · 2s history";
                 DashboardMemoryModelText.Text = $"{SystemHardwareService.FormatGiB(memory.TotalBytes)} physical RAM";
                 DashboardMemoryUsedText.Text = display;
                 DashboardMemoryDetailText.Text =
