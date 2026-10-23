@@ -41,10 +41,10 @@ BEN TOOLBOX has four primary navigation sections. Many tools now open **native A
 | **Game Development** | Artwork Design Prompter | Native fantasy-top-down / sci-fi prompt designer; category presets; original + optional sibling prompt (charred, snow, dead, etc.); original/root matching; project-reference guidance; **COPY BOTH (2 IMAGES)**. Text prompts only, not image generation. |
 | | Sprite Splitter | Native PNG sprite-sheet cutting, suggested/manual cuts and export controls. |
 | | Sprite Batch Tool | Native bulk PNG resize/rename, preview, drag-and-drop inputs, configurable export and optional RAW preservation. |
-| | Resource Checker | Native **read-only** check for missing static Godot \`res://\` references; **not** an image gallery or a comprehensive Godot validator. |
+| | Resource Checker | Native **read-only** check for missing static Godot `res://` references; **not** an image gallery or a comprehensive Godot validator. |
 | **File Toolbox** | Duplicate File Finder | Native file comparison, hash verification and guarded Windows Recycle Bin operations; destructive actions require care. |
 | | Folder Backup | Native non-overwriting backup planning/preview and execution with progress/cancellation. |
-| | Clipboard to PNG | Native snip/clipboard PNG saver; Windows global \`Ctrl+Shift+V\` hotkey while the app runs. |
+| | Clipboard to PNG | Native snip/clipboard PNG saver; Windows global `Ctrl+Shift+V` hotkey while the app runs. |
 | **Project Inspectors** | **Sprite Inventory** | **Standalone native inspector**: image format, dimensions, file size/path, filters/sorting and one on-demand scaled preview. Not inside Resource Checker. |
 | | File Size Inspector | Native read-only ranking of the largest project files. |
 | | Asset Usage Finder | Native read-only tracing of direct/indirect Godot resource references, with limits for dynamic paths. |
@@ -53,14 +53,14 @@ BEN TOOLBOX has four primary navigation sections. Many tools now open **native A
 | | Items & Resource Inspector | Native read-only content browser for the **isometric-new-2d ContentIndex.json schema-v1 export** (items, drops, recipes, biome bindings); not a general fantasy-2d content editor. |
 | **Settings** | Settings page | Navigation/visual shell exists; richer settings and shared project selection are future work. |
 
-The original scripts remain under **\`BEN_TOOLBOX_OLDVERSION/\`**. Native conversions do **not** necessarily have full feature parity with those scripts. Test any action that writes, exports, moves or deletes files on disposable data first.
+The original scripts remain under **`BEN_TOOLBOX_OLDVERSION/`**. Native conversions do **not** necessarily have full feature parity with those scripts. Test any action that writes, exports, moves or deletes files on disposable data first.
 
 ### Current limits worth remembering
 
 - **Sprite Inventory** reads image headers efficiently; previews only the selected image. It is **not** an unused-asset detector, importer, image-corruption verifier or texture VRAM profiler.
-- **Resource Checker** checks only supported static \`res://\` strings; dynamic loads, broken UIDs and application/runtime validity require separate checks.
+- **Resource Checker** checks only supported static `res://` strings; dynamic loads, broken UIDs and application/runtime validity require separate checks.
 - **Asset Usage Finder** helps trace usage but cannot guarantee every dynamic or runtime reference is discovered.
-- **Sprite Batch** has not yet ported the original PowerShell tool's Godot Plant/Tree \`.tres\` generation workflow.
+- **Sprite Batch** has not yet ported the original PowerShell tool's Godot Plant/Tree `.tres` generation workflow.
 - **Artwork Prompter** can include GitHub sprite-reference links in generated prompts, but cannot inspect remote PNG pixels on behalf of the receiving image AI. Attach real images if the destination assistant cannot browse.
 - **Items & Resource Inspector** reads a supported exported schema; there is **no general external Avalonia authoring/catalog system for the fantasy game yet**.
 - **Clipboard to PNG** requires the application to be running for its hotkey; it is not a background Windows service.
@@ -71,21 +71,21 @@ The original scripts remain under **\`BEN_TOOLBOX_OLDVERSION/\`**. Native conver
 
 From the project root:
 
-\`\`\`powershell
+```powershell
 dotnet restore
 dotnet build
 dotnet run
-\`\`\`
+```
 
 Sprite Inventory's stand-alone metadata scanner also has a small console smoke test:
 
-\`\`\`powershell
+```powershell
 dotnet run --project Tests/SpriteInventorySmoke/SpriteInventorySmoke.csproj
-\`\`\`
+```
 
-For tools that inspect Godot content, choose the correct project root containing \`project.godot\`. Folder Backup, Duplicate Finder and Sprite Batch act on the user-selected input/output locations; inspect previews and destination paths carefully.
+For tools that inspect Godot content, choose the correct project root containing `project.godot`. Folder Backup, Duplicate Finder and Sprite Batch act on the user-selected input/output locations; inspect previews and destination paths carefully.
 
-**Security/maintenance note:** Current \`BEN_TOOLBOX_2_0.csproj\` pins \`SixLabors.ImageSharp\` **3.1.12**, for which NuGet has reported vulnerability warnings. **Updating and compatibility-testing this dependency is outstanding work**, not already completed. Do not suppress advisories without assessing them.
+**Security/maintenance note:** Current `BEN_TOOLBOX_2_0.csproj` pins `SixLabors.ImageSharp` **3.1.12**, for which NuGet has reported vulnerability warnings. **Updating and compatibility-testing this dependency is outstanding work**, not already completed. Do not suppress advisories without assessing them.
 
 **Testing status:** Several modules were built/committed without full graphical validation in the development environment. A successful static code review or GitHub commit is **not** proof of a successful Windows build. Run the commands above and visually test the affected windows after changes.
 
@@ -93,20 +93,20 @@ For tools that inspect Godot content, choose the correct project root containing
 
 | Path | Responsibility |
 | --- | --- |
-| \`App.axaml\` / \`App.axaml.cs\` | Avalonia application and theme initialization |
-| \`Views/MainWindow.axaml\` / \`.cs\` | Current dashboard, navigation and native tool launch routing |
-| \`Views/*Window.cs\` | Dedicated native tool/inspector windows |
-| \`Services/ToolLauncher.cs\` | Allowlisted tool catalog and legacy PowerShell launcher |
-| \`Services/InspectorServices.cs\` | Resource integrity and file-size scans |
-| \`Services/SpriteInventoryService.cs\` | Background, metadata-only sprite inventory |
-| \`Services/ArtworkSiblingPromptService.cs\` | Data-driven artwork prompt and sibling-variant recipes |
-| \`Services/*Service.cs\` | Other processing/scanning implementations |
-| \`Models/\`, \`ViewModels/\` | Shared data contracts and presentation scaffolding |
-| \`Assets/\` | Application assets |
-| \`Docs/\` | Feature guides and current technical notes |
-| \`Tests/SpriteInventorySmoke/\` | Independent sprite-header smoke tests (excluded from main app compile) |
-| \`BEN_TOOLBOX_OLDVERSION/\` | Preserved legacy PowerShell tools |
-| \`Dashboard-V2-Concept.png\` | **Visual design reference only**, not part of the current working dashboard |
+| `App.axaml` / `App.axaml.cs` | Avalonia application and theme initialization |
+| `Views/MainWindow.axaml` / `.cs` | Current dashboard, navigation and native tool launch routing |
+| `Views/*Window.cs` | Dedicated native tool/inspector windows |
+| `Services/ToolLauncher.cs` | Allowlisted tool catalog and legacy PowerShell launcher |
+| `Services/InspectorServices.cs` | Resource integrity and file-size scans |
+| `Services/SpriteInventoryService.cs` | Background, metadata-only sprite inventory |
+| `Services/ArtworkSiblingPromptService.cs` | Data-driven artwork prompt and sibling-variant recipes |
+| `Services/*Service.cs` | Other processing/scanning implementations |
+| `Models/`, `ViewModels/` | Shared data contracts and presentation scaffolding |
+| `Assets/` | Application assets |
+| `Docs/` | Feature guides and current technical notes |
+| `Tests/SpriteInventorySmoke/` | Independent sprite-header smoke tests (excluded from main app compile) |
+| `BEN_TOOLBOX_OLDVERSION/` | Preserved legacy PowerShell tools |
+| `Dashboard-V2-Concept.png` | **Visual design reference only**, not part of the current working dashboard |
 
 Important tool details:
 
@@ -117,10 +117,10 @@ Important tool details:
 ## Architecture and engineering principles
 
 1. **Native-first where practical.** Avalonia owns the desktop presentation. Put reusable scanning, filesystem work, processing and cancellation in dedicated services; preserve compatibility with legacy workflows when it matters.
-2. **Data-driven authoring.** Prefer shared, configurable models/presets over per-tree, per-biome or per-project hardcoding. Integration with Godot \`.tres\` schemas and content catalogs remains future work.
+2. **Data-driven authoring.** Prefer shared, configurable models/presets over per-tree, per-biome or per-project hardcoding. Integration with Godot `.tres` schemas and content catalogs remains future work.
 3. **Safe filesystem access.** Inspectors are read-only. Writing tools should validate paths and preview operations, avoid overwrites by default, guard destructive actions and report partial/cancelled work honestly.
 4. **Performance-first UI.** Avoid scanning entire trees or decoding every image at startup. Scan on demand, filter cached results, use virtualized collections, cap preview memory, keep redraw work bounded, and suspend background activity when not visible.
-5. **Scoped commits and honest validation.** Keep changes focused, update relevant docs, prefer one commit per coherent task, and distinguish code inspection from actual \`dotnet build\` and Windows UI/runtime verification.
+5. **Scoped commits and honest validation.** Keep changes focused, update relevant docs, prefer one commit per coherent task, and distinguish code inspection from actual `dotnet build` and Windows UI/runtime verification.
 6. **No arbitrary remote shell.** The present PowerShell launcher is explicitly allowlisted and **local-only**. Do not expose it directly to a network or mobile device.
 
 ## Roadmap and vision
