@@ -77,9 +77,40 @@ try
     }
     finally {lease.Dispose();}
     if(File.Exists(staged) || !File.Exists(path))throw new Exception("Handoff cleanup/source preservation failure.");
+    var folderRoot=Path.Combine(root,"folder-mode");var nested=Path.Combine(folderRoot,"nested");Directory.CreateDirectory(nested);
+    string folderPng=Path.Combine(folderRoot,"same.png"),nestedPng=Path.Combine(nested,"same.PNG");
+    File.Copy(path,folderPng);File.Copy(path,nestedPng);
+    var flat=await PixelArtFolderService.ScanAsync(folderRoot,false,CancellationToken.None);
+    var recursive=await PixelArtFolderService.ScanAsync(folderRoot,true,CancellationToken.None);
+    if(flat.Files.Length!=1 || recursive.Files.Length!=2)throw new Exception("Recursive PNG scan failure.");
+    var beforeOverwrite=File.ReadAllBytes(folderPng);
+    var inPlace=new PixelArtExportOptions(recursive.Files,"",new(32,true,PixelPalette.Endesga32),SourceRoot:folderRoot,Overwrite:true);
+    var overwritePlan=await PixelArtExportService.PlanAsync(inPlace,CancellationToken.None);
+    if(overwritePlan.Any(e=>e.Source!=e.Output))throw new Exception("Overwrite plan changed file locations.");
+    await PixelArtFolderService.OverwriteAsync(inPlace,null,CancellationToken.None);
+    if(Directory.GetFiles(Path.Combine(folderRoot,".pixel-backups"),"*.bak",SearchOption.AllDirectories).Length!=1)throw new Exception("Original backup missing.");
+    var backup=Directory.GetFiles(Path.Combine(folderRoot,".pixel-backups"),"*.bak",SearchOption.AllDirectories)[0];
+    if(!beforeOverwrite.SequenceEqual(File.ReadAllBytes(backup)))throw new Exception("Backup differs from original.");
+    if((await PixelArtFolderService.ScanAsync(folderRoot,true,CancellationToken.None)).Files.Length!=2)throw new Exception("Backups included in scan.");
+    var beforeCancel=File.ReadAllBytes(folderPng);
+    using(var cancelOverwrite=new CancellationTokenSource())
+    {
+        try
+        {
+            await PixelArtFolderService.OverwriteAsync(inPlace with { Sources=new[]{folderPng} },new CancelAfterReplacement(cancelOverwrite),cancelOverwrite.Token);
+            throw new Exception("Overwrite cancellation ignored.");
+        }
+        catch(OperationCanceledException){}
+    }
+    if(!beforeCancel.SequenceEqual(File.ReadAllBytes(folderPng)))throw new Exception("Cancelled overwrite did not restore source.");
     using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
     try { PixelArtService.Preview(path, new(64), cancellation.Token); throw new Exception("Cancellation ignored."); }
     catch (OperationCanceledException) { }
     Console.WriteLine("PASS: retained canvas, sharp blocks, transparency, non-square source, unchanged original, cancellation, export, collisions and Batch handoff.");
 }
 finally { Directory.Delete(root, true); }
+
+sealed class CancelAfterReplacement(CancellationTokenSource cancellation) : IProgress<string>
+{
+    public void Report(string message){if(message.StartsWith("Overwritten 1/",StringComparison.Ordinal))cancellation.Cancel();}
+}

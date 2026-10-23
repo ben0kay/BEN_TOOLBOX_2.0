@@ -17,7 +17,17 @@ namespace BEN_TOOLBOX_2_0.Views;
 
 public sealed class PixelArtConverterWindow : Window
 {
-    private readonly ObservableCollection<string> files = new();
+    private ObservableCollection<string> files = new();
+    private readonly ObservableCollection<string> manualFiles = new(), folderFiles = new();
+    private readonly ComboBox inputMode = new() { ItemsSource = new[] { "Manual files", "Folder processing" }, SelectedIndex = 0 };
+    private readonly CheckBox recursiveFolder = new() { Content = "Include subfolders", IsChecked = true };
+    private readonly CheckBox overwriteFolder = new() { Content = "Overwrite source PNGs (backups retained)", IsVisible = false };
+    private readonly TextBlock folderCaption = new() { Text = "Choose a folder to scan.", TextWrapping = TextWrapping.Wrap };
+    private StackPanel? folderControls;
+    private string? scannedRoot;
+    private CancellationTokenSource? scanJob;
+    private bool FolderMode => inputMode.SelectedIndex == 1;
+    private bool InPlace => FolderMode && overwriteFolder.IsChecked == true;
     private readonly ListBox queue = new();
     private readonly Slider detail = new() { Minimum = 16, Maximum = 512, Value = 128, TickFrequency = 1, IsSnapToTickEnabled = true };
     private readonly TextBlock settings = new(), status = new() { Text = "Add PNGs. Originals remain unchanged.", TextWrapping = TextWrapping.Wrap };
@@ -47,6 +57,7 @@ public sealed class PixelArtConverterWindow : Window
 
     public PixelArtConverterWindow()
     {
+        files=manualFiles;
         Title = "Pixel Art Converter"; Width = 1180; Height = 820; MinWidth = 800; MinHeight = 550;
         Background = Brush.Parse("#091522"); Foreground = Brush.Parse("#E8F4FF");
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -54,6 +65,12 @@ public sealed class PixelArtConverterWindow : Window
         var body = new Grid { Margin = new Thickness(20), RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,Auto"), RowSpacing = 12 };
         body.Children.Add(new TextBlock { Text = "PIXEL ART CONVERTER", FontSize = 24, Foreground = Brush.Parse("#86E5F6") });
         var controls = new StackPanel { Spacing = 8 };
+        controls.Children.Add(inputMode);
+        folderControls = new StackPanel { IsVisible=false, Spacing=5 };
+        var pickFolder=new Button { Content="CHOOSE FOLDER / SCAN PNGs" };
+        pickFolder.Click+=async(_,_)=>await ScanFolder();
+        folderControls.Children.Add(pickFolder);folderControls.Children.Add(recursiveFolder);folderControls.Children.Add(folderCaption);
+        controls.Children.Add(folderControls);
         controls.Children.Add(settings); controls.Children.Add(detail);
         var presets = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         foreach (int value in new[] { 32, 64, 96, 128, 256 })
@@ -92,7 +109,8 @@ public sealed class PixelArtConverterWindow : Window
         var buttons = new WrapPanel { ItemSpacing = 6, LineSpacing = 6 };
         var add = new Button { Content = "ADD PNGs" }; var remove = new Button { Content = "REMOVE" }; var clear = new Button { Content = "CLEAR" };
         buttons.Children.Add(add); buttons.Children.Add(remove); buttons.Children.Add(clear); sidebar.Children.Add(buttons);
-        queue.ItemsSource = files; Grid.SetRow(queue, 1); sidebar.Children.Add(queue); centre.Children.Add(sidebar);
+        queue.ItemsSource = files;
+        queue.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((path,_)=>new TextBlock { Text=FolderMode && scannedRoot is not null ? Path.GetRelativePath(scannedRoot,path??"") : path, TextWrapping=TextWrapping.Wrap }); Grid.SetRow(queue, 1); sidebar.Children.Add(queue); centre.Children.Add(sidebar);
         var canvas = new Grid(); canvas.Children.Add(new Checkerboard()); canvas.Children.Add(preview);
         var frame = new Border { Child = canvas, ClipToBounds = true, Padding = new Thickness(8) };
         Grid.SetColumn(frame, 1); centre.Children.Add(frame);
@@ -110,6 +128,14 @@ public sealed class PixelArtConverterWindow : Window
             }
             catch (Exception ex) { if (!closed) status.Text = ex.Message; }
         };
+        inputMode.SelectionChanged+=(_,_)=>
+        {
+            if(outputJob is not null || scanJob is not null)return;
+            files=FolderMode ? folderFiles : manualFiles;queue.ItemsSource=files;queue.SelectedIndex=files.Count>0?0:-1;
+            folderControls.IsVisible=FolderMode;add.IsVisible=!FolderMode;overwriteFolder.IsVisible=FolderMode;
+            plannedOutputKey=null;outputPlan.ItemsSource=null;UpdateOutputMode();RequestPreview();
+        };
+        overwriteFolder.IsCheckedChanged+=(_,_)=>{plannedOutputKey=null;outputPlan.ItemsSource=null;UpdateOutputMode();};
         remove.Click += (_, _) => { int i = queue.SelectedIndex; if (i < 0) return; files.RemoveAt(i); queue.SelectedIndex = files.Count == 0 ? -1 : Math.Min(i, files.Count - 1); RequestPreview(); };
         clear.Click += (_, _) => { files.Clear(); RequestPreview(); };
         queue.SelectionChanged += (_, _) => RequestPreview();
@@ -121,7 +147,7 @@ public sealed class PixelArtConverterWindow : Window
             slider.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty) RequestPreview(); };
         dither.IsEnabled = matching.IsEnabled = false;
         nearest.IsCheckedChanged += (_, _) => RequestPreview();
-        Closed += (_, _) => { closed = true; generation++; pending?.Cancel(); outputJob?.Cancel(); preview.Source = null; bitmap?.Dispose(); bitmap = null; };
+        Closed += (_, _) => { closed = true; generation++; pending?.Cancel(); outputJob?.Cancel(); scanJob?.Cancel(); preview.Source = null; bitmap?.Dispose(); bitmap = null; };
         RequestPreview();
     }
 
@@ -140,7 +166,7 @@ public sealed class PixelArtConverterWindow : Window
             try { var result=await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { AllowMultiple=false }); if(!closed && result.Count>0 && result[0].Path.IsFile)outputFolder.Text=result[0].Path.LocalPath; }
             catch(Exception ex){if(!closed)status.Text=ex.Message;}
         };
-        body.Children.Add(folderRow);
+        body.Children.Add(overwriteFolder);body.Children.Add(folderRow);
         var names=new WrapPanel { ItemSpacing=10,LineSpacing=5 };
         names.Children.Add(selectedOnly); names.Children.Add(sequential);names.Children.Add(Field("PREFIX",outputPrefix));names.Children.Add(Field("START",outputStart));names.Children.Add(Field("DIGITS",outputDigits));body.Children.Add(names);
         body.Children.Add(new TextBlock { Text="Default names: original_px128.png • Canvas dimensions retained • Existing files are never overwritten",FontSize=11,TextWrapping=TextWrapping.Wrap });
@@ -150,18 +176,19 @@ public sealed class PixelArtConverterWindow : Window
         planOutput.Click+=async(_,_)=>await RunOutput(false,false);
         exportOutput.Click+=async(_,_)=>await RunOutput(true,false);
         sendBatch.Click+=async(_,_)=>await RunOutput(false,true);
-        cancelOutput.Click+=(_,_)=>outputJob?.Cancel();
+        cancelOutput.Click+=(_,_)=>{outputJob?.Cancel();scanJob?.Cancel();};
         return new Expander { Header="EXPORT / SEND TO SPRITE BATCH",Content=body,IsExpanded=true };
     }
     private PixelArtExportOptions ReadExport()
     {
         string[] inputs=selectedOnly.IsChecked==true ? queue.SelectedItem is string path ? new[]{path} : Array.Empty<string>() : files.ToArray();
-        if(!int.TryParse(outputStart.Text,out int start)||!int.TryParse(outputDigits.Text,out int digits))throw new ArgumentException("Enter valid sequence start and digits.");
-        return new(inputs,(outputFolder.Text??"").Trim().Trim('"'),ReadProcessing(),sequential.IsChecked==true,(outputPrefix.Text??"").Trim(),start,digits);
+        int start=1,digits=3;
+        if(!InPlace && (!int.TryParse(outputStart.Text,out start)||!int.TryParse(outputDigits.Text,out digits)))throw new ArgumentException("Enter valid sequence start and digits.");
+        return new(inputs,(outputFolder.Text??"").Trim().Trim('"'),ReadProcessing(),!InPlace && sequential.IsChecked==true,InPlace ? "Sprite" : (outputPrefix.Text??"").Trim(),start,digits,FolderMode?scannedRoot:null,InPlace);
     }
     private async Task RunOutput(bool export,bool handoff)
     {
-        if(outputJob is not null)return;
+        if(outputJob is not null || scanJob is not null)return;
         PixelArtExportOptions? options=null;
         string[] inputs; PixelArtOptions processing;
         try
@@ -175,6 +202,7 @@ public sealed class PixelArtConverterWindow : Window
         }
         catch(Exception ex){status.Text=ex.Message;return;}
         using var cancellation=new CancellationTokenSource();outputJob=cancellation;
+        overwriteFolder.IsEnabled=false;
         generation++;pending?.Cancel(); if(processingControls is not null)processingControls.IsEnabled=false;queue.IsEnabled=false;
         foreach(var button in new[]{planOutput,exportOutput,sendBatch})button.IsEnabled=false;cancelOutput.IsEnabled=true;
         PixelArtHandoffLease? lease=null;
@@ -193,22 +221,57 @@ public sealed class PixelArtConverterWindow : Window
             }
             else if(export)
             {
-                int count=await PixelArtExportService.ExportAsync(options!,progress,cancellation.Token);
-                plannedOutputKey=null;status.Text=$"Exported {count} PNGs. Original dimensions, transparency and source files preserved.";
+                int count=options!.Overwrite ? await PixelArtFolderService.OverwriteAsync(options,progress,cancellation.Token) : await PixelArtExportService.ExportAsync(options,progress,cancellation.Token);
+                plannedOutputKey=null;
+                status.Text=options.Overwrite ? $"Replaced {count} PNGs in place. Original backups: .pixel-backups inside each source folder. Rescan/select an image to preview updated files."
+                    : $"Exported {count} PNGs. Original dimensions, transparency and source files preserved.";
+                if(options.Overwrite){preview.Source=null;bitmap?.Dispose();bitmap=null;}
             }
             else
             {
                 var plan=await PixelArtExportService.PlanAsync(options!,cancellation.Token);
-                if(!closed){outputPlan.ItemsSource=plan.Select(p=>p.Display).ToArray();plannedOutputKey=System.Text.Json.JsonSerializer.Serialize(options);status.Text=$"{plan.Length} outputs planned. Review names, then EXPORT PNGs.";}
+                if(!closed){outputPlan.ItemsSource=plan.Select(p=>options!.Overwrite ? "OVERWRITE: "+p.Source+ $" | {p.Width}×{p.Height}" : p.Display).ToArray();plannedOutputKey=System.Text.Json.JsonSerializer.Serialize(options);exportOutput.Content=options!.Overwrite ? $"OVERWRITE {plan.Length} PNGs" : "EXPORT PNGs";
+                    status.Text=options.Overwrite ? $"{plan.Length} original PNGs will be replaced. Backups retained in .pixel-backups. Review full paths, then OVERWRITE." : $"{plan.Length} outputs planned. Review names, then EXPORT PNGs.";}
             }
         }
-        catch(OperationCanceledException){status.Text="Cancelled. No originals changed; created export files rolled back.";plannedOutputKey=null;}
+        catch(OperationCanceledException){status.Text="Cancelled. Any completed replacements were rolled back; backups are retained. Copy exports rolled back.";plannedOutputKey=null;}
         catch(Exception ex){status.Text="Output failed: "+ex.Message;plannedOutputKey=null;}
         finally
         {
             if(lease is not null)try{lease.Dispose();}catch(Exception ex){status.Text="Temporary cleanup failed: "+ex.Message;System.Diagnostics.Trace.WriteLine(status.Text);}
-            outputJob=null;if(processingControls is not null)processingControls.IsEnabled=true;queue.IsEnabled=true;foreach(var button in new[]{planOutput,exportOutput,sendBatch})button.IsEnabled=true;cancelOutput.IsEnabled=false;
+            outputJob=null;overwriteFolder.IsEnabled=true;if(processingControls is not null)processingControls.IsEnabled=true;queue.IsEnabled=true;foreach(var button in new[]{planOutput,exportOutput,sendBatch})button.IsEnabled=true;cancelOutput.IsEnabled=false;
         }
+    }
+
+    private void UpdateOutputMode()
+    {
+        outputFolder.IsEnabled=outputPrefix.IsEnabled=outputStart.IsEnabled=outputDigits.IsEnabled=sequential.IsEnabled=!InPlace;
+        exportOutput.Content=InPlace ? "OVERWRITE PNGs (preview first)" : "EXPORT PNGs";
+    }
+    private async Task ScanFolder()
+    {
+        if(outputJob is not null || scanJob is not null)return;
+        try
+        {
+            var chosen=await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { AllowMultiple=false,Title="Choose PNG folder" });
+            if(closed || chosen.Count==0 || !chosen[0].Path.IsFile)return;
+            string root=chosen[0].Path.LocalPath;bool recursive=recursiveFolder.IsChecked==true;
+            using var cancellation=new CancellationTokenSource();scanJob=cancellation;inputMode.IsEnabled=false;cancelOutput.IsEnabled=true;
+            try
+            {
+                status.Text="Scanning PNG paths…";
+                var result=await PixelArtFolderService.ScanAsync(root,recursive,cancellation.Token);
+                if(closed)return;
+                scannedRoot=root;folderFiles.Clear();foreach(var file in result.Files)folderFiles.Add(file);
+                files=folderFiles;queue.ItemsSource=files;queue.SelectedIndex=files.Count>0?0:-1;
+                folderCaption.Text=$"{root} • {files.Count} PNGs • {result.Skipped} inaccessible/linked entries skipped";
+                plannedOutputKey=null;outputPlan.ItemsSource=null;
+                RequestPreview();status.Text=folderCaption.Text;
+            }
+            finally{scanJob=null;inputMode.IsEnabled=true;cancelOutput.IsEnabled=false;}
+        }
+        catch(OperationCanceledException){status.Text="Folder scan cancelled; previous list retained.";}
+        catch(Exception ex){status.Text="Scan failed: "+ex.Message;}
     }
 
     private void ReloadPalettes()
@@ -221,7 +284,8 @@ public sealed class PixelArtConverterWindow : Window
 
     private void AddFiles(System.Collections.Generic.IEnumerable<string> paths)
     {
-        if(outputJob is not null){status.Text="Wait for the active output job before adding images.";return;}
+        if(FolderMode){status.Text="Drag/drop belongs to Manual files. Switch modes or use Choose Folder.";return;}
+        if(outputJob is not null || scanJob is not null){status.Text="Wait for the active job before adding images.";return;}
         int rejected = 0;
         foreach (string path in paths)
         {
