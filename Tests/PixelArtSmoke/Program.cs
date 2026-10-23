@@ -103,6 +103,33 @@ try
         catch(OperationCanceledException){}
     }
     if(!beforeCancel.SequenceEqual(File.ReadAllBytes(folderPng)))throw new Exception("Cancelled overwrite did not restore source.");
+    var edges=Path.Combine(root,"edges.png");
+    using(var fixture=new Image<Rgba32>(32,32))
+    {
+        for(int y=8;y<24;y++)for(int x=8;x<24;x++)fixture[x,y]=new Rgba32(255,0,0,255);
+        fixture[1,1]=new Rgba32(0,255,0,64);fixture.SaveAsPng(edges);
+    }
+    foreach(bool sharp in new[]{false,true})
+    {
+        var legacy=PixelArtService.Preview(edges,new(16,sharp),CancellationToken.None,true);
+        var slider=PixelArtService.Preview(edges,new(16,SamplingBlend:sharp?1:0),CancellationToken.None,true);
+        if(!legacy.SequenceEqual(slider))throw new Exception("Sampling endpoints changed.");
+    }
+    using(var mixed=Image.Load<Rgba32>(PixelArtService.Preview(edges,new(16,SamplingBlend:0.5),CancellationToken.None,true)))
+        if(mixed.Width!=16||mixed.Height!=16)throw new Exception("Sampling blend altered grid dimensions.");
+    using(var cleaned=Image.Load<Rgba32>(PixelArtService.Preview(edges,new(32,RemoveIslands:1),CancellationToken.None,true)))
+        if(cleaned[1,1].A!=0||cleaned[8,8].A!=255)throw new Exception("Island cleanup damaged connected object.");
+    using(var cutoff=Image.Load<Rgba32>(PixelArtService.Preview(edges,new(32,AlphaCutoff:128),CancellationToken.None,true)))
+        if(cutoff[1,1].A!=0||cutoff[10,10].A!=255)throw new Exception("Alpha threshold failure.");
+    foreach(var mode in new[]{PixelOutline.Outside,PixelOutline.Inside})
+    {
+        using var outlined=Image.Load<Rgba32>(PixelArtService.Preview(edges,new(32,Outline:mode,OutlineColour:"#123456"),CancellationToken.None,true));
+        var sample=outlined[mode==PixelOutline.Outside?7:8,10];
+        if(sample.R!=0x12||sample.G!=0x34||sample.B!=0x56)throw new Exception("Outline placement failure.");
+        if(outlined.Width!=32||outlined.Height!=32)throw new Exception("Outline changed canvas.");
+    }
+    using(var shifted=Image.Load<Rgba32>(PixelArtService.Preview(edges,new(32,Hue:120),CancellationToken.None,true)))
+        if(shifted[10,10].G<=shifted[10,10].R)throw new Exception("Hue slider did not rotate red toward green.");
     using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
     try { PixelArtService.Preview(path, new(64), cancellation.Token); throw new Exception("Cancellation ignored."); }
     catch (OperationCanceledException) { }

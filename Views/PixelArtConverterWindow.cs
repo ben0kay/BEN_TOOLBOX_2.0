@@ -31,7 +31,13 @@ public sealed class PixelArtConverterWindow : Window
     private readonly ListBox queue = new();
     private readonly Slider detail = new() { Minimum = 16, Maximum = 512, Value = 128, TickFrequency = 1, IsSnapToTickEnabled = true };
     private readonly TextBlock settings = new(), status = new() { Text = "Add PNGs. Originals remain unchanged.", TextWrapping = TextWrapping.Wrap };
-    private readonly CheckBox nearest = new() { Content = "Nearest source sampling (already pixelated art)" };
+    private readonly Slider sampling = new() { Minimum=0,Maximum=1,Value=0,Width=180 };
+    private readonly Slider hue = new() { Minimum=-180,Maximum=180,Value=0,Width=150 };
+    private readonly Slider alphaCutoff = new() { Minimum=0,Maximum=255,Value=0,TickFrequency=1,IsSnapToTickEnabled=true,Width=150 };
+    private readonly Slider removeIslands = new() { Minimum=0,Maximum=16,Value=0,TickFrequency=1,IsSnapToTickEnabled=true,Width=150 };
+    private readonly ComboBox outline = new() { ItemsSource=new[]{"None","Outside","Inside"},SelectedIndex=0,MinWidth=110 };
+    private readonly Slider outlineWidth = new() { Minimum=1,Maximum=4,Value=1,TickFrequency=1,IsSnapToTickEnabled=true,Width=100 };
+    private readonly TextBox outlineColour = new() { Text="#262B44",Width=110 };
     private readonly PixelViewport preview = new();
     private readonly ObservableCollection<string> paletteNames = new() { "Original colours", "Automatic 16", "Automatic 32", "Automatic 64", "Endesga 32", "Grayscale 16", "Custom draft" };
     private System.Collections.Generic.List<PixelPalettePreset> savedPalettes = new();
@@ -78,7 +84,7 @@ public sealed class PixelArtConverterWindow : Window
             var button = new Button { Content = value.ToString() };
             button.Click += (_, _) => detail.Value = value; presets.Children.Add(button);
         }
-        controls.Children.Add(presets); controls.Children.Add(nearest);
+        controls.Children.Add(presets); controls.Children.Add(Adjustment("SAMPLING BLEND: 0 = Average / 1 = Nearest", sampling));
         palette.ItemsSource = paletteNames;
         ReloadPalettes();
         var colourControls = new WrapPanel { ItemSpacing = 14, LineSpacing = 8 };
@@ -96,11 +102,17 @@ public sealed class PixelArtConverterWindow : Window
         colourControls.Children.Add(editPalette);
         colourControls.Children.Add(Field("PALETTE", palette)); colourControls.Children.Add(Field("COLOUR MATCHING", matching));
         colourControls.Children.Add(Adjustment("BRIGHTNESS", brightness)); colourControls.Children.Add(Adjustment("CONTRAST", contrast));
+        colourControls.Children.Add(Adjustment("HUE (degrees)", hue));
+        colourControls.Children.Add(Adjustment("ALPHA CUTOFF (0 = off)", alphaCutoff));
+        colourControls.Children.Add(Adjustment("REMOVE ISLANDS ≤ pixels (0 = off)", removeIslands));
+        colourControls.Children.Add(Field("OUTLINE", outline));
+        colourControls.Children.Add(Adjustment("OUTLINE WIDTH (grid pixels)", outlineWidth));
+        colourControls.Children.Add(Field("OUTLINE HEX", outlineColour));
         colourControls.Children.Add(Adjustment("SATURATION", saturation)); colourControls.Children.Add(Adjustment("BAYER 4×4 STRENGTH", dither));
         var fit = new Button { Content = "FIT PREVIEW" };
         fit.Click += (_, _) => preview.Fit(); colourControls.Children.Add(fit);
         var reset = new Button { Content = "RESET COLOURS" }; colourControls.Children.Add(reset);
-        reset.Click += (_, _) => { palette.SelectedIndex = 0; matching.SelectedIndex = 0; brightness.Value = contrast.Value = saturation.Value = 1; dither.Value = 0; };
+        reset.Click += (_, _) => { palette.SelectedIndex = 0; matching.SelectedIndex = 0; brightness.Value = contrast.Value = saturation.Value = 1; dither.Value = 0;hue.Value=alphaCutoff.Value=removeIslands.Value=0;outline.SelectedIndex=0;outlineWidth.Value=1;outlineColour.Text="#262B44"; };
         controls.Children.Add(colourControls); controls.Children.Add(previewInfo);
         controls.Children.Add(new TextBlock { Text = "One shared setting for all files • Original canvas dimensions retained • Export PNGs here or send converted copies to Sprite Batch", TextWrapping = TextWrapping.Wrap });
         var settingsScroll = new ScrollViewer { Content = controls, MaxHeight = 310 }; processingControls=settingsScroll; Grid.SetRow(settingsScroll, 1); body.Children.Add(settingsScroll);
@@ -143,18 +155,20 @@ public sealed class PixelArtConverterWindow : Window
         palette.SelectionChanged += (_, _) => { dither.IsEnabled = palette.SelectedIndex != 0; matching.IsEnabled = palette.SelectedIndex != 0; RequestPreview(); };
         matching.SelectionChanged += (_, _) => RequestPreview();
         preview.ViewChanged = UpdateZoom;
-        foreach (var slider in new[] { brightness, contrast, saturation, dither })
+        foreach (var slider in new[] { brightness, contrast, saturation, dither, sampling, hue, alphaCutoff, removeIslands, outlineWidth })
             slider.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty) RequestPreview(); };
         dither.IsEnabled = matching.IsEnabled = false;
-        nearest.IsCheckedChanged += (_, _) => RequestPreview();
+        outline.SelectionChanged+=(_,_)=>RequestPreview();
+        outlineColour.TextChanged+=(_,_)=>RequestPreview();
         Closed += (_, _) => { closed = true; generation++; pending?.Cancel(); outputJob?.Cancel(); scanJob?.Cancel(); preview.Source = null; bitmap?.Dispose(); bitmap = null; };
         RequestPreview();
     }
 
-    private PixelArtOptions ReadProcessing() => new((int)Math.Round(detail.Value), nearest.IsChecked == true,
+    private PixelArtOptions ReadProcessing() => new((int)Math.Round(detail.Value), false,
         palette.SelectedIndex >= 6 ? PixelPalette.Custom : (PixelPalette)Math.Max(0, palette.SelectedIndex), matching.SelectedIndex == 0,
         brightness.Value, contrast.Value, saturation.Value, dither.Value,
-        palette.SelectedIndex >= 7 && palette.SelectedIndex - 7 < savedPalettes.Count ? savedPalettes[palette.SelectedIndex-7].Colours.ToArray() : draftColours.ToArray());
+        palette.SelectedIndex >= 7 && palette.SelectedIndex - 7 < savedPalettes.Count ? savedPalettes[palette.SelectedIndex-7].Colours.ToArray() : draftColours.ToArray(), sampling.Value,hue.Value,(int)alphaCutoff.Value,(int)removeIslands.Value,
+        (PixelOutline)Math.Max(0,outline.SelectedIndex),(int)outlineWidth.Value,(outlineColour.Text??"").Trim());
 
     private Control BuildOutputPanel()
     {
