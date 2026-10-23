@@ -229,3 +229,7 @@ Coded: Original, automatic 16/32/64 (deterministic alpha-weighted median-cut), E
 Preview uses the processed logical bitmap directly with Fit and 1/2/3/4/6/8× zoom, scrollable when enlarged. These zoom factors use Avalonia device-independent units; display scaling can affect physical-pixel alignment. Conversion's default full-canvas result still preserves source dimensions. Preview changes use the existing serialized, debounced latest-request-wins pipeline. Palette and adjustment work happens on the logical grid, avoiding full-resolution per-pixel colour matching.
 
 Smoke coverage expanded for deterministic palette conversion, palette limits, and logical preview dimensions. Build/test execution and Windows visual validation remain pending: no .NET SDK available in the implementation environment. P3 export and P4 handoff are still pending.
+
+### Preview navigation refinement — 2026-10-23
+
+Replaced zoom dropdown with pointer-centred mouse-wheel zoom and left/middle-button drag panning. Double-click or Fit Preview resets framing. Nearest-neighbour image rendering retained. Zoom/pan affects only the viewport, never logical detail or output settings. Uses a clipped custom drawing control without reprocessing image data during navigation. Windows build and pointer-interaction testing pending.

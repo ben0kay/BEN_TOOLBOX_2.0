@@ -22,14 +22,12 @@ public sealed class PixelArtConverterWindow : Window
     private readonly Slider detail = new() { Minimum = 16, Maximum = 512, Value = 128, TickFrequency = 1, IsSnapToTickEnabled = true };
     private readonly TextBlock settings = new(), status = new() { Text = "Add PNGs. Originals remain unchanged.", TextWrapping = TextWrapping.Wrap };
     private readonly CheckBox nearest = new() { Content = "Nearest source sampling (already pixelated art)" };
-    private readonly Image preview = new() { Stretch = Stretch.Uniform };
+    private readonly PixelViewport preview = new();
     private readonly ComboBox palette = new() { ItemsSource = new[] { "Original colours", "Automatic 16", "Automatic 32", "Automatic 64", "Endesga 32", "Grayscale 16" }, SelectedIndex = 0, MinWidth = 170 };
     private readonly ComboBox matching = new() { ItemsSource = new[] { "Perceptual (Oklab)", "RGB" }, SelectedIndex = 0, MinWidth = 160 };
-    private readonly ComboBox zoom = new() { ItemsSource = new[] { "Fit", "1×", "2×", "3×", "4×", "6×", "8×" }, SelectedIndex = 0, MinWidth = 80 };
     private readonly Slider brightness = ColourSlider(), contrast = ColourSlider(), saturation = ColourSlider();
     private readonly Slider dither = new() { Minimum = 0, Maximum = 1, Value = 0, Width = 150 };
     private readonly TextBlock previewInfo = new();
-    private readonly ScrollViewer previewScroll = new();
     private readonly SemaphoreSlim previewGate = new(1, 1);
     private CancellationTokenSource? pending;
     private Bitmap? bitmap;
@@ -57,7 +55,8 @@ public sealed class PixelArtConverterWindow : Window
         colourControls.Children.Add(Field("PALETTE", palette)); colourControls.Children.Add(Field("COLOUR MATCHING", matching));
         colourControls.Children.Add(Adjustment("BRIGHTNESS", brightness)); colourControls.Children.Add(Adjustment("CONTRAST", contrast));
         colourControls.Children.Add(Adjustment("SATURATION", saturation)); colourControls.Children.Add(Adjustment("BAYER 4×4 STRENGTH", dither));
-        colourControls.Children.Add(Field("PREVIEW ZOOM", zoom));
+        var fit = new Button { Content = "FIT PREVIEW" };
+        fit.Click += (_, _) => preview.Fit(); colourControls.Children.Add(fit);
         var reset = new Button { Content = "RESET COLOURS" }; colourControls.Children.Add(reset);
         reset.Click += (_, _) => { palette.SelectedIndex = 0; matching.SelectedIndex = 0; brightness.Value = contrast.Value = saturation.Value = 1; dither.Value = 0; };
         controls.Children.Add(colourControls); controls.Children.Add(previewInfo);
@@ -69,7 +68,7 @@ public sealed class PixelArtConverterWindow : Window
         var add = new Button { Content = "ADD PNGs" }; var remove = new Button { Content = "REMOVE" }; var clear = new Button { Content = "CLEAR" };
         buttons.Children.Add(add); buttons.Children.Add(remove); buttons.Children.Add(clear); sidebar.Children.Add(buttons);
         queue.ItemsSource = files; Grid.SetRow(queue, 1); sidebar.Children.Add(queue); centre.Children.Add(sidebar);
-        var canvas = new Grid(); canvas.Children.Add(new Checkerboard()); previewScroll.Content = preview; canvas.Children.Add(previewScroll);
+        var canvas = new Grid(); canvas.Children.Add(new Checkerboard()); canvas.Children.Add(preview);
         var frame = new Border { Child = canvas, ClipToBounds = true, Padding = new Thickness(8) };
         Grid.SetColumn(frame, 1); centre.Children.Add(frame);
         Grid.SetRow(centre, 2); body.Children.Add(centre); Grid.SetRow(status, 3); body.Children.Add(status); Content = body;
@@ -91,7 +90,7 @@ public sealed class PixelArtConverterWindow : Window
         detail.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty) RequestPreview(); };
         palette.SelectionChanged += (_, _) => { dither.IsEnabled = palette.SelectedIndex != 0; matching.IsEnabled = palette.SelectedIndex != 0; RequestPreview(); };
         matching.SelectionChanged += (_, _) => RequestPreview();
-        zoom.SelectionChanged += (_, _) => UpdateZoom();
+        preview.ViewChanged = UpdateZoom;
         foreach (var slider in new[] { brightness, contrast, saturation, dither })
             slider.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty) RequestPreview(); };
         dither.IsEnabled = matching.IsEnabled = false;
@@ -161,15 +160,74 @@ public sealed class PixelArtConverterWindow : Window
     private void UpdateZoom()
     {
         if (bitmap is null) return;
-        int[] factors = { 0, 1, 2, 3, 4, 6, 8 };
-        int factor = factors[Math.Clamp(zoom.SelectedIndex, 0, factors.Length - 1)];
-        previewScroll.HorizontalScrollBarVisibility = previewScroll.VerticalScrollBarVisibility = factor == 0 ? Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled : Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
-        preview.Stretch = factor == 0 ? Stretch.Uniform : Stretch.Fill;
-        preview.Width = factor == 0 ? double.NaN : bitmap.PixelSize.Width * factor;
-        preview.Height = factor == 0 ? double.NaN : bitmap.PixelSize.Height * factor;
-        preview.HorizontalAlignment = factor == 0 ? HorizontalAlignment.Stretch : HorizontalAlignment.Center;
-        preview.VerticalAlignment = factor == 0 ? VerticalAlignment.Stretch : VerticalAlignment.Center;
-        previewInfo.Text = $"Logical preview: {bitmap.PixelSize.Width}×{bitmap.PixelSize.Height} • " + (factor == 0 ? "Fit (use integer zoom to inspect pixels)" : $"{factor}× nearest-neighbour zoom");
+        previewInfo.Text = $"Logical preview: {bitmap.PixelSize.Width}×{bitmap.PixelSize.Height} • Wheel: zoom • Left/middle drag: pan • Double-click: fit";
+    }
+
+    private sealed class PixelViewport : Control
+    {
+        private Bitmap? source;
+        private double scale = 1;
+        private Vector offset;
+        private Point? drag;
+        private bool fit = true;
+        public Action? ViewChanged;
+        public Bitmap? Source
+        {
+            get => source;
+            set { source = value; if (fit) Fit(); InvalidateVisual(); }
+        }
+        public PixelViewport()
+        {
+            ClipToBounds = true;
+            SizeChanged += (_, _) => { if (fit) Fit(); };
+        }
+        public void Fit()
+        {
+            fit = true;
+            if (source is null || Bounds.Width <= 0 || Bounds.Height <= 0) return;
+            scale = Math.Max(0.01, Math.Min(Bounds.Width / source.Size.Width, Bounds.Height / source.Size.Height));
+            offset = new Vector((Bounds.Width-source.Size.Width*scale)/2, (Bounds.Height-source.Size.Height*scale)/2);
+            InvalidateVisual(); ViewChanged?.Invoke();
+        }
+        public override void Render(DrawingContext context)
+        {
+            base.Render(context);
+            context.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
+            if (source is not null)
+                context.DrawImage(source, new Rect(source.Size), new Rect(offset.X,offset.Y,source.Size.Width*scale,source.Size.Height*scale));
+        }
+        protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+        {
+            base.OnPointerWheelChanged(e);
+            if (source is null) return;
+            var point=e.GetPosition(this);
+            double next=Math.Clamp(scale*Math.Pow(1.2,e.Delta.Y),0.05,64);
+            double ratio=next/scale;
+            offset=new Vector(point.X-(point.X-offset.X)*ratio,point.Y-(point.Y-offset.Y)*ratio);
+            scale=next;fit=false;InvalidateVisual();ViewChanged?.Invoke();e.Handled=true;
+        }
+        protected override void OnPointerPressed(PointerPressedEventArgs e)
+        {
+            base.OnPointerPressed(e);
+            var properties=e.GetCurrentPoint(this).Properties;
+            if (!properties.IsLeftButtonPressed && !properties.IsMiddleButtonPressed) return;
+            if(e.ClickCount==2){Fit();e.Handled=true;return;}
+            drag=e.GetPosition(this);e.Pointer.Capture(this);e.Handled=true;
+        }
+        protected override void OnPointerMoved(PointerEventArgs e)
+        {
+            base.OnPointerMoved(e);
+            if(drag is not Point previous)return;
+            var point=e.GetPosition(this);offset+=point-previous;drag=point;fit=false;InvalidateVisual();e.Handled=true;
+        }
+        protected override void OnPointerReleased(PointerReleasedEventArgs e)
+        {
+            base.OnPointerReleased(e);drag=null;e.Pointer.Capture(null);
+        }
+        protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+        {
+            base.OnPointerCaptureLost(e);drag=null;
+        }
     }
 
     private sealed class Checkerboard : Control
