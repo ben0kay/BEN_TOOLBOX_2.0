@@ -22,6 +22,8 @@ public partial class MainWindow : Window
         Closed += (_, _) => _screenshotHotkey?.Dispose();
     }
 
+    private void CloseToolbox(object? sender, RoutedEventArgs e) => Close();
+
     private void NavigateDashboard(object? sender, RoutedEventArgs e) => ShowSection("Dashboard");
     private void NavigateGame(object? sender, RoutedEventArgs e) => ShowSection("Game");
     private void NavigateFiles(object? sender, RoutedEventArgs e) => ShowSection("Files");

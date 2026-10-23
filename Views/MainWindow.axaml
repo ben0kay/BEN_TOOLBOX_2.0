@@ -41,6 +41,19 @@
       <Setter Property="Background" Value="#16334B"/>
       <Setter Property="BorderBrush" Value="#68DFF5"/>
     </Style>
+    <Style Selector="Button.app-close">
+      <Setter Property="Background" Value="#17283A"/>
+      <Setter Property="BorderBrush" Value="#39556B"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="5"/>
+      <Setter Property="Foreground" Value="#B6CADC"/>
+      <Setter Property="Padding" Value="0"/>
+    </Style>
+    <Style Selector="Button.app-close:pointerover">
+      <Setter Property="Background" Value="#733042"/>
+      <Setter Property="BorderBrush" Value="#EE8390"/>
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+    </Style>
 
     <!-- Dashboard V2 / D1: reusable static HUD primitives. No animations or runtime polling. -->
     <Style Selector="Border.hud">
@@ -94,9 +107,17 @@
       <Border Grid.Row="0" BorderBrush="#253247" BorderThickness="0,0,0,1" Background="#0B1828">
         <Grid ColumnDefinitions="*,Auto" Margin="32,0" VerticalAlignment="Center">
           <TextBlock Text="BTX-02  /  DEVELOPMENT CONTROL INTERFACE" FontSize="11" FontWeight="SemiBold" Foreground="#7D93AF" LetterSpacing="2" VerticalAlignment="Center"/>
-          <Border Grid.Column="1" Background="#1C2A3B" CornerRadius="20" Padding="13,7">
-            <TextBlock Text="●  LOCAL TERMINAL     /     ONLINE" Foreground="#A2D9ED" FontSize="12"/>
-          </Border>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+            <Border Background="#1C2A3B" CornerRadius="20" Padding="13,7" VerticalAlignment="Center">
+              <TextBlock Text="●  LOCAL TERMINAL     /     ONLINE" Foreground="#A2D9ED" FontSize="12"/>
+            </Border>
+            <!-- Always-visible close control, including when native title-bar buttons are obscured. -->
+            <Button Classes="app-close" Width="36" Height="32" Click="CloseToolbox"
+                    ToolTip.Tip="Close BEN TOOLBOX" AutomationProperties.Name="Close BEN TOOLBOX">
+              <TextBlock Text="×" FontSize="21" FontWeight="SemiBold"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Button>
+          </StackPanel>
         </Grid>
       </Border>
       <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
