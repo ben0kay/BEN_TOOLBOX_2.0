@@ -9,7 +9,7 @@ namespace BEN_TOOLBOX_2_0.Services;
 // Explicit allowlist: no arbitrary commands or user-supplied script paths.
 public sealed record ToolDefinition(string Id, string Category, string Name, string Description, string RelativePath)
 {
-    public string Status => Id == "pixel-art-converter" ? "NATIVE AVALONIA  /  PREVIEW" : Id is "content-inspector" or "sprite-inventory" ? "NATIVE AVALONIA  /  READ ONLY" : "WINDOWS POWERSHELL  /  LOCAL";
+    public string Status => Id == "pixel-art-converter" ? "NATIVE AVALONIA  /  IMAGE PROCESSING" : Id is "content-inspector" or "sprite-inventory" ? "NATIVE AVALONIA  /  READ ONLY" : "WINDOWS POWERSHELL  /  LOCAL";
 }
 
 public static class ToolCatalog
@@ -17,7 +17,7 @@ public static class ToolCatalog
     private static readonly ToolDefinition[] Tools =
     {
         new("sprite-splitter","Game","Sprite Splitter","Cut PNG sprite sheets into separate images.","GameDev_Toolbox/Tools/SpriteSplitter/SpriteSplitter.ps1"),
-        new("pixel-art-converter","Game","Pixel Art Converter","Preview shared pixel detail on PNGs while retaining canvas dimensions.",""),
+        new("pixel-art-converter","Game","Pixel Art Converter","Pixelate PNGs, edit palettes, export or send converted images to Sprite Batch.",""),
         new("sprite-batch","Game","Sprite Batch Tool","Resize and rename PNG assets in batches.","GameDev_Toolbox/Tools/SpriteBatchTool/SpriteBatchTool.ps1"),
         new("resource-checker","Game","Resource Checker","Check resource paths and artwork connections.","GameDev_Toolbox/Tools/ResourceChecker/ResourceChecker.ps1"),
         new("artwork-prompter","Game","Artwork Design Prompter","Compose prompts for game artwork and biomes.","GameDev_Toolbox/Tools/ArtworkDesignPrompter/ArtworkDesignPrompter.ps1"),

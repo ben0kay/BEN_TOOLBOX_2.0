@@ -1,6 +1,6 @@
 # Pixel Art Converter — Avalonia Implementation Plan
 
-> **Status: P0 specified; P2 preview coded, Windows validation pending. P1 processing dependency partially coded; P3–P5 pending.**
+> **Status: P0 specified; P2 preview coded, Windows validation pending. P1 processing dependency partially coded; P3/P4 coded, Windows validation pending. P5 pending.**
 > **Created: 2026-10-23**  
 > **Location:** Notes/Plans/PIXEL_ART_CONVERTER_IMPLEMENTATION_PLAN.md  
 > **Audience:** Codex and future development assistants  
@@ -138,8 +138,8 @@ Standalone output is equally important as handoff.
 | **P0 — Investigate & contracts** | Read actual code, agree width/alpha/resampler conventions, queue/options contracts | **SPECIFIED; see updated contract** | Behaviour specified, source API compatibility confirmed |
 | **P1 — Core processor** | ImageSharp deterministic pixelation, aspect/alpha and tests | **NOT STARTED** | 1254-square to 128-square, non-square and alpha cases correct |
 | **P2 — Multi-file live UI** | Register native tool; drag/drop/add; auto-select first; click-to-preview; debounced pixel slider | **CODED; Windows validation pending** | Selected image updates smoothly; no conversion of all files on each change |
-| **P3 — Own export/rename** | Destination, naming plan, Export Selected/All, progress/cancel, no overwrite | **NOT STARTED** | Correct PNGs and filenames; source unchanged |
-| **P4 — Sprite Batch handoff** | Temp staging lease, preloaded receiver, nearest resample option | **NOT STARTED** | Converted images already in Batch without previous final export; resize/rename once |
+| **P3 — Own export/rename** | Destination, naming plan, Export Selected/All, progress/cancel, no overwrite | **CODED; Windows validation pending** | Correct PNGs and filenames; source unchanged |
+| **P4 — Sprite Batch handoff** | Temp staging lease, preloaded receiver, nearest resample option | **CODED; Windows validation pending** | Converted images already in Batch without previous final export; resize/rename once |
 | **P5 — Regression & docs** | Tests, performance, Windows UI, README/plan progress | **NOT STARTED** | Reproducible end-to-end workflow and tests |
 
 ### P0 / P1 — processing proof
@@ -239,3 +239,23 @@ Replaced zoom dropdown with pointer-centred mouse-wheel zoom and left/middle-but
 Coded: Edit/Create Palette opens an editor seeded from Endesga 32, the custom draft, or a selected saved palette. Clickable numbered swatches, RGB sliders and validated six-digit hex entry publish copied palette snapshots into the selected preview. Save as New Preset stores named palette-only presets under LocalApplicationData/BEN_TOOLBOX_2_0/PixelPalettes; presets reload into the palette dropdown on subsequent launches. Built-in Endesga data is never mutated. Existing names are rejected; use a new name for revisions. Presets contain palette colours only, not image paths or all converter settings. Source alpha is preserved by custom colour mapping. Storage uses temporary writes and rename; malformed saved files are reported. Editor changes remain an unsaved draft until saved. Original/automatic modes start a new editor from Endesga; automatic-palette extraction into the editor remains future work.
 
 Added smoke coverage for custom palette mapping, alpha, invalid hex rejection and built-in colour count. .NET SDK is unavailable here; build, test execution, saved-preset restart, and Windows UI validation remain pending. P3 export and P4 handoff remain pending.
+
+### P3/P4 export and Sprite Batch handoff — 2026-10-23
+
+Coded: Converter output folder picker, selected-only/all scope, original-name `_pxWIDTH` suffix or prefix/start/digit numbering, filename/dimension dry-run list, and explicit Preview Output before Export. Options and source queue are snapshotted on the UI thread. Export reruns conflict checks, preserves source canvas and alpha through the shared processing pipeline, writes temporary PNG data then moves without overwrite, and rolls back this job’s finalized files on failure/cancellation. Duplicate stems/targets and existing destinations are errors; no silent skip or overwrite. Preview Selected scope does not affect Send All.
+
+Send All stages a converted snapshot into a unique private temp session and opens Sprite Batch via typed LoadPixelArt API. No converter output destination or prior final export is needed. Staged names contain queue ordinals plus original names to handle duplicates and preserve order. The receiving Batch window owns the lease, is independent of the converter’s window lifetime, and releases temporary data after close and any active Batch job finishes. Failed/cancelled staging cleans its own session. Cleanup failures are reported/logged; process termination can leave a temporary session behind (startup crash-recovery cleanup is not implemented).
+
+Sprite Batch adds a nearest-neighbour option, automatically selected on handoff. Standalone default remains bicubic. Scale range now supports >0 through 8×, bounded by 8192 pixels per side / 32 million pixels for input and output. RAW archive is disabled for handoff windows because staged inputs are converted images, not original art. Final destination/naming/scale are selected in Batch as usual, followed by its Preview and Export.
+
+Service smoke coverage now includes export canvas/alpha, existing-output protection, duplicate stems, multi-file staging/cleanup, and a Batch resize/export from staged inputs. Source/static checks passed (`git diff --check`). No .NET SDK is installed here: build, smoke execution, Windows UI, cancellation/window-close races and full end-to-end visual comparison remain pending under P5.
+
+Windows verification commands:
+
+```powershell
+dotnet build
+dotnet run --project Tests/PixelArtSmoke/PixelArtSmoke.csproj
+dotnet run --project BEN_TOOLBOX_2_0.csproj
+```
+
+Manual: export four PNGs with suffix naming; try a conflicting filename; change naming/detail after planning and confirm replanning is required. Send all without choosing a converter output folder; close converter; finish Batch export and verify pixels/alpha, then close Batch. Also cancel staging/export and close Batch during a job; confirm source files remain untouched and no owned temporary session remains after graceful cleanup.

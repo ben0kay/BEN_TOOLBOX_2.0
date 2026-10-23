@@ -36,14 +36,22 @@ public sealed class PixelArtConverterWindow : Window
     private Bitmap? bitmap;
     private int generation;
     private bool closed;
+    private CancellationTokenSource? outputJob;
+    private Control? processingControls;
+    private readonly TextBox outputFolder = new() { Watermark = "Choose existing output folder" };
+    private readonly CheckBox sequential = new() { Content = "Sequential names" }, selectedOnly = new() { Content = "Export selected only" };
+    private readonly TextBox outputPrefix = new() { Text = "Sprite", Width = 110 }, outputStart = new() { Text = "1", Width = 65 }, outputDigits = new() { Text = "3", Width = 45 };
+    private readonly Button planOutput = new() { Content = "PREVIEW OUTPUT" }, exportOutput = new() { Content = "EXPORT PNGs" }, sendBatch = new() { Content = "SEND ALL TO SPRITE BATCH" }, cancelOutput = new() { Content = "CANCEL", IsEnabled = false };
+    private readonly ListBox outputPlan = new() { MaxHeight = 110 };
+    private string? plannedOutputKey;
 
     public PixelArtConverterWindow()
     {
-        Title = "Pixel Art Converter / Preview"; Width = 1180; Height = 820; MinWidth = 800; MinHeight = 550;
+        Title = "Pixel Art Converter"; Width = 1180; Height = 820; MinWidth = 800; MinHeight = 550;
         Background = Brush.Parse("#091522"); Foreground = Brush.Parse("#E8F4FF");
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         RenderOptions.SetBitmapInterpolationMode(preview, BitmapInterpolationMode.None);
-        var body = new Grid { Margin = new Thickness(20), RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto"), RowSpacing = 12 };
+        var body = new Grid { Margin = new Thickness(20), RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,Auto"), RowSpacing = 12 };
         body.Children.Add(new TextBlock { Text = "PIXEL ART CONVERTER", FontSize = 24, Foreground = Brush.Parse("#86E5F6") });
         var controls = new StackPanel { Spacing = 8 };
         controls.Children.Add(settings); controls.Children.Add(detail);
@@ -77,8 +85,8 @@ public sealed class PixelArtConverterWindow : Window
         var reset = new Button { Content = "RESET COLOURS" }; colourControls.Children.Add(reset);
         reset.Click += (_, _) => { palette.SelectedIndex = 0; matching.SelectedIndex = 0; brightness.Value = contrast.Value = saturation.Value = 1; dither.Value = 0; };
         controls.Children.Add(colourControls); controls.Children.Add(previewInfo);
-        controls.Children.Add(new TextBlock { Text = "One shared setting for all files • Original canvas dimensions retained • Preview only; export/handoff follow in P3/P4", TextWrapping = TextWrapping.Wrap });
-        var settingsScroll = new ScrollViewer { Content = controls, MaxHeight = 310 }; Grid.SetRow(settingsScroll, 1); body.Children.Add(settingsScroll);
+        controls.Children.Add(new TextBlock { Text = "One shared setting for all files • Original canvas dimensions retained • Export PNGs here or send converted copies to Sprite Batch", TextWrapping = TextWrapping.Wrap });
+        var settingsScroll = new ScrollViewer { Content = controls, MaxHeight = 310 }; processingControls=settingsScroll; Grid.SetRow(settingsScroll, 1); body.Children.Add(settingsScroll);
         var centre = new Grid { ColumnDefinitions = new ColumnDefinitions("270,*"), ColumnSpacing = 12 };
         var sidebar = new Grid { RowDefinitions = new RowDefinitions("Auto,*"), RowSpacing = 8 };
         var buttons = new WrapPanel { ItemSpacing = 6, LineSpacing = 6 };
@@ -88,7 +96,8 @@ public sealed class PixelArtConverterWindow : Window
         var canvas = new Grid(); canvas.Children.Add(new Checkerboard()); canvas.Children.Add(preview);
         var frame = new Border { Child = canvas, ClipToBounds = true, Padding = new Thickness(8) };
         Grid.SetColumn(frame, 1); centre.Children.Add(frame);
-        Grid.SetRow(centre, 2); body.Children.Add(centre); Grid.SetRow(status, 3); body.Children.Add(status); Content = body;
+        Grid.SetRow(centre, 2); body.Children.Add(centre); var outputPanel = BuildOutputPanel(); Grid.SetRow(outputPanel, 3); body.Children.Add(outputPanel);
+        Grid.SetRow(status, 4); body.Children.Add(status); Content = body;
         DragDrop.SetAllowDrop(body, true);
         body.AddHandler(DragDrop.DragOverEvent, (_, e) => { e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; });
         body.AddHandler(DragDrop.DropEvent, (_, e) => { AddFiles(e.DataTransfer.TryGetFiles()?.Where(f => f.Path.IsFile).Select(f => f.Path.LocalPath) ?? Array.Empty<string>()); e.Handled = true; });
@@ -112,8 +121,94 @@ public sealed class PixelArtConverterWindow : Window
             slider.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty) RequestPreview(); };
         dither.IsEnabled = matching.IsEnabled = false;
         nearest.IsCheckedChanged += (_, _) => RequestPreview();
-        Closed += (_, _) => { closed = true; generation++; pending?.Cancel(); preview.Source = null; bitmap?.Dispose(); bitmap = null; };
+        Closed += (_, _) => { closed = true; generation++; pending?.Cancel(); outputJob?.Cancel(); preview.Source = null; bitmap?.Dispose(); bitmap = null; };
         RequestPreview();
+    }
+
+    private PixelArtOptions ReadProcessing() => new((int)Math.Round(detail.Value), nearest.IsChecked == true,
+        palette.SelectedIndex >= 6 ? PixelPalette.Custom : (PixelPalette)Math.Max(0, palette.SelectedIndex), matching.SelectedIndex == 0,
+        brightness.Value, contrast.Value, saturation.Value, dither.Value,
+        palette.SelectedIndex >= 7 && palette.SelectedIndex - 7 < savedPalettes.Count ? savedPalettes[palette.SelectedIndex-7].Colours.ToArray() : draftColours.ToArray());
+
+    private Control BuildOutputPanel()
+    {
+        var body = new StackPanel { Spacing = 7 };
+        var folderRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8 };
+        var browse = new Button { Content = "OUTPUT FOLDER" }; folderRow.Children.Add(outputFolder); Grid.SetColumn(browse,1);folderRow.Children.Add(browse);
+        browse.Click += async (_,_) =>
+        {
+            try { var result=await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { AllowMultiple=false }); if(!closed && result.Count>0 && result[0].Path.IsFile)outputFolder.Text=result[0].Path.LocalPath; }
+            catch(Exception ex){if(!closed)status.Text=ex.Message;}
+        };
+        body.Children.Add(folderRow);
+        var names=new WrapPanel { ItemSpacing=10,LineSpacing=5 };
+        names.Children.Add(selectedOnly); names.Children.Add(sequential);names.Children.Add(Field("PREFIX",outputPrefix));names.Children.Add(Field("START",outputStart));names.Children.Add(Field("DIGITS",outputDigits));body.Children.Add(names);
+        body.Children.Add(new TextBlock { Text="Default names: original_px128.png • Canvas dimensions retained • Existing files are never overwritten",FontSize=11,TextWrapping=TextWrapping.Wrap });
+        var actions=new WrapPanel { ItemSpacing=8,LineSpacing=5 };
+        foreach(var button in new[]{planOutput,exportOutput,sendBatch,cancelOutput})actions.Children.Add(button);
+        body.Children.Add(actions);body.Children.Add(outputPlan);
+        planOutput.Click+=async(_,_)=>await RunOutput(false,false);
+        exportOutput.Click+=async(_,_)=>await RunOutput(true,false);
+        sendBatch.Click+=async(_,_)=>await RunOutput(false,true);
+        cancelOutput.Click+=(_,_)=>outputJob?.Cancel();
+        return new Expander { Header="EXPORT / SEND TO SPRITE BATCH",Content=body,IsExpanded=true };
+    }
+    private PixelArtExportOptions ReadExport()
+    {
+        string[] inputs=selectedOnly.IsChecked==true ? queue.SelectedItem is string path ? new[]{path} : Array.Empty<string>() : files.ToArray();
+        if(!int.TryParse(outputStart.Text,out int start)||!int.TryParse(outputDigits.Text,out int digits))throw new ArgumentException("Enter valid sequence start and digits.");
+        return new(inputs,(outputFolder.Text??"").Trim().Trim('"'),ReadProcessing(),sequential.IsChecked==true,(outputPrefix.Text??"").Trim(),start,digits);
+    }
+    private async Task RunOutput(bool export,bool handoff)
+    {
+        if(outputJob is not null)return;
+        PixelArtExportOptions? options=null;
+        string[] inputs; PixelArtOptions processing;
+        try
+        {
+            inputs=files.ToArray();processing=ReadProcessing();
+            if(!handoff)
+            {
+                options=ReadExport();
+                if(export && plannedOutputKey!=System.Text.Json.JsonSerializer.Serialize(options)){status.Text="Click PREVIEW OUTPUT for the current files, settings and naming before exporting.";return;}
+            }
+        }
+        catch(Exception ex){status.Text=ex.Message;return;}
+        using var cancellation=new CancellationTokenSource();outputJob=cancellation;
+        generation++;pending?.Cancel(); if(processingControls is not null)processingControls.IsEnabled=false;queue.IsEnabled=false;
+        foreach(var button in new[]{planOutput,exportOutput,sendBatch})button.IsEnabled=false;cancelOutput.IsEnabled=true;
+        PixelArtHandoffLease? lease=null;
+        try
+        {
+            var progress=new Progress<string>(message=>{if(!closed)status.Text=message;});
+            if(handoff)
+            {
+                status.Text="Preparing converted images for Sprite Batch…";
+                lease=await PixelArtHandoffLease.CreateAsync(inputs,processing,progress,cancellation.Token);
+                cancellation.Token.ThrowIfCancellationRequested();
+                var batch=new SpriteBatchWindow();
+                try { batch.LoadPixelArt(lease);batch.Show();lease=null; }
+                catch { batch.Close();throw; }
+                status.Text="Converted images loaded into Sprite Batch. Choose final destination and naming there. This is a snapshot of your settings.";
+            }
+            else if(export)
+            {
+                int count=await PixelArtExportService.ExportAsync(options!,progress,cancellation.Token);
+                plannedOutputKey=null;status.Text=$"Exported {count} PNGs. Original dimensions, transparency and source files preserved.";
+            }
+            else
+            {
+                var plan=await PixelArtExportService.PlanAsync(options!,cancellation.Token);
+                if(!closed){outputPlan.ItemsSource=plan.Select(p=>p.Display).ToArray();plannedOutputKey=System.Text.Json.JsonSerializer.Serialize(options);status.Text=$"{plan.Length} outputs planned. Review names, then EXPORT PNGs.";}
+            }
+        }
+        catch(OperationCanceledException){status.Text="Cancelled. No originals changed; created export files rolled back.";plannedOutputKey=null;}
+        catch(Exception ex){status.Text="Output failed: "+ex.Message;plannedOutputKey=null;}
+        finally
+        {
+            if(lease is not null)try{lease.Dispose();}catch(Exception ex){status.Text="Temporary cleanup failed: "+ex.Message;System.Diagnostics.Trace.WriteLine(status.Text);}
+            outputJob=null;if(processingControls is not null)processingControls.IsEnabled=true;queue.IsEnabled=true;foreach(var button in new[]{planOutput,exportOutput,sendBatch})button.IsEnabled=true;cancelOutput.IsEnabled=false;
+        }
     }
 
     private void ReloadPalettes()
@@ -126,6 +221,7 @@ public sealed class PixelArtConverterWindow : Window
 
     private void AddFiles(System.Collections.Generic.IEnumerable<string> paths)
     {
+        if(outputJob is not null){status.Text="Wait for the active output job before adding images.";return;}
         int rejected = 0;
         foreach (string path in paths)
         {
@@ -143,16 +239,13 @@ public sealed class PixelArtConverterWindow : Window
 
     private async void RequestPreview()
     {
-        if (closed) return;
+        if (closed || outputJob is not null) return;
         int request = ++generation;
         pending?.Cancel();
         var cancellation = new CancellationTokenSource(); pending = cancellation;
         var token = cancellation.Token;
         string? path = queue.SelectedItem as string;
-        var options = new PixelArtOptions((int)Math.Round(detail.Value), nearest.IsChecked == true,
-            palette.SelectedIndex >= 6 ? PixelPalette.Custom : (PixelPalette)Math.Max(0, palette.SelectedIndex), matching.SelectedIndex == 0,
-            brightness.Value, contrast.Value, saturation.Value, dither.Value,
-            palette.SelectedIndex >= 7 && palette.SelectedIndex - 7 < savedPalettes.Count ? savedPalettes[palette.SelectedIndex-7].Colours.ToArray() : draftColours.ToArray());
+        var options = ReadProcessing();
         settings.Text = $"LOGICAL PIXEL WIDTH: {options.LogicalWidth} • smaller = chunkier • {files.Count} files";
         preview.Source = null; bitmap?.Dispose(); bitmap = null;
         if (path is null) { status.Text = "Drop PNGs here or choose ADD PNGs."; pending = null; cancellation.Dispose(); return; }

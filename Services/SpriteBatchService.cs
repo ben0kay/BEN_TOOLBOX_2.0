@@ -12,7 +12,7 @@ using SixLabors.ImageSharp.Processing;
 namespace BEN_TOOLBOX_2_0.Services;
 
 public sealed record SpriteBatchOptions(string Source, string Destination, string Prefix,
-    double Scale, int StartNumber, int Digits, bool LetterSuffixes, bool SpeciesFolders, bool ArchiveOriginals, string[]? SelectedFiles = null);
+    double Scale, int StartNumber, int Digits, bool LetterSuffixes, bool SpeciesFolders, bool ArchiveOriginals, string[]? SelectedFiles = null, bool Nearest = false);
 public sealed record SpriteBatchEntry(string Source, string Output, int OriginalWidth, int OriginalHeight, int Width, int Height)
 {
     public string Display => $"{Path.GetFileName(Source)} → {Path.GetFileName(Output)}  |  {OriginalWidth}×{OriginalHeight} → {Width}×{Height}";
@@ -33,7 +33,7 @@ public static class SpriteBatchService
         static bool Inside(string a,string b) => a.Equals(b,StringComparison.OrdinalIgnoreCase) ||
             a.StartsWith(Path.TrimEndingDirectorySeparator(b)+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase);
         if (source != null && (Inside(source,destination) || Inside(destination,source))) throw new IOException("Source and destination cannot overlap.");
-        if (!double.IsFinite(o.Scale) || o.Scale <= 0 || o.Scale > 1) throw new ArgumentException("Scale must be > 0 and <= 1.");
+        if (!double.IsFinite(o.Scale) || o.Scale <= 0 || o.Scale > 8) throw new ArgumentException("Scale must be > 0 and <= 8.");
         if (o.StartNumber < 0 || o.Digits is < 1 or > 8) throw new ArgumentException("Invalid start or digits.");
         if (string.IsNullOrEmpty(o.Prefix) || !System.Text.RegularExpressions.Regex.IsMatch(o.Prefix, "^[A-Za-z][A-Za-z0-9_]*$"))
             throw new ArgumentException("Prefix must start with a letter and contain only ASCII letters, digits, underscores.");
@@ -66,6 +66,9 @@ public static class SpriteBatchService
             if(!used.Add(target)||File.Exists(target)||Directory.Exists(target))throw new IOException("Output conflict: "+target);
             if(o.SpeciesFolders && Directory.Exists(folder))throw new IOException("Species folder already exists: "+folder);
             var info=Image.Identify(files[i])??throw new IOException("Invalid PNG: "+files[i]);
+            if (info.Width > 8192 || info.Height > 8192 || (long)info.Width * info.Height > 32000000 ||
+                info.Width * o.Scale > 8192 || info.Height * o.Scale > 8192 || info.Width * o.Scale * info.Height * o.Scale > 32000000)
+                throw new IOException("Batch image exceeds limits: 8192 per side, 32 million pixels.");
             result.Add(new(files[i],target,info.Width,info.Height,
                 Math.Max(1,checked((int)Math.Round(info.Width*o.Scale))),
                 Math.Max(1,checked((int)Math.Round(info.Height*o.Scale)))));
@@ -104,7 +107,7 @@ public static class SpriteBatchService
                 }
                 using var image=Image.Load<Rgba32>(entry.Source);
                 if(entry.Width!=entry.OriginalWidth||entry.Height!=entry.OriginalHeight)
-                    image.Mutate(x=>x.Resize(entry.Width,entry.Height,KnownResamplers.Bicubic));
+                    image.Mutate(x=>x.Resize(entry.Width,entry.Height,o.Nearest ? KnownResamplers.NearestNeighbor : KnownResamplers.Bicubic));
                 using(var stream=new FileStream(entry.Output,FileMode.CreateNew,FileAccess.Write,FileShare.None))
                 {
                     written.Add(entry.Output);

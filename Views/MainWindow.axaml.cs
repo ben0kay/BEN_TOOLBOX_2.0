@@ -88,7 +88,7 @@ public partial class MainWindow : Window
             {
                 new PixelArtConverterWindow().Show(this);
                 InfoTitle.Text = "PIXEL ART CONVERTER";
-                InfoDescription.Text = "Shared pixel-detail preview; original dimensions retained. Export and handoff are planned.";
+                InfoDescription.Text = "Pixel-detail preview, palettes, PNG export and direct Sprite Batch handoff. Original dimensions retained.";
                 return;
             }
             if (tool.Id == "sprite-batch")

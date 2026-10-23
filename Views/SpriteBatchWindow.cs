@@ -23,6 +23,9 @@ public sealed class SpriteBatchWindow : Window
     private readonly TextBox scale=new(){Text="1",Width=70};
     private readonly TextBox start=new(){Text="1",Width=70};
     private readonly TextBox digits=new(){Text="2",Width=70};
+    private readonly CheckBox nearest = new() { Content = "Nearest-neighbour resizing (sharp pixel art)" };
+    private PixelArtHandoffLease? handoff;
+    private bool closed;
     private readonly CheckBox letters=new(){Content="Letter suffixes (01a, 01b...)"}; 
     private readonly CheckBox species=new(){Content="Species folders"}; 
     private readonly CheckBox archive=new(){Content="Archive copies of originals in destination/RAW"};
@@ -90,15 +93,15 @@ public sealed class SpriteBatchWindow : Window
         body.Children.Add(inputStatus);
         body.Children.Add(Picker(destination));
         var fields=new WrapPanel{ItemSpacing=15,LineSpacing=8};
-        fields.Children.Add(Field("SCALE (0-1)",scale));fields.Children.Add(Field("PREFIX",prefix));
+        fields.Children.Add(Field("SCALE (>0–8)",scale));fields.Children.Add(Field("PREFIX",prefix));
         fields.Children.Add(Field("START",start));fields.Children.Add(Field("DIGITS",digits));body.Children.Add(fields);
-        body.Children.Add(letters);body.Children.Add(species);body.Children.Add(archive);
+        body.Children.Add(nearest);body.Children.Add(letters);body.Children.Add(species);body.Children.Add(archive);
         var actions=new StackPanel{Orientation=Orientation.Horizontal,Spacing=12};
         actions.Children.Add(preview);actions.Children.Add(export);actions.Children.Add(cancel);body.Children.Add(actions);
         body.Children.Add(status);body.Children.Add(list);Content=new ScrollViewer{Content=body};
         preview.Click+=async (_,_)=>await Preview();
         export.Click+=async (_,_)=>await Export();
-        cancel.Click+=(_,_)=>running?.Cancel();Closed+=(_,_)=>running?.Cancel();
+        cancel.Click+=(_,_)=>running?.Cancel();Closed+=(_,_)=>{ closed=true; running?.Cancel(); if(running==null)ReleaseHandoff(); };
         foreach(var tb in new[]{source,destination,prefix,scale,start,digits})
             tb.TextChanged+=(_,_)=>{ if (ReferenceEquals(tb, source) && droppedFiles != null)
             {
@@ -107,7 +110,23 @@ public sealed class SpriteBatchWindow : Window
                 status.Text = "Source folder active. Click PREVIEW.";
             }
             Invalidate(); };
-        foreach(var cb in new[]{letters,species,archive})cb.IsCheckedChanged+=(_,_)=>Invalidate();
+        foreach(var cb in new[]{letters,species,archive,nearest})cb.IsCheckedChanged+=(_,_)=>Invalidate();
+    }
+    public void LoadPixelArt(PixelArtHandoffLease lease)
+    {
+        if(running!=null || handoff!=null)throw new InvalidOperationException("Batch already has an active handoff/job.");
+        droppedFiles=lease.Files.ToArray();
+        nearest.IsChecked=true;archive.IsChecked=false;archive.IsEnabled=false;
+        archive.Content="RAW disabled: these inputs are converted copies, not original artwork";
+        inputStatus.Text=$"FROM PIXEL ART CONVERTER / {droppedFiles.Length} converted PNGs";
+        status.Text="Converted images loaded. Choose destination, scale and naming, then PREVIEW and EXPORT.";
+        Invalidate(); handoff=lease;
+    }
+    private void ReleaseHandoff()
+    {
+        if(handoff==null)return;
+        try{handoff.Dispose();handoff=null;}
+        catch(Exception ex){System.Diagnostics.Trace.WriteLine("Pixel handoff cleanup failed: "+ex);status.Text="Temporary cleanup failed: "+ex.Message;}
     }
     private void Invalidate(){previewKey=null;list.ItemsSource=null;}
     private static StackPanel Field(string caption,Control control)
@@ -132,7 +151,7 @@ public sealed class SpriteBatchWindow : Window
            !int.TryParse(start.Text,out var first)||!int.TryParse(digits.Text,out var width))
             throw new ArgumentException("Enter valid scale/start/digits (use decimal point).");
         return new((source.Text??"").Trim().Trim('"'),(destination.Text??"").Trim().Trim('"'),
-            (prefix.Text??"").Trim(),factor,first,width,letters.IsChecked==true,species.IsChecked==true,archive.IsChecked==true,droppedFiles?.ToArray());
+            (prefix.Text??"").Trim(),factor,first,width,letters.IsChecked==true,species.IsChecked==true,archive.IsChecked==true,droppedFiles?.ToArray(),nearest.IsChecked==true);
     }
     private static string Key(SpriteBatchOptions o)=>System.Text.Json.JsonSerializer.Serialize(o);
     private void Busy(bool busy){preview.IsEnabled=!busy;export.IsEnabled=!busy;cancel.IsEnabled=busy;}
@@ -149,7 +168,7 @@ public sealed class SpriteBatchWindow : Window
         }
         catch(OperationCanceledException){status.Text="Preview cancelled.";}
         catch(Exception ex){status.Text="Preview failed: "+ex.Message;}
-        finally{running.Dispose();running=null;Busy(false);}
+        finally{running.Dispose();running=null;Busy(false);if(closed)ReleaseHandoff();}
     }
     private async Task Export()
     {
@@ -169,6 +188,6 @@ public sealed class SpriteBatchWindow : Window
         }
         catch(OperationCanceledException){status.Text="Cancelled; created files rolled back.";previewKey=null;}
         catch(Exception ex){status.Text="Export stopped: "+ex.Message;previewKey=null;}
-        finally{running.Dispose();running=null;Busy(false);}
+        finally{running.Dispose();running=null;Busy(false);if(closed)ReleaseHandoff();}
     }
 }
