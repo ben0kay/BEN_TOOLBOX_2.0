@@ -122,6 +122,8 @@ Important tool details:
 - [Sprite Inventory](Docs/SpriteInventory.md)
 - [Items & Resource Inspector](Docs/ContentInspector.md)
 
+**Planned Game Development module:** [Pixel Art Converter implementation plan](Notes/Plans/PIXEL_ART_CONVERTER_IMPLEMENTATION_PLAN.md) — a multi-PNG drop queue, first-file live selected preview with a pixel-width slider, independent PNG export/rename, and a true converted-image handoff to Sprite Batch before final output. **Planning only; no implementation yet.**
+
 ## Architecture and engineering principles
 
 1. **Native-first where practical.** Avalonia owns the desktop presentation. Put reusable scanning, filesystem work, processing and cancellation in dedicated services; preserve compatibility with legacy workflows when it matters.
