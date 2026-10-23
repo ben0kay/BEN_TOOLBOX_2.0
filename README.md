@@ -101,8 +101,8 @@ Security requirements for the future API: device authentication, encrypted conne
 ## Stage 3.3 — Native read-only inspectors (first pass)
 
 - File Size Inspector: ranks up to 200 largest files under a selected directory, skipping common generated folders.
-- Resource Checker now has **Resource Integrity** and **Sprite Inventory** tabs. Integrity still checks static `res://` references (not a full Godot validator); Inventory lists PNG/WebP/JPEG/GIF/BMP dimensions, file sizes and paths with search, size filters, sorting and one lazy scaled preview. Neither tab writes to the selected project.
-- Integrity/file-size scanning remains in `Services/InspectorServices.cs`; the new header-only, cancellable Sprite Inventory runs in `Services/SpriteInventoryService.cs`. See [Sprite Inventory guide and smoke tests](Docs/SpriteInventory.md).
+- Resource Checker (Game Development) remains a standalone read-only integrity tool that checks static `res://` references. It does not validate every dynamic or UID-based reference.
+- **Sprite Inventory** is now a **separate native tool under Project Inspectors**. It lists PNG/WebP/JPEG/GIF/BMP images with dimensions, file sizes, paths, name/size filters, sort options and a single on-demand preview. The header-only scanner lives in `Services/SpriteInventoryService.cs`; its independent UI is `Views/SpriteInventoryWindow.cs`. See [usage and smoke tests](Docs/SpriteInventory.md). File Size Inspector and Resource Checker retain their existing scanners in `Services/InspectorServices.cs`.
 - Existing PowerShell versions remain unchanged and may have additional features; this is initial core functionality, not full feature parity.
 
 ## Stage 3.4 — Native world inspectors (first pass)

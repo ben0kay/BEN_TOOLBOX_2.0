@@ -1,17 +1,16 @@
-# Resource Checker — Sprite Inventory
+# Sprite Inventory — Project Inspectors
 
-Open **Game Development → Resource Checker** (the existing native Avalonia window).
+Open **Project Inspectors → Sprite Inventory**. This is now an independent
+native Avalonia tool rather than a tab inside Resource Checker.
 Select your **Godot project root** (project.godot must exist).
 
-The window has two separate tabs:
+The inventory is a read-only list of PNG, WebP, JPEG, GIF and BMP files,
+showing filename, project-relative location, format, pixel dimensions and
+compressed file size. Existing **Game Development → Resource Checker**
+continues to check missing static res:// references in its own window,
+using Services/InspectorServices.cs.
 
-- **Resource Integrity** — the existing static res:// missing-resource checker,
-  unchanged in Services/InspectorServices.cs.
-- **Sprite Inventory** — a new, read-only inventory of PNG, WebP, JPEG, GIF
-  and BMP files with filename, project-relative location, format, pixel
-  dimensions and compressed file size.
-
-Click **SCAN SPRITES** in Sprite Inventory. It displays total files, total
+Click **SCAN SPRITES** in the standalone Sprite Inventory window. It displays total files, total
 on-disk image size and file/directory errors without attempting to repair
 anything. Use filename/path search, minimum **longest image edge**
 in pixels, minimum file size in MiB, and sort by name, largest pixel area
@@ -46,11 +45,11 @@ From the BEN_TOOLBOX_2.0 repository root on a PC with the .NET 10 SDK:
 
 1. Run dotnet build
 2. Run dotnet run --project Tests/SpriteInventorySmoke/SpriteInventorySmoke.csproj
-3. Run dotnet run, then open Resource Checker and select a disposable or
-   backed-up Godot project folder.
-4. On **Resource Integrity**, scan known valid and missing res:// paths;
-   verify the original results remain correct.
-5. On **Sprite Inventory**, scan a real project. Verify count,
+3. Run dotnet run, then open **Project Inspectors → Sprite Inventory** and
+   select a disposable or backed-up Godot project folder.
+4. Separately open **Game Development → Resource Checker**; scan known valid
+   and missing res:// paths and verify the previous behavior is unchanged.
+5. In Sprite Inventory, scan a real project. Verify count,
    dimension/file size labels, name/path filter, minimum edge and size
    thresholds, and both descending sort orders.
 6. Select several PNG/WebP images: only one preview should show, and

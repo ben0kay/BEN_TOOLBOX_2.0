@@ -53,6 +53,13 @@ public partial class MainWindow : Window
                 InfoDescription.Text = tool.Name + " opened in Avalonia; the original PowerShell tool is preserved.";
                 return;
             }
+            if (tool.Id == "sprite-inventory")
+            {
+                new SpriteInventoryWindow().Show(this);
+                InfoTitle.Text = "SPRITE INVENTORY";
+                InfoDescription.Text = "Read-only image metadata browser opened under Project Inspectors.";
+                return;
+            }
             if (tool.Id == "file-size" || tool.Id == "resource-checker")
             {
                 new InspectorWindow(tool.Id == "file-size" ? "size" : "resources").Show(this);
