@@ -16,9 +16,9 @@ The current dashboard uses a dark navy/cyan design, left navigation and four **A
 
 The mockup is a **visual specification**, not a source of accurate system data. Its illustrated processor, GPU, RAM, clock, percentages and drive capacities are fictional examples. Do **not** hardcode them into the production UI.
 
-**Implementation handoff:** [Dashboard V2 D1–D5 implementation plan](Docs/DashboardV2ImplementationPlan.md) — phase checklist, proposed architecture, scope, performance constraints and Windows acceptance tests. Start at D1; none of D1–D5 is implemented yet.
+**Implementation handoff:** [Dashboard V2 D1–D5 implementation plan](Docs/DashboardV2ImplementationPlan.md) — phase checklist, architecture options, scope, performance constraints and Windows acceptance tests. **D1 static dashboard redesign is coded; Windows build and visual acceptance are pending. D2–D5 have not started.**
 
-### Dashboard V2 — agreed next direction (PLANNED)
+### Dashboard V2 — implementation status: D1 visuals coded (testing pending)
 
 - **Retain** the existing left sidebar, four top-level sections and **Available modules** tiles **under** the new dashboard information panels.
 - Keep the dark navy background and restrained cyan accents; add subtle technical **grid overlays, corner brackets, fine dividers, HUD labels and micro-detail** without sacrificing legibility.
@@ -32,7 +32,7 @@ The mockup is a **visual specification**, not a source of accurate system data. 
 
 **Performance contract for V2:** One shared, lightweight telemetry source; sample CPU/memory/drive at a reasonable cadence (e.g. every 2–5 seconds), with a small bounded graph history. Time display may refresh more frequently, but only while needed. **Suspend polling and graph updates when the dashboard is not visible**, avoid per-control timers/full redraws, cache static decorative geometry, and dispose event subscriptions/timers correctly. Keep Windows-specific monitoring code separate from Avalonia layout. Do not require administrator privileges or add a heavy monitoring dependency just for a dashboard effect.
 
-**Not implemented yet:** This mockup's advanced dashboard layout, live telemetry cards and charts. Preserve the working current dashboard until a dedicated V2 implementation is tested on Windows.
+**D1 implementation:** The current Avalonia dashboard now has a static HUD layout, command strip, time/date placeholder, native-tool session status, CPU/RAM graph placeholders, hardware cards and preserved module tiles. **No live time, CPU/RAM readings, drive statistics or sparklines yet**: these belong to D2/D3. **The new layout has not yet been compiled or visually verified on Windows**; see the [plan](Docs/DashboardV2ImplementationPlan.md) for acceptance steps.
 
 ## What the application does today
 
@@ -132,7 +132,7 @@ Important tool details:
 | Avalonia shell / four workspaces | **Implemented** | Refine visuals without breaking navigation |
 | Core native tools | **First passes implemented** | Resolve local build/runtime issues and compare with legacy feature parity |
 | Native read-only inspectors | **First passes implemented** | Better validation/reporting where useful, without duplicating scanner responsibilities |
-| **Dashboard V2 — BTX-02** | **Visual target defined, not implemented** | Clock/date, real CPU/RAM/drive overview, tiny graphs, subtle HUD design; advanced GPU metrics may be placeholders |
+| **Dashboard V2 — BTX-02** | **D1 layout coded — Windows UI test pending** | D2 clock/CPU/RAM/disk data; D3 graphs; D4 polish; D5 verification; advanced GPU readings deferred |
 | Shared project/workspace selection | **Planned** | Remember user-selected local Godot projects and offer useful deep links; do not assume a project folder |
 | Shared job engine | **Planned** | Typed jobs, progress, bounded concurrency, cancellation, logs and safe lifecycle |
 | Native feature parity / content authoring | **Incremental / future** | Port selected remaining PowerShell features; explore reusable Godot asset and Resource authoring with schema validation |
@@ -146,4 +146,4 @@ Eventually separate **desktop/mobile presentation**, a shared **typed tool/job e
 
 ---
 
-**README status:** Updated to reflect actual native modules and the chosen dashboard V2 concept. Historical Stage 1–3 development remains in Git history and older docs; do not treat plans or visual mockups as shipped functionality.
+**README status:** Native-tool inventory and Dashboard V2 D1 code recorded as of 2026-10-23. D1 is **not verified on Windows yet**; D2–D5 are future work. Treat mockups, unconnected sensors and untested UI changes as planned/unverified rather than shipped functionality.

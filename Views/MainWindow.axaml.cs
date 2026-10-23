@@ -134,11 +134,7 @@ public partial class MainWindow : Window
         SettingsNav.Classes.Set("active", section == "Settings");
 
         var dashboard = section == "Dashboard";
-        HeroPanel.IsVisible = dashboard;
-        GameTile.IsVisible = dashboard;
-        FilesTile.IsVisible = dashboard;
-        InspectTile.IsVisible = dashboard;
-        SettingsTile.IsVisible = dashboard;
+        DashboardPanel.IsVisible = dashboard;
         ToolListPanel.IsVisible = section is "Game" or "Files" or "Inspect";
         ToolsView.ItemsSource = section switch
         {
@@ -154,15 +150,13 @@ public partial class MainWindow : Window
                 PageKicker.Text = "WORKSPACE / GAME DEVELOPMENT";
                 PageTitle.Text = "Game Development";
                 PageSubtitle.Text = "Sprite processing, artwork prompts and resource utilities.";
-                SectionHeading.Text = "Game tools";
-                InfoTitle.Text = "GAME DEVELOPMENT / EXTERNAL UTILITIES";
-                InfoDescription.Text = "These scripts launch in their existing Windows PowerShell windows.";
+                InfoTitle.Text = "GAME DEVELOPMENT / TOOL CATALOG";
+                InfoDescription.Text = "Choose a tool to open its native Avalonia window or a preserved legacy utility.";
                 break;
             case "Files":
                 PageKicker.Text = "WORKSPACE / FILE MANAGEMENT";
                 PageTitle.Text = "File Toolbox";
                 PageSubtitle.Text = "Backups, duplicates and file management.";
-                SectionHeading.Text = "File tools";
                 InfoTitle.Text = "FILE MANAGEMENT / EXTERNAL UTILITIES";
                 InfoDescription.Text = "Review any destructive actions in the utility itself before confirming.";
                 break;
@@ -170,15 +164,13 @@ public partial class MainWindow : Window
                 PageKicker.Text = "WORKSPACE / INSPECTORS";
                 PageTitle.Text = "Project Inspectors";
                 PageSubtitle.Text = "Read project data, file sizes, lighting and asset references.";
-                SectionHeading.Text = "Inspectors";
-                InfoTitle.Text = "INSPECTION / EXTERNAL UTILITIES";
+                InfoTitle.Text = "INSPECTION / TOOL CATALOG";
                 InfoDescription.Text = "Some inspectors expect a Godot project folder to be selected.";
                 break;
             case "Settings":
                 PageKicker.Text = "WORKSPACE / SETTINGS";
                 PageTitle.Text = "Settings";
                 PageSubtitle.Text = "Preferences and application customization.";
-                SectionHeading.Text = "Coming in a later stage";
                 InfoTitle.Text = "FUTURE SETTINGS";
                 InfoDescription.Text = "Appearance controls, saved preferences and toolbox paths will follow.";
                 break;
@@ -186,9 +178,8 @@ public partial class MainWindow : Window
                 PageKicker.Text = "CONTROL DECK  /  OVERVIEW";
                 PageTitle.Text = "Command Center";
                 PageSubtitle.Text = "Modular utilities  /  Developer operations  /  System oversight";
-                SectionHeading.Text = "Available modules";
-                InfoTitle.Text = "BUILD 2.0   /   TOOL LAUNCHER";
-                InfoDescription.Text = "Choose a module to open approved local PowerShell utilities. Remote execution is not enabled.";
+                InfoTitle.Text = "BTX-02   /   COMMAND CENTER";
+                InfoDescription.Text = "Open your local native tools from the modules above. System telemetry is planned for D2 and D3; remote execution is not enabled.";
                 break;
         }
     }

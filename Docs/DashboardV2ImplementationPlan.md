@@ -1,6 +1,6 @@
 # Dashboard V2 Implementation Plan — BTX-02 Command Center
 
-> **Status: PLANNED — D1 NOT STARTED**  
+> **Status: D1 CODED — AWAITING WINDOWS BUILD / VISUAL ACCEPTANCE; D2–D5 NOT STARTED**  
 > **Last audited:** 2026-10-23  
 > **Repository:** [ben0kay/BEN_TOOLBOX_2.0](https://github.com/ben0kay/BEN_TOOLBOX_2.0) (main)  
 > **Purpose:** Implementation handoff for a future developer / ChatGPT / Codex session. This document describes work to perform; it does **not** claim that the design mockup or telemetry are already implemented.
@@ -16,7 +16,7 @@ Before writing code:
 5. **Only implement the phase requested**; keep commits small, preserve the existing tool windows and update the status table below and relevant README after completing each phase.
 6. Do not treat proposed files or services in this plan as already existing; check the repo first. Respect any newer user preferences or repository instructions.
 
-**Current baseline verified 2026-10-23:** Avalonia 12.1.4 / C# / .NET 10; main dashboard in `Views/MainWindow.axaml`, navigation and tool launching in `Views/MainWindow.axaml.cs`. Main window defaults to 1260 × 790 with 900 × 600 minimum and a 242 px left sidebar. Dashboard includes a hero/status panel and four navigation tiles (Game Development, File Toolbox, Inspectors, Settings). The same MainWindow contains alternate tool-list sections; `ShowSection()` toggles dashboard/tiles and other workspaces. Several native tool windows and services already work. **The Dashboard V2 telemetry/graphs/layout have not yet been implemented.**
+**Current baseline verified 2026-10-23:** Avalonia 12.1.4 / C# / .NET 10; main dashboard in `Views/MainWindow.axaml`, navigation and tool launching in `Views/MainWindow.axaml.cs`. Main window defaults to 1260 × 790 with 900 × 600 minimum and a 242 px left sidebar. Dashboard includes a hero/status panel and four navigation tiles (Game Development, File Toolbox, Inspectors, Settings). The same MainWindow contains alternate tool-list sections; `ShowSection()` toggles dashboard/tiles and other workspaces. Several native tool windows and services already work. **D1 static dashboard visuals are now coded, but their actual Avalonia Windows build/render is not yet confirmed. No telemetry/graphs/clock provider has been implemented.**
 
 ## 1. User-approved visual direction
 
@@ -45,7 +45,7 @@ Aim for the visual character in the concept PNG: a premium dark navy, futuristic
 
 | Phase | Work | Status | Validation gate |
 | --- | --- | --- | --- |
-| **D1** | Dashboard layout foundation / static HUD styling | **NOT STARTED** | UI builds; four module buttons and all navigation work; layout resembles target at multiple sizes |
+| **D1** | Dashboard layout foundation / static HUD styling | **CODED — BUILD/VISUAL TEST PENDING** | UI builds; four module buttons and all navigation work; layout resembles target at multiple sizes |
 | **D2** | Real local clock, CPU/RAM & disk data, hardware descriptions | **NOT STARTED** | Readings are real and labelled; safe unavailable fallbacks; no fake values |
 | **D3** | Tiny telemetry graphs and bounded sampling lifecycle | **NOT STARTED** | Graphs reflect samples; no redundant polls; no updates when dashboard hidden |
 | **D4** | Final sci-fi styling and visual polish | **NOT STARTED** | Smooth, legible, restrained glow; no excessive idle render/animation |
@@ -149,6 +149,8 @@ Main window structure at planning time:
 - `Views/MainWindow.axaml.cs`: `NavigateDashboard`, `NavigateGame`, `NavigateFiles`, `NavigateInspect`, `NavigateSettings` and `ShowSection()`; individual native tool routing in `LaunchTool()`.
 - `Services/ToolLauncher.cs`: allowlisted catalog and legacy local Windows PowerShell launching; **not** a remote-control API.
 
+**D1 current implementation choice:** Dashboard contents remain in `Views/MainWindow.axaml` under one named `DashboardPanel`, with small view-switching changes to `MainWindow.axaml.cs`. This avoids a premature new view/code-behind before D2 data binding exists. D1 uses a wrapping top status + telemetry row and wrapping four-card hardware row, plus static clock, graph grid, and honest "not connected" labels. Existing four navigation tile names and Click handlers remain unchanged. No `DashboardView.axaml` was created yet.
+
 D1 may split views, but must preserve the same routes and capabilities. **Do not** rebuild or rewrite the inspector or game-development modules while implementing cosmetic dashboard changes.
 
 ### Proposed new files (not created by this plan)
@@ -181,8 +183,10 @@ These names are **suggestions**. Work with the repo as it exists when implementa
 
 ## 5. Progress log / handoff record
 
-**2026-10-23 — Planning document created.** Baseline and visual reference confirmed from GitHub. D1, D2, D3, D4 and D5 **not started**. No Avalonia code modified by this documentation task.
+**2026-10-23 — Planning document created.** Baseline and visual reference confirmed from GitHub. At initial creation, D1–D5 were all not started; no Avalonia code was modified by the planning task.
+
+**2026-10-23 — D1 code authored (Windows verification pending).** Changes: `Views/MainWindow.axaml` now contains a dedicated `DashboardPanel` with a technical command strip, static clock placeholder, honest active-local-session panel, CPU/RAM placeholder graph frames, four hardware status cards, and the four existing module navigation tiles. The new `Border.hud` / `TextBlock.hud-label` styling reuses the current dark palette. `Views/MainWindow.axaml.cs` now toggles one dashboard parent instead of individually toggling tiles and no longer exposes Stage 2 legacy copy. No hardware polling, real clock, sparkline rendering, or GPU sensors were implemented. **Static checks:** XML tag structure and code references reviewed; **`dotnet build`, `dotnet run`, responsive visual rendering and full tool navigation are NOT verified in this environment.** Do not mark D1 accepted until someone runs the Windows tests. D2–D5 remain not started.
 
 Future implementers: append date, commit SHA, files changed, what was tested (and where), user feedback, known errors and the next recommended task. Keep the phase table above in sync.
 
-**Next action:** Implement **D1**, then ask user to review a screenshot of the actual running Windows app versus [the target image](../toolbox%20dashboard%20concept.png) before proceeding with D2.
+**Next action:** Pull D1, run `dotnet build` and `dotnet run` on Windows, check the 1260 × 790 and 900 × 600 layouts, all four navigation tiles and other tool routes, and compare a screenshot with [the target image](../toolbox%20dashboard%20concept.png). Fix build/layout issues and record user approval before beginning D2.
