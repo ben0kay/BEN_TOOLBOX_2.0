@@ -128,6 +128,12 @@ try
         if(sample.R!=0x12||sample.G!=0x34||sample.B!=0x56)throw new Exception("Outline placement failure.");
         if(outlined.Width!=32||outlined.Height!=32)throw new Exception("Outline changed canvas.");
     }
+    using(var faint=Image.Load<Rgba32>(PixelArtService.Preview(edges,new(32,Outline:PixelOutline.Outside,OutlineOpacity:0.5),CancellationToken.None,true)))
+        if(faint[7,10].A!=128)throw new Exception("Outside outline opacity failure.");
+    using(var faintInside=Image.Load<Rgba32>(PixelArtService.Preview(edges,new(32,Outline:PixelOutline.Inside,OutlineColour:"#000000",OutlineOpacity:0.5),CancellationToken.None,true)))
+        if(faintInside[8,10].A!=255 || faintInside[8,10].R!=128)throw new Exception("Inside outline opacity damaged alpha or failed to blend.");
+    if(!PixelArtService.Preview(edges,new(32),CancellationToken.None,true).SequenceEqual(PixelArtService.Preview(edges,new(32,Outline:PixelOutline.Outside,OutlineOpacity:0),CancellationToken.None,true)))
+        throw new Exception("Zero-opacity outline changed the image.");
     using(var shifted=Image.Load<Rgba32>(PixelArtService.Preview(edges,new(32,Hue:120),CancellationToken.None,true)))
         if(shifted[10,10].G<=shifted[10,10].R)throw new Exception("Hue slider did not rotate red toward green.");
     using var cancellation = new CancellationTokenSource(); cancellation.Cancel();

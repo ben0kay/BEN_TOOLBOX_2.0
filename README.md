@@ -171,3 +171,5 @@ Pixel converter also has **Manual files** (default) and **Folder processing** mo
 Pixel converter edge controls: Average↔Nearest sampling blend, hue, alpha cutoff, disconnected-island removal and None/Outside/Inside outlines with width/hex colour. Edge controls work on the logical grid; default cutoff/cleanup/outlines are off. They apply to preview, export, folder overwrite and Batch staging through the same pipeline. Palette-only presets still save colours only. Windows validation pending.
 
 Pixel converter layout: input/file list left, zoom/pan preview centre, scrollable grouped controls/export right. Preview now updates during slider dragging using a single throttled conversion loop and renders the final settings after dragging stops; actual speed depends on conversion cost. Windows build/layout validation pending.
+
+Outline opacity now supports 0–100%, and converter sliders have synchronized numeric inputs for exact values. Outside outlines fade via alpha; inside outlines blend into the original edge without reducing sprite alpha. Windows validation pending.

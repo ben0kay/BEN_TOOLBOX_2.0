@@ -36,6 +36,7 @@ public sealed class PixelArtConverterWindow : Window
     private readonly Slider alphaCutoff = new() { Minimum=0,Maximum=255,Value=0,TickFrequency=1,IsSnapToTickEnabled=true,Width=150 };
     private readonly Slider removeIslands = new() { Minimum=0,Maximum=16,Value=0,TickFrequency=1,IsSnapToTickEnabled=true,Width=150 };
     private readonly ComboBox outline = new() { ItemsSource=new[]{"None","Outside","Inside"},SelectedIndex=0,MinWidth=110 };
+    private readonly Slider outlineOpacity = new() { Minimum=0,Maximum=100,Value=100 };
     private readonly Slider outlineWidth = new() { Minimum=1,Maximum=4,Value=1,TickFrequency=1,IsSnapToTickEnabled=true,Width=100 };
     private readonly TextBox outlineColour = new() { Text="#262B44",Width=110 };
     private readonly PixelViewport preview = new();
@@ -107,7 +108,7 @@ public sealed class PixelArtConverterWindow : Window
         {
             var button=new Button { Content=value.ToString() };button.Click+=(_,_)=>detail.Value=value;presets.Children.Add(button);
         }
-        controls.Children.Add(Group("PIXEL DETAIL",settings,detail,presets,Adjustment("SAMPLING: 0 Average / 1 Nearest",sampling)));
+        controls.Children.Add(Group("PIXEL DETAIL",settings,Adjustment("LOGICAL PIXEL WIDTH",detail),presets,Adjustment("SAMPLING: 0 Average / 1 Nearest",sampling)));
         palette.ItemsSource=paletteNames;ReloadPalettes();
         var editPalette=new Button { Content="EDIT / CREATE PALETTE" };
         editPalette.Click+=async(_,_)=>
@@ -122,9 +123,9 @@ public sealed class PixelArtConverterWindow : Window
         controls.Children.Add(Group("PALETTE",palette,editPalette,Field("COLOUR MATCHING",matching),Adjustment("BAYER DITHER STRENGTH",dither)));
         controls.Children.Add(Group("COLOUR ADJUSTMENTS",Adjustment("BRIGHTNESS",brightness),Adjustment("CONTRAST",contrast),Adjustment("SATURATION",saturation),Adjustment("HUE (degrees)",hue)));
         controls.Children.Add(Group("CLEANUP",Adjustment("ALPHA CUTOFF (0 = off)",alphaCutoff),Adjustment("REMOVE ISLANDS ≤ pixels (0 = off)",removeIslands)));
-        controls.Children.Add(Group("OUTLINE",outline,Adjustment("WIDTH (grid pixels)",outlineWidth),Field("COLOUR HEX",outlineColour)));
+        controls.Children.Add(Group("OUTLINE",outline,Adjustment("WIDTH (grid pixels)",outlineWidth),Adjustment("OUTLINE OPACITY (%)",outlineOpacity),Field("COLOUR HEX",outlineColour)));
         var reset=new Button { Content="RESET COLOURS / CLEANUP" };
-        reset.Click+=(_,_)=>{palette.SelectedIndex=0;matching.SelectedIndex=0;brightness.Value=contrast.Value=saturation.Value=1;dither.Value=0;hue.Value=alphaCutoff.Value=removeIslands.Value=0;outline.SelectedIndex=0;outlineWidth.Value=1;outlineColour.Text="#262B44";};
+        reset.Click+=(_,_)=>{palette.SelectedIndex=0;matching.SelectedIndex=0;brightness.Value=contrast.Value=saturation.Value=1;dither.Value=0;hue.Value=alphaCutoff.Value=removeIslands.Value=0;outline.SelectedIndex=0;outlineWidth.Value=1;outlineOpacity.Value=100;outlineColour.Text="#262B44";};
         controls.Children.Add(reset);
         controls.Children.Add(new TextBlock { Text="Settings apply to all queued files. Original canvas dimensions retained.",TextWrapping=TextWrapping.Wrap,FontSize=11 });
         // Export owns its own cancellation controls; processing groups are disabled during output jobs.
@@ -160,7 +161,7 @@ public sealed class PixelArtConverterWindow : Window
         palette.SelectionChanged += (_, _) => { dither.IsEnabled = palette.SelectedIndex != 0; matching.IsEnabled = palette.SelectedIndex != 0; RequestPreview(); };
         matching.SelectionChanged += (_, _) => RequestPreview();
         preview.ViewChanged = UpdateZoom;
-        foreach (var slider in new[] { brightness, contrast, saturation, dither, sampling, hue, alphaCutoff, removeIslands, outlineWidth })
+        foreach (var slider in new[] { brightness, contrast, saturation, dither, sampling, hue, alphaCutoff, removeIslands, outlineWidth, outlineOpacity })
             slider.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty) RequestPreview(); };
         dither.IsEnabled = matching.IsEnabled = false;
         outline.SelectionChanged+=(_,_)=>RequestPreview();
@@ -173,7 +174,7 @@ public sealed class PixelArtConverterWindow : Window
         palette.SelectedIndex >= 6 ? PixelPalette.Custom : (PixelPalette)Math.Max(0, palette.SelectedIndex), matching.SelectedIndex == 0,
         brightness.Value, contrast.Value, saturation.Value, dither.Value,
         palette.SelectedIndex >= 7 && palette.SelectedIndex - 7 < savedPalettes.Count ? savedPalettes[palette.SelectedIndex-7].Colours.ToArray() : draftColours.ToArray(), sampling.Value,hue.Value,(int)alphaCutoff.Value,(int)removeIslands.Value,
-        (PixelOutline)Math.Max(0,outline.SelectedIndex),(int)outlineWidth.Value,(outlineColour.Text??"").Trim());
+        (PixelOutline)Math.Max(0,outline.SelectedIndex),(int)outlineWidth.Value,(outlineColour.Text??"").Trim(),outlineOpacity.Value/100);
 
     private Control BuildOutputPanel()
     {
@@ -381,10 +382,28 @@ public sealed class PixelArtConverterWindow : Window
     private static StackPanel Adjustment(string title, Slider slider)
     {
         slider.Width=double.NaN;slider.HorizontalAlignment=HorizontalAlignment.Stretch;
-        var label = new TextBlock { TextWrapping=TextWrapping.Wrap };
-        void Update() => label.Text = $"{title}: {slider.Value:0.00}";
-        slider.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty) Update(); };
-        Update(); return new StackPanel { Spacing = 3, Children = { label, slider } };
+        bool whole=slider.IsSnapToTickEnabled,updating=false;
+        var number=new NumericUpDown
+        {
+            Minimum=(decimal)slider.Minimum,Maximum=(decimal)slider.Maximum,
+            Increment=whole?1m:0.01m,Value=(decimal)slider.Value,
+            FormatString=whole?"0":"0.##",Width=92
+        };
+        var row=new Grid { ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=8 };
+        row.Children.Add(slider);Grid.SetColumn(number,1);row.Children.Add(number);
+        slider.PropertyChanged+=(_,e)=>
+        {
+            if(e.Property!=Slider.ValueProperty || updating)return;
+            updating=true;number.Value=(decimal)slider.Value;updating=false;
+        };
+        number.ValueChanged+=(_,_)=>
+        {
+            if(updating || number.Value is not decimal value)return;
+            updating=true;
+            slider.Value=Math.Clamp(whole?Math.Round((double)value):(double)value,slider.Minimum,slider.Maximum);
+            number.Value=(decimal)slider.Value;updating=false;
+        };
+        return new StackPanel { Spacing=3,Children={new TextBlock { Text=title,FontSize=11,TextWrapping=TextWrapping.Wrap },row} };
     }
     private void UpdateZoom()
     {

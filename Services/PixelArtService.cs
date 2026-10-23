@@ -15,7 +15,7 @@ public sealed record PixelArtOptions(int LogicalWidth = 128, bool NearestSource 
     PixelPalette Palette = PixelPalette.Original, bool Perceptual = true,
     double Brightness = 1, double Contrast = 1, double Saturation = 1, double Dither = 0, string[]? CustomColours = null,
     double? SamplingBlend = null, double Hue = 0, int AlphaCutoff = 0, int RemoveIslands = 0,
-    PixelOutline Outline = PixelOutline.None, int OutlineWidth = 1, string OutlineColour = "#262B44");
+    PixelOutline Outline = PixelOutline.None, int OutlineWidth = 1, string OutlineColour = "#262B44", double OutlineOpacity = 1);
 
 // Shared logical-grid pipeline. Preview can skip enlargement; final output retains the source canvas.
 public static class PixelArtService
@@ -30,7 +30,7 @@ public static class PixelArtService
             throw new ArgumentException("Invalid colour settings.");
         double blend = options.SamplingBlend ?? (options.NearestSource ? 1 : 0);
         if (!double.IsFinite(blend) || blend is < 0 or > 1 || !double.IsFinite(options.Hue) || options.Hue is < -180 or > 180 ||
-            options.AlphaCutoff is < 0 or > 255 || options.RemoveIslands is < 0 or > 16 || !Enum.IsDefined(options.Outline) || options.OutlineWidth is < 1 or > 4)
+            options.AlphaCutoff is < 0 or > 255 || options.RemoveIslands is < 0 or > 16 || !Enum.IsDefined(options.Outline) || options.OutlineWidth is < 1 or > 4 || !double.IsFinite(options.OutlineOpacity) || options.OutlineOpacity is < 0 or > 1)
             throw new ArgumentException("Invalid sampling/edge settings.");
         var outlineColour = ParseColour(PixelPalettePresets.Validate(new[] { options.OutlineColour })[0]);
         token.ThrowIfCancellationRequested();
@@ -108,7 +108,7 @@ public static class PixelArtService
     }
     private static void DrawOutline(Image<Rgba32> image,PixelArtOptions options,Rgba32 colour,CancellationToken token)
     {
-        if(options.Outline==PixelOutline.None)return;
+        if(options.Outline==PixelOutline.None || options.OutlineOpacity==0)return;
         int w=image.Width,h=image.Height,r=options.OutlineWidth;
         var solid=new bool[w*h];
         for(int y=0;y<h;y++)for(int x=0;x<w;x++)solid[y*w+x]=image[x,y].A>0;
@@ -125,7 +125,19 @@ public static class PixelArtService
                     int nx=x+dx,ny=y+dy;bool neighbour=nx>=0&&nx<w&&ny>=0&&ny<h&&solid[ny*w+nx];
                     if(neighbour!=inside){edge=true;break;}
                 }
-                if(edge){var p=colour;if(inside)p.A=image[x,y].A;image[x,y]=p;}
+                if(edge)
+                {
+                    var p=colour;double opacity=options.OutlineOpacity;
+                    if(inside)
+                    {
+                        var original=image[x,y];
+                        p=new Rgba32((byte)Math.Round(original.R*(1-opacity)+colour.R*opacity),
+                            (byte)Math.Round(original.G*(1-opacity)+colour.G*opacity),
+                            (byte)Math.Round(original.B*(1-opacity)+colour.B*opacity),original.A);
+                    }
+                    else p.A=(byte)Math.Round(255*opacity);
+                    image[x,y]=p;
+                }
             }
         }
     }
