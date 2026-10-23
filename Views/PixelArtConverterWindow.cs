@@ -47,7 +47,9 @@ public sealed class PixelArtConverterWindow : Window
     private readonly Slider brightness = ColourSlider(), contrast = ColourSlider(), saturation = ColourSlider();
     private readonly Slider dither = new() { Minimum = 0, Maximum = 1, Value = 0, Width = 150 };
     private readonly TextBlock previewInfo = new();
-    private readonly SemaphoreSlim previewGate = new(1, 1);
+    private bool previewLoopBusy, previewDirty;
+    private string? previewPath;
+    private long previewStarted;
     private CancellationTokenSource? pending;
     private Bitmap? bitmap;
     private int generation;
@@ -64,70 +66,73 @@ public sealed class PixelArtConverterWindow : Window
     public PixelArtConverterWindow()
     {
         files=manualFiles;
-        Title = "Pixel Art Converter"; Width = 1180; Height = 820; MinWidth = 800; MinHeight = 550;
+        Title = "Pixel Art Converter"; Width = 1440; Height = 900; MinWidth = 1100; MinHeight = 550;
         Background = Brush.Parse("#091522"); Foreground = Brush.Parse("#E8F4FF");
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         RenderOptions.SetBitmapInterpolationMode(preview, BitmapInterpolationMode.None);
-        var body = new Grid { Margin = new Thickness(20), RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,Auto"), RowSpacing = 12 };
+        var body = new Grid { Margin = new Thickness(18), RowDefinitions = new RowDefinitions("Auto,*,Auto"), RowSpacing = 12 };
         body.Children.Add(new TextBlock { Text = "PIXEL ART CONVERTER", FontSize = 24, Foreground = Brush.Parse("#86E5F6") });
-        var controls = new StackPanel { Spacing = 8 };
-        controls.Children.Add(inputMode);
+        var workspace = new Grid { ColumnDefinitions = new ColumnDefinitions("220,*,340"), ColumnSpacing = 14 };
+        Grid.SetRow(workspace,1); body.Children.Add(workspace);
+
+        var sidebar = new Grid { RowDefinitions = new RowDefinitions("Auto,*"), RowSpacing = 10 };
+        var inputs = new StackPanel { Spacing = 8 };
+        inputs.Children.Add(new TextBlock { Text="INPUT FILES",FontWeight=FontWeight.Bold });
+        inputs.Children.Add(inputMode);
         folderControls = new StackPanel { IsVisible=false, Spacing=5 };
         var pickFolder=new Button { Content="CHOOSE FOLDER / SCAN PNGs" };
         pickFolder.Click+=async(_,_)=>await ScanFolder();
         folderControls.Children.Add(pickFolder);folderControls.Children.Add(recursiveFolder);folderControls.Children.Add(folderCaption);
-        controls.Children.Add(folderControls);
-        controls.Children.Add(settings); controls.Children.Add(detail);
-        var presets = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        foreach (int value in new[] { 32, 64, 96, 128, 256 })
+        inputs.Children.Add(folderControls);
+        var buttons=new WrapPanel { ItemSpacing=6,LineSpacing=6 };
+        var add=new Button { Content="ADD PNGs" };var remove=new Button { Content="REMOVE" };var clear=new Button { Content="CLEAR" };
+        buttons.Children.Add(add);buttons.Children.Add(remove);buttons.Children.Add(clear);inputs.Children.Add(buttons);
+        sidebar.Children.Add(new ScrollViewer { Content=inputs,MaxHeight=260 });
+        queue.ItemsSource=files;
+        queue.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<string>((path,_)=>new TextBlock { Text=FolderMode && scannedRoot is not null ? Path.GetRelativePath(scannedRoot,path??"") : path,TextWrapping=TextWrapping.Wrap });
+        Grid.SetRow(queue,1);sidebar.Children.Add(queue);workspace.Children.Add(sidebar);
+
+        var previewArea=new Grid { RowDefinitions=new RowDefinitions("Auto,*,Auto"),RowSpacing=8 };
+        var fit=new Button { Content="FIT PREVIEW" };fit.Click+=(_,_)=>preview.Fit();previewArea.Children.Add(fit);
+        var canvas=new Grid();canvas.Children.Add(new Checkerboard());canvas.Children.Add(preview);
+        var frame=new Border { Child=canvas,ClipToBounds=true,Padding=new Thickness(8) };
+        Grid.SetRow(frame,1);previewArea.Children.Add(frame);
+        previewInfo.TextWrapping=TextWrapping.Wrap;Grid.SetRow(previewInfo,2);previewArea.Children.Add(previewInfo);
+        Grid.SetColumn(previewArea,1);workspace.Children.Add(previewArea);
+
+        var controls=new StackPanel { Spacing=10 };
+        settings.TextWrapping=TextWrapping.Wrap;
+        var presets=new WrapPanel { ItemSpacing=5,LineSpacing=5 };
+        foreach(int value in new[]{32,64,96,128,256})
         {
-            var button = new Button { Content = value.ToString() };
-            button.Click += (_, _) => detail.Value = value; presets.Children.Add(button);
+            var button=new Button { Content=value.ToString() };button.Click+=(_,_)=>detail.Value=value;presets.Children.Add(button);
         }
-        controls.Children.Add(presets); controls.Children.Add(Adjustment("SAMPLING BLEND: 0 = Average / 1 = Nearest", sampling));
-        palette.ItemsSource = paletteNames;
-        ReloadPalettes();
-        var colourControls = new WrapPanel { ItemSpacing = 14, LineSpacing = 8 };
-        var editPalette = new Button { Content = "EDIT / CREATE PALETTE" };
-        editPalette.Click += async (_, _) =>
+        controls.Children.Add(Group("PIXEL DETAIL",settings,detail,presets,Adjustment("SAMPLING: 0 Average / 1 Nearest",sampling)));
+        palette.ItemsSource=paletteNames;ReloadPalettes();
+        var editPalette=new Button { Content="EDIT / CREATE PALETTE" };
+        editPalette.Click+=async(_,_)=>
         {
-            var initial = palette.SelectedIndex >= 7 && palette.SelectedIndex - 7 < savedPalettes.Count
-                ? savedPalettes[palette.SelectedIndex-7].Colours.ToArray()
-                : palette.SelectedIndex == 6 ? draftColours.ToArray() : PixelArtService.EndesgaColours();
-            var editor = new PixelPaletteEditorWindow(initial,
-                colours => { draftColours = colours; if (palette.SelectedIndex == 6) RequestPreview(); else palette.SelectedIndex = 6; },
-                (name, colours) => { draftColours = colours; ReloadPalettes(); palette.SelectedIndex = 7 + savedPalettes.FindIndex(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)); });
+            var initial=palette.SelectedIndex>=7 && palette.SelectedIndex-7<savedPalettes.Count ? savedPalettes[palette.SelectedIndex-7].Colours.ToArray()
+                : palette.SelectedIndex==6 ? draftColours.ToArray() : PixelArtService.EndesgaColours();
+            var editor=new PixelPaletteEditorWindow(initial,
+                colours=>{draftColours=colours;if(palette.SelectedIndex==6)RequestPreview();else palette.SelectedIndex=6;},
+                (name,colours)=>{draftColours=colours;ReloadPalettes();palette.SelectedIndex=7+savedPalettes.FindIndex(p=>p.Name.Equals(name,StringComparison.OrdinalIgnoreCase));});
             await editor.ShowDialog(this);
         };
-        colourControls.Children.Add(editPalette);
-        colourControls.Children.Add(Field("PALETTE", palette)); colourControls.Children.Add(Field("COLOUR MATCHING", matching));
-        colourControls.Children.Add(Adjustment("BRIGHTNESS", brightness)); colourControls.Children.Add(Adjustment("CONTRAST", contrast));
-        colourControls.Children.Add(Adjustment("HUE (degrees)", hue));
-        colourControls.Children.Add(Adjustment("ALPHA CUTOFF (0 = off)", alphaCutoff));
-        colourControls.Children.Add(Adjustment("REMOVE ISLANDS ≤ pixels (0 = off)", removeIslands));
-        colourControls.Children.Add(Field("OUTLINE", outline));
-        colourControls.Children.Add(Adjustment("OUTLINE WIDTH (grid pixels)", outlineWidth));
-        colourControls.Children.Add(Field("OUTLINE HEX", outlineColour));
-        colourControls.Children.Add(Adjustment("SATURATION", saturation)); colourControls.Children.Add(Adjustment("BAYER 4×4 STRENGTH", dither));
-        var fit = new Button { Content = "FIT PREVIEW" };
-        fit.Click += (_, _) => preview.Fit(); colourControls.Children.Add(fit);
-        var reset = new Button { Content = "RESET COLOURS" }; colourControls.Children.Add(reset);
-        reset.Click += (_, _) => { palette.SelectedIndex = 0; matching.SelectedIndex = 0; brightness.Value = contrast.Value = saturation.Value = 1; dither.Value = 0;hue.Value=alphaCutoff.Value=removeIslands.Value=0;outline.SelectedIndex=0;outlineWidth.Value=1;outlineColour.Text="#262B44"; };
-        controls.Children.Add(colourControls); controls.Children.Add(previewInfo);
-        controls.Children.Add(new TextBlock { Text = "One shared setting for all files • Original canvas dimensions retained • Export PNGs here or send converted copies to Sprite Batch", TextWrapping = TextWrapping.Wrap });
-        var settingsScroll = new ScrollViewer { Content = controls, MaxHeight = 310 }; processingControls=settingsScroll; Grid.SetRow(settingsScroll, 1); body.Children.Add(settingsScroll);
-        var centre = new Grid { ColumnDefinitions = new ColumnDefinitions("270,*"), ColumnSpacing = 12 };
-        var sidebar = new Grid { RowDefinitions = new RowDefinitions("Auto,*"), RowSpacing = 8 };
-        var buttons = new WrapPanel { ItemSpacing = 6, LineSpacing = 6 };
-        var add = new Button { Content = "ADD PNGs" }; var remove = new Button { Content = "REMOVE" }; var clear = new Button { Content = "CLEAR" };
-        buttons.Children.Add(add); buttons.Children.Add(remove); buttons.Children.Add(clear); sidebar.Children.Add(buttons);
-        queue.ItemsSource = files;
-        queue.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<string>((path,_)=>new TextBlock { Text=FolderMode && scannedRoot is not null ? Path.GetRelativePath(scannedRoot,path??"") : path, TextWrapping=TextWrapping.Wrap }); Grid.SetRow(queue, 1); sidebar.Children.Add(queue); centre.Children.Add(sidebar);
-        var canvas = new Grid(); canvas.Children.Add(new Checkerboard()); canvas.Children.Add(preview);
-        var frame = new Border { Child = canvas, ClipToBounds = true, Padding = new Thickness(8) };
-        Grid.SetColumn(frame, 1); centre.Children.Add(frame);
-        Grid.SetRow(centre, 2); body.Children.Add(centre); var outputPanel = BuildOutputPanel(); Grid.SetRow(outputPanel, 3); body.Children.Add(outputPanel);
-        Grid.SetRow(status, 4); body.Children.Add(status); Content = body;
+        controls.Children.Add(Group("PALETTE",palette,editPalette,Field("COLOUR MATCHING",matching),Adjustment("BAYER DITHER STRENGTH",dither)));
+        controls.Children.Add(Group("COLOUR ADJUSTMENTS",Adjustment("BRIGHTNESS",brightness),Adjustment("CONTRAST",contrast),Adjustment("SATURATION",saturation),Adjustment("HUE (degrees)",hue)));
+        controls.Children.Add(Group("CLEANUP",Adjustment("ALPHA CUTOFF (0 = off)",alphaCutoff),Adjustment("REMOVE ISLANDS ≤ pixels (0 = off)",removeIslands)));
+        controls.Children.Add(Group("OUTLINE",outline,Adjustment("WIDTH (grid pixels)",outlineWidth),Field("COLOUR HEX",outlineColour)));
+        var reset=new Button { Content="RESET COLOURS / CLEANUP" };
+        reset.Click+=(_,_)=>{palette.SelectedIndex=0;matching.SelectedIndex=0;brightness.Value=contrast.Value=saturation.Value=1;dither.Value=0;hue.Value=alphaCutoff.Value=removeIslands.Value=0;outline.SelectedIndex=0;outlineWidth.Value=1;outlineColour.Text="#262B44";};
+        controls.Children.Add(reset);
+        controls.Children.Add(new TextBlock { Text="Settings apply to all queued files. Original canvas dimensions retained.",TextWrapping=TextWrapping.Wrap,FontSize=11 });
+        // Export owns its own cancellation controls; processing groups are disabled during output jobs.
+        var processingStack=new StackPanel { Spacing=10 };processingStack.Children.Add(controls);processingControls=controls;
+        processingStack.Children.Add(BuildOutputPanel());
+        var settingsScroll=new ScrollViewer { Content=processingStack,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
+        Grid.SetColumn(settingsScroll,2);workspace.Children.Add(settingsScroll);
+        Grid.SetRow(status,2);body.Children.Add(status);Content=body;
         DragDrop.SetAllowDrop(body, true);
         body.AddHandler(DragDrop.DragOverEvent, (_, e) => { e.DragEffects = e.DataTransfer.Contains(DataFormat.File) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; });
         body.AddHandler(DragDrop.DropEvent, (_, e) => { AddFiles(e.DataTransfer.TryGetFiles()?.Where(f => f.Path.IsFile).Select(f => f.Path.LocalPath) ?? Array.Empty<string>()); e.Handled = true; });
@@ -180,6 +185,7 @@ public sealed class PixelArtConverterWindow : Window
             try { var result=await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { AllowMultiple=false }); if(!closed && result.Count>0 && result[0].Path.IsFile)outputFolder.Text=result[0].Path.LocalPath; }
             catch(Exception ex){if(!closed)status.Text=ex.Message;}
         };
+        overwriteFolder.Content=new TextBlock { Text="Overwrite source PNGs (backups retained)",TextWrapping=TextWrapping.Wrap };
         body.Children.Add(overwriteFolder);body.Children.Add(folderRow);
         var names=new WrapPanel { ItemSpacing=10,LineSpacing=5 };
         names.Children.Add(selectedOnly); names.Children.Add(sequential);names.Children.Add(Field("PREFIX",outputPrefix));names.Children.Add(Field("START",outputStart));names.Children.Add(Field("DIGITS",outputDigits));body.Children.Add(names);
@@ -216,8 +222,8 @@ public sealed class PixelArtConverterWindow : Window
         }
         catch(Exception ex){status.Text=ex.Message;return;}
         using var cancellation=new CancellationTokenSource();outputJob=cancellation;
-        overwriteFolder.IsEnabled=false;
-        generation++;pending?.Cancel(); if(processingControls is not null)processingControls.IsEnabled=false;queue.IsEnabled=false;
+        overwriteFolder.IsEnabled=false;inputMode.IsEnabled=false;
+        generation++;pending?.Cancel();previewDirty=false; if(processingControls is not null)processingControls.IsEnabled=false;queue.IsEnabled=false;
         foreach(var button in new[]{planOutput,exportOutput,sendBatch})button.IsEnabled=false;cancelOutput.IsEnabled=true;
         PixelArtHandoffLease? lease=null;
         try
@@ -253,7 +259,7 @@ public sealed class PixelArtConverterWindow : Window
         finally
         {
             if(lease is not null)try{lease.Dispose();}catch(Exception ex){status.Text="Temporary cleanup failed: "+ex.Message;System.Diagnostics.Trace.WriteLine(status.Text);}
-            outputJob=null;overwriteFolder.IsEnabled=true;if(processingControls is not null)processingControls.IsEnabled=true;queue.IsEnabled=true;foreach(var button in new[]{planOutput,exportOutput,sendBatch})button.IsEnabled=true;cancelOutput.IsEnabled=false;
+            outputJob=null;overwriteFolder.IsEnabled=true;inputMode.IsEnabled=true;if(processingControls is not null)processingControls.IsEnabled=true;queue.IsEnabled=true;foreach(var button in new[]{planOutput,exportOutput,sendBatch})button.IsEnabled=true;cancelOutput.IsEnabled=false;
         }
     }
 
@@ -315,41 +321,67 @@ public sealed class PixelArtConverterWindow : Window
         status.Text = $"{files.Count} PNGs queued. {rejected} invalid paths skipped. Settings apply to every file.";
     }
 
-    private async void RequestPreview()
+    private void RequestPreview()
     {
-        if (closed || outputJob is not null) return;
-        int request = ++generation;
-        pending?.Cancel();
-        var cancellation = new CancellationTokenSource(); pending = cancellation;
-        var token = cancellation.Token;
-        string? path = queue.SelectedItem as string;
-        var options = ReadProcessing();
-        settings.Text = $"LOGICAL PIXEL WIDTH: {options.LogicalWidth} • smaller = chunkier • {files.Count} files";
-        preview.Source = null; bitmap?.Dispose(); bitmap = null;
-        if (path is null) { status.Text = "Drop PNGs here or choose ADD PNGs."; pending = null; cancellation.Dispose(); return; }
-        status.Text = "Updating selected preview…";
+        if(closed || outputJob is not null)return;
+        previewDirty=true;
+        string? path=queue.SelectedItem as string;
+        settings.Text=$"LOGICAL WIDTH: {(int)Math.Round(detail.Value)} • smaller = chunkier • {files.Count} files";
+        if(path!=previewPath)
+        {
+            pending?.Cancel();previewPath=path;
+            preview.Source=null;bitmap?.Dispose();bitmap=null;
+        }
+        if(!previewLoopBusy)_=RunPreviewLoop();
+    }
+    private async Task RunPreviewLoop()
+    {
+        previewLoopBusy=true;
         try
         {
-            await Task.Delay(125, token);
-            await previewGate.WaitAsync(token);
-            byte[] bytes;
-            try { bytes = await Task.Run(() => PixelArtService.Preview(path, options, token, logicalPreview: true), token); }
-            finally { previewGate.Release(); }
-            if (closed || request != generation || token.IsCancellationRequested) return;
-            using var stream = new MemoryStream(bytes);
-            bitmap = new Bitmap(stream); preview.Source = bitmap; UpdateZoom();
-            status.Text = $"{Path.GetFileName(path)} • Logical grid {bitmap.PixelSize.Width}×{bitmap.PixelSize.Height} • Original canvas retained by conversion pipeline. Transparency preserved.";
+            while(previewDirty && !closed && outputJob is null)
+            {
+                // Throttle starts, rather than postponing every time the slider changes.
+                int delay=(int)Math.Max(0,100-(Environment.TickCount64-previewStarted));
+                if(delay>0)await Task.Delay(delay);
+                if(closed || outputJob is not null)break;
+                previewDirty=false;
+                string? path=queue.SelectedItem as string;
+                if(path is null){status.Text=FolderMode?"Choose a folder to scan.":"Drop PNGs here or choose ADD PNGs.";continue;}
+                var options=ReadProcessing();
+                using var cancellation=new CancellationTokenSource();pending=cancellation;
+                previewStarted=Environment.TickCount64;
+                try
+                {
+                    var bytes=await Task.Run(()=>PixelArtService.Preview(path,options,cancellation.Token,logicalPreview:true),cancellation.Token);
+                    // One worker publishes in order. Same-file intermediate results keep dragging live;
+                    // a dirty request then renders the latest controls, including the final slider value.
+                    if(closed || outputJob is not null || cancellation.IsCancellationRequested || (queue.SelectedItem as string)!=path)continue;
+                    using var stream=new MemoryStream(bytes);
+                    var next=new Bitmap(stream);var previous=bitmap;bitmap=next;preview.Source=next;previous?.Dispose();UpdateZoom();
+                    status.Text=$"{Path.GetFileName(path)} • Logical grid {next.PixelSize.Width}×{next.PixelSize.Height} • Original canvas retained";
+                }
+                catch(OperationCanceledException){}
+                catch(Exception ex){if(!closed && (queue.SelectedItem as string)==path)status.Text="Preview failed: "+ex.Message;}
+                finally{if(ReferenceEquals(pending,cancellation))pending=null;}
+            }
         }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) { if (!closed && request == generation) status.Text = "Preview failed: " + ex.Message; }
-        finally { if (ReferenceEquals(pending, cancellation)) pending = null; cancellation.Dispose(); }
+        finally{previewLoopBusy=false;}
+    }
+
+    private static Expander Group(string title,params Control[] items)
+    {
+        var stack=new StackPanel { Spacing=8,Margin=new Thickness(0,8,0,8) };
+        foreach(var item in items)stack.Children.Add(item);
+        return new Expander { Header=title,Content=stack,IsExpanded=true,HorizontalAlignment=HorizontalAlignment.Stretch };
     }
 
     private static Slider ColourSlider() => new() { Minimum = 0, Maximum = 2, Value = 1, Width = 150 };
-    private static StackPanel Field(string title, Control control) => new() { Spacing = 3, Children = { new TextBlock { Text = title, FontSize = 11 }, control } };
+    private static StackPanel Field(string title, Control control) => new() { Spacing = 3, Children = { new TextBlock { Text = title, FontSize = 11, TextWrapping=TextWrapping.Wrap }, control } };
     private static StackPanel Adjustment(string title, Slider slider)
     {
-        var label = new TextBlock();
+        slider.Width=double.NaN;slider.HorizontalAlignment=HorizontalAlignment.Stretch;
+        var label = new TextBlock { TextWrapping=TextWrapping.Wrap };
         void Update() => label.Text = $"{title}: {slider.Value:0.00}";
         slider.PropertyChanged += (_, e) => { if (e.Property == Slider.ValueProperty) Update(); };
         Update(); return new StackPanel { Spacing = 3, Children = { label, slider } };
