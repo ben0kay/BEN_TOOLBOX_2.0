@@ -124,7 +124,7 @@ Important tool details:
 
 **Planned Game Development module:** [Pixel Art Converter implementation plan](Notes/Plans/PIXEL_ART_CONVERTER_IMPLEMENTATION_PLAN.md) — a multi-PNG drop queue, first-file live selected preview with a pixel-width slider, independent PNG export/rename, and a true converted-image handoff to Sprite Batch before final output. **Planning only; no implementation yet.**
 
-**Planned Game Development module:** [Seasonal Sprite Studio implementation plan](Notes/Plans/SEASONAL_SPRITE_STUDIO_IMPLEMENTATION_PLAN.md) — non-destructive foliage selection and manual mask editing, protected trunks/roots, spring/summer/autumn colouring and **winter snow on existing leaves**, saved masks/projects, aligned seasonal PNG export and a future Pixel Art Converter handoff. **Plan only; no Seasonal Studio code yet.**
+**Planned Game Development module:** [Seasonal Sprite Studio V2 — hybrid Avalonia/Godot implementation plan](Notes/Plans/SEASONAL_SPRITE_STUDIO_IMPLEMENTATION_PLAN.md) — the Avalonia Studio creates precise editable foliage/protected-trunk masks and optional seasonal previews/PNG variants; Fantasy 2D Godot dynamically tints existing tree sprites while preserving its snow, rain and wind shaders. Shared mask format and a small Godot shader proof come before full Studio/Godot integration. Winter keeps leaves with snow. **Plan only; no Seasonal Studio or Godot seasonal implementation has been made by this update.**
 
 ## Architecture and engineering principles
 
