@@ -64,6 +64,11 @@ public sealed class PixelArtConverterWindow : Window
     private readonly Button planOutput = new() { Content = "PREVIEW OUTPUT" }, exportOutput = new() { Content = "EXPORT PNGs" }, sendBatch = new() { Content = "SEND ALL TO SPRITE BATCH" }, cancelOutput = new() { Content = "CANCEL", IsEnabled = false };
     private readonly ListBox outputPlan = new() { MaxHeight = 110 };
     private string? plannedOutputKey;
+    private readonly ObservableCollection<string> masterConfigNames = new();
+    private readonly ComboBox masterConfigPicker = new() { MinWidth=175 };
+    private readonly TextBox masterConfigName = new() { PlaceholderText="Name this configuration" };
+    private readonly TextBlock masterConfigMessage = new() { FontSize=11,TextWrapping=TextWrapping.Wrap,Foreground=Brush.Parse("#93B9CB") };
+    private bool applyingMasterConfig;
 
     public PixelArtConverterWindow()
     {
@@ -103,6 +108,7 @@ public sealed class PixelArtConverterWindow : Window
         Grid.SetColumn(previewArea,1);workspace.Children.Add(previewArea);
 
         var controls=new StackPanel { Spacing=10 };
+        controls.Children.Add(BuildMasterConfigPanel());
         controls.Children.Add(new TextBlock {
             Text="Drag a slider, or click its value to type an exact number (Enter to apply).",
             FontSize=11,Foreground=Brush.Parse("#8CAFC6"),TextWrapping=TextWrapping.Wrap
@@ -173,6 +179,165 @@ public sealed class PixelArtConverterWindow : Window
         outlineColour.TextChanged+=(_,_)=>RequestPreview();
         Closed += (_, _) => { closed = true; generation++; pending?.Cancel(); outputJob?.Cancel(); scanJob?.Cancel(); preview.Source = null; bitmap?.Dispose(); bitmap = null; };
         RequestPreview();
+    }
+
+    private Control BuildMasterConfigPanel()
+    {
+        var body = new StackPanel { Spacing=8,Margin=new Thickness(0,8,0,8) };
+        masterConfigPicker.ItemsSource=masterConfigNames;
+        body.Children.Add(Field("SAVED MASTER CONFIG", masterConfigPicker));
+        body.Children.Add(Field("SAVE CONFIG AS", masterConfigName));
+        var buttons = new WrapPanel { ItemSpacing=6,LineSpacing=6 };
+        var save = new Button { Content="SAVE AS" };
+        var load = new Button { Content="LOAD" };
+        var update = new Button { Content="UPDATE" };
+        var delete = new Button { Content="DELETE" };
+        foreach (var button in new[] { save, load, update, delete }) buttons.Children.Add(button);
+        body.Children.Add(buttons);
+        body.Children.Add(new TextBlock {
+            Text="Stores every image-processing parameter, including palette colours. Does not save files, export paths or overwrite options.",
+            FontSize=11,Foreground=Brush.Parse("#90ACBE"),TextWrapping=TextWrapping.Wrap
+        });
+        body.Children.Add(masterConfigMessage);
+
+        masterConfigPicker.SelectionChanged += (_, _) =>
+        {
+            if (masterConfigPicker.SelectedItem is string name) masterConfigName.Text=name;
+        };
+        save.Click += (_, _) => SaveMasterConfig(replace:false);
+        load.Click += (_, _) => LoadMasterConfig();
+        update.Click += (_, _) => SaveMasterConfig(replace:true);
+        delete.Click += async (_, _) => await DeleteMasterConfigAsync();
+        ReloadMasterConfigs();
+        return new Expander {
+            Header="MASTER CONFIGS",Content=body,IsExpanded=true,
+            HorizontalAlignment=HorizontalAlignment.Stretch
+        };
+    }
+
+    private void ReloadMasterConfigs(string? select = null)
+    {
+        try
+        {
+            var stored = PixelArtConfigStore.Load();
+            masterConfigNames.Clear();
+            foreach (var config in stored) masterConfigNames.Add(config.Name);
+            var selected = select is null ? null : stored.FirstOrDefault(
+                c => c.Name.Equals(select,StringComparison.OrdinalIgnoreCase));
+            masterConfigPicker.SelectedItem=selected?.Name;
+            masterConfigMessage.Text=stored.Count == 0
+                ? "No saved configurations yet. Adjust the sliders, type a name and choose SAVE AS."
+                : $"{stored.Count} configuration(s) saved locally. Select one and click LOAD.";
+        }
+        catch (Exception ex) { masterConfigMessage.Text="Cannot read saved configurations: "+ex.Message; }
+    }
+
+    private void SaveMasterConfig(bool replace)
+    {
+        if (closed || outputJob is not null) return;
+        try
+        {
+            string name=replace
+                ? masterConfigPicker.SelectedItem as string ??
+                  throw new ArgumentException("Select a saved configuration to update.")
+                : masterConfigName.Text??"";
+            var options=ReadProcessing();
+            if (replace) PixelArtConfigStore.Update(name, options);
+            else PixelArtConfigStore.SaveAs(name, options);
+            ReloadMasterConfigs(name);
+            masterConfigMessage.Text=(replace?"Updated ":"Saved ") + name.Trim() +
+                ". Your settings will be available next time you open BEN TOOLBOX.";
+        }
+        catch (Exception ex) { masterConfigMessage.Text="Save failed: "+ex.Message; }
+    }
+
+    private void LoadMasterConfig()
+    {
+        if (closed || outputJob is not null) return;
+        try
+        {
+            string name=masterConfigPicker.SelectedItem as string ??
+                throw new ArgumentException("Select a saved configuration to load.");
+            var config=PixelArtConfigStore.Load().FirstOrDefault(
+                c => c.Name.Equals(name,StringComparison.OrdinalIgnoreCase)) ??
+                throw new IOException("This configuration could not be found. Reload the converter.");
+            ApplyMasterConfig(config.Options);
+            masterConfigMessage.Text="Loaded "+config.Name+
+                ". Preview and future exports now use these settings.";
+        }
+        catch (Exception ex) { masterConfigMessage.Text="Load failed: "+ex.Message; }
+    }
+
+    private void ApplyMasterConfig(PixelArtOptions options)
+    {
+        // Change every parameter as one operation. Intermediate slider events should
+        // not start 10+ redundant previews; the final RequestPreview starts one.
+        applyingMasterConfig=true;
+        try
+        {
+            detail.Value=options.LogicalWidth;
+            sampling.Value=options.SamplingBlend ?? (options.NearestSource?1:0);
+            brightness.Value=options.Brightness;
+            contrast.Value=options.Contrast;
+            saturation.Value=options.Saturation;
+            hue.Value=options.Hue;
+            alphaCutoff.Value=options.AlphaCutoff;
+            removeIslands.Value=options.RemoveIslands;
+            outline.SelectedIndex=(int)options.Outline;
+            outlineWidth.Value=options.OutlineWidth;
+            outlineOpacity.Value=options.OutlineOpacity*100;
+            outlineColour.Text=options.OutlineColour;
+            matching.SelectedIndex=options.Perceptual?0:1;
+            if (options.Palette==PixelPalette.Custom)
+            {
+                // Take a snapshot of custom/named-palette colours, so loading works
+                // even if a separate saved colour palette was later renamed/deleted.
+                draftColours=options.CustomColours!.ToArray();
+                palette.SelectedIndex=6; // Custom draft; actual colours are identical.
+            }
+            else palette.SelectedIndex=(int)options.Palette;
+            dither.Value=options.Dither;
+        }
+        finally { applyingMasterConfig=false; }
+        plannedOutputKey=null;
+        outputPlan.ItemsSource=null;
+        RequestPreview();
+    }
+
+    private async Task DeleteMasterConfigAsync()
+    {
+        if (closed || outputJob is not null) return;
+        if (masterConfigPicker.SelectedItem is not string name)
+        {
+            masterConfigMessage.Text="Select a saved configuration to delete.";
+            return;
+        }
+        var dialog=new Window {
+            Title="Delete Master Config",Width=420,Height=190,
+            WindowStartupLocation=WindowStartupLocation.CenterOwner,
+            Background=Brush.Parse("#091522"),Foreground=Brush.Parse("#E8F4FF")
+        };
+        var body=new StackPanel { Spacing=16,Margin=new Thickness(20) };
+        body.Children.Add(new TextBlock {
+            Text=$"Delete saved configuration '{name}'? This cannot be undone.",
+            TextWrapping=TextWrapping.Wrap
+        });
+        var actions=new StackPanel { Orientation=Orientation.Horizontal,Spacing=10 };
+        var cancel=new Button { Content="CANCEL" };
+        var confirm=new Button { Content="DELETE CONFIG" };
+        cancel.Click+=(_,_)=>dialog.Close(false);
+        confirm.Click+=(_,_)=>dialog.Close(true);
+        actions.Children.Add(cancel);actions.Children.Add(confirm);
+        body.Children.Add(actions);dialog.Content=body;
+        if (!await dialog.ShowDialog<bool>(this) || closed) return;
+        try
+        {
+            PixelArtConfigStore.Delete(name);
+            ReloadMasterConfigs();
+            masterConfigName.Text="";
+            masterConfigMessage.Text="Deleted '"+name+"'. Current image settings were not changed.";
+        }
+        catch (Exception ex) { masterConfigMessage.Text="Delete failed: "+ex.Message; }
     }
 
     private PixelArtOptions ReadProcessing() => new((int)Math.Round(detail.Value), false,
@@ -329,7 +494,7 @@ public sealed class PixelArtConverterWindow : Window
 
     private void RequestPreview()
     {
-        if(closed || outputJob is not null)return;
+        if(closed || outputJob is not null || applyingMasterConfig)return;
         previewDirty=true;
         string? path=queue.SelectedItem as string;
         settings.Text=$"LOGICAL WIDTH: {(int)Math.Round(detail.Value)} • smaller = chunkier • {files.Count} files";

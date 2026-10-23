@@ -175,3 +175,6 @@ Pixel converter layout: input/file list left, zoom/pan preview centre, scrollabl
 Outline opacity now supports 0–100%, and converter sliders have synchronized numeric inputs for exact values. Outside outlines fade via alpha; inside outlines blend into the original edge without reducing sprite alpha. Windows validation pending.
 
 Pixel converter numeric input UI was revised after a Windows screenshot: compact, legible **click-to-edit numeric text fields** replace the bulky `NumericUpDown` arrow steppers for every slider. Click and type, then press Enter or click away to apply; Escape restores the prior value. Slider dragging still updates values and preview live. Windows re-test pending.
+
+
+Pixel Art Converter **Master Configs**: a panel above Pixel Detail now offers SAVE AS, LOAD, UPDATE and confirmed DELETE for complete named processing setups. The named JSON configurations persist per Windows user under `%LOCALAPPDATA%\BEN_TOOLBOX_2_0\PixelArtConfigs\master-configs.json`. They include all converter visual settings and embedded custom palette colours, but deliberately exclude input/output paths, queues, renaming and overwrite choices. Select and LOAD on the next session; no automatic application. Windows test pending.
