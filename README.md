@@ -173,3 +173,5 @@ Pixel converter edge controls: Average↔Nearest sampling blend, hue, alpha cuto
 Pixel converter layout: input/file list left, zoom/pan preview centre, scrollable grouped controls/export right. Preview now updates during slider dragging using a single throttled conversion loop and renders the final settings after dragging stops; actual speed depends on conversion cost. Windows build/layout validation pending.
 
 Outline opacity now supports 0–100%, and converter sliders have synchronized numeric inputs for exact values. Outside outlines fade via alpha; inside outlines blend into the original edge without reducing sprite alpha. Windows validation pending.
+
+Pixel converter numeric input UI was revised after a Windows screenshot: compact, legible **click-to-edit numeric text fields** replace the bulky `NumericUpDown` arrow steppers for every slider. Click and type, then press Enter or click away to apply; Escape restores the prior value. Slider dragging still updates values and preview live. Windows re-test pending.

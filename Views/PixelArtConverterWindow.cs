@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -102,6 +103,10 @@ public sealed class PixelArtConverterWindow : Window
         Grid.SetColumn(previewArea,1);workspace.Children.Add(previewArea);
 
         var controls=new StackPanel { Spacing=10 };
+        controls.Children.Add(new TextBlock {
+            Text="Drag a slider, or click its value to type an exact number (Enter to apply).",
+            FontSize=11,Foreground=Brush.Parse("#8CAFC6"),TextWrapping=TextWrapping.Wrap
+        });
         settings.TextWrapping=TextWrapping.Wrap;
         var presets=new WrapPanel { ItemSpacing=5,LineSpacing=5 };
         foreach(int value in new[]{32,64,96,128,256})
@@ -381,29 +386,77 @@ public sealed class PixelArtConverterWindow : Window
     private static StackPanel Field(string title, Control control) => new() { Spacing = 3, Children = { new TextBlock { Text = title, FontSize = 11, TextWrapping=TextWrapping.Wrap }, control } };
     private static StackPanel Adjustment(string title, Slider slider)
     {
-        slider.Width=double.NaN;slider.HorizontalAlignment=HorizontalAlignment.Stretch;
-        bool whole=slider.IsSnapToTickEnabled,updating=false;
-        var number=new NumericUpDown
+        slider.Width = double.NaN;
+        slider.HorizontalAlignment = HorizontalAlignment.Stretch;
+
+        bool whole = slider.IsSnapToTickEnabled;
+        string Format(double value) => whole
+            ? Math.Round(value).ToString("0", CultureInfo.CurrentCulture)
+            : value.ToString("0.####", CultureInfo.CurrentCulture);
+
+        // Click-to-edit field without oversized spinner arrows.
+        var number = new TextBox
         {
-            Minimum=(decimal)slider.Minimum,Maximum=(decimal)slider.Maximum,
-            Increment=whole?1m:0.01m,Value=(decimal)slider.Value,
-            FormatString=whole?"0":"0.##",Width=92
+            Text = Format(slider.Value),
+            Width = 76,
+            MinHeight = 32,
+            FontSize = 14,
+            FontWeight = FontWeight.SemiBold,
+            TextAlignment = TextAlignment.Center,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Padding = new Thickness(6, 4),
+            Background = Brush.Parse("#0B1D2C"),
+            Foreground = Brush.Parse("#F1FAFF"),
+            BorderBrush = Brush.Parse("#38637C"),
+            BorderThickness = new Thickness(1)
         };
-        var row=new Grid { ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=8 };
-        row.Children.Add(slider);Grid.SetColumn(number,1);row.Children.Add(number);
-        slider.PropertyChanged+=(_,e)=>
+
+        // Sliders continue to update the displayed number live.
+        slider.PropertyChanged += (_, e) =>
         {
-            if(e.Property!=Slider.ValueProperty || updating)return;
-            updating=true;number.Value=(decimal)slider.Value;updating=false;
+            if (e.Property == Slider.ValueProperty)
+                number.Text = Format(slider.Value);
         };
-        number.ValueChanged+=(_,_)=>
+
+        // Apply the typed value on Enter or leaving the field, so intermediate
+        // inputs like "-" or "0." don't alter the preview mid-edit.
+        void Commit()
         {
-            if(updating || number.Value is not decimal value)return;
-            updating=true;
-            slider.Value=Math.Clamp(whole?Math.Round((double)value):(double)value,slider.Minimum,slider.Maximum);
-            number.Value=(decimal)slider.Value;updating=false;
+            if (double.TryParse(number.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out double value)
+                && double.IsFinite(value))
+            {
+                value = Math.Clamp(value, slider.Minimum, slider.Maximum);
+                slider.Value = whole ? Math.Round(value) : value;
+            }
+            number.Text = Format(slider.Value); // Restore after invalid entry.
+        }
+
+        number.GotFocus += (_, _) => number.SelectAll();
+        number.LostFocus += (_, _) => Commit();
+        number.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter)
+            {
+                Commit();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Escape)
+            {
+                number.Text = Format(slider.Value);
+                e.Handled = true;
+            }
         };
-        return new StackPanel { Spacing=3,Children={new TextBlock { Text=title,FontSize=11,TextWrapping=TextWrapping.Wrap },row} };
+
+        var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8 };
+        row.Children.Add(slider);
+        Grid.SetColumn(number, 1);
+        row.Children.Add(number);
+        return new StackPanel
+        {
+            Spacing = 3,
+            Children = { new TextBlock { Text = title, FontSize = 11, TextWrapping = TextWrapping.Wrap }, row }
+        };
     }
     private void UpdateZoom()
     {
