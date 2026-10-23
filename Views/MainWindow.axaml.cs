@@ -12,6 +12,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        InitializeDashboard();
         ShowSection("Dashboard");
         if (OperatingSystem.IsWindows())
         {
@@ -135,6 +136,7 @@ public partial class MainWindow : Window
 
         var dashboard = section == "Dashboard";
         DashboardPanel.IsVisible = dashboard;
+        SetDashboardActive(dashboard);
         ToolListPanel.IsVisible = section is "Game" or "Files" or "Inspect";
         ToolsView.ItemsSource = section switch
         {
@@ -179,7 +181,7 @@ public partial class MainWindow : Window
                 PageTitle.Text = "Command Center";
                 PageSubtitle.Text = "Modular utilities  /  Developer operations  /  System oversight";
                 InfoTitle.Text = "BTX-02   /   COMMAND CENTER";
-                InfoDescription.Text = "Open your local native tools from the modules above. System telemetry is planned for D2 and D3; remote execution is not enabled.";
+                InfoDescription.Text = "Local clock, CPU, physical memory and disk capacity are now sampled while this dashboard is visible. Live history graphs follow in D3.";
                 break;
         }
     }

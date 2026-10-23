@@ -3,7 +3,7 @@
         xmlns:services="using:BEN_TOOLBOX_2_0.Services"
         x:Class="BEN_TOOLBOX_2_0.Views.MainWindow"
         Title="BEN TOOLBOX 2.0"
-        Width="1260" Height="790" MinWidth="900" MinHeight="600"
+        Width="1920" Height="1080" MinWidth="900" MinHeight="600"
         WindowStartupLocation="CenterScreen"
         Background="#070E19" Foreground="#E8F4FF"
         FontFamily="Inter">
@@ -108,7 +108,7 @@
           </StackPanel>
           <!-- D1: dashboard-only content. A single parent is toggled by ShowSection(). -->
           <StackPanel x:Name="DashboardPanel" Spacing="17">
-            <!-- Static command readout: D2 will connect a real, local clock. -->
+            <!-- Real local clock refreshes only while the dashboard is visible. -->
             <Border Classes="hud" Background="#0E2237" Padding="14">
               <Grid>
                 <!-- Static, low-cost HUD corner brackets over the command strip. -->
@@ -126,7 +126,7 @@
                   <StackPanel Spacing="4" HorizontalAlignment="Right">
                     <TextBlock Classes="hud-label" Text="SYSTEM TIME  /  LOCAL" HorizontalAlignment="Right"/>
                     <TextBlock x:Name="DashboardTimeText" Text="--:--:--" FontSize="27" FontWeight="SemiBold" Foreground="#DAF5FC" HorizontalAlignment="Right"/>
-                    <TextBlock x:Name="DashboardDateText" Text="Clock connects in D2" FontSize="10" Foreground="#7E9CB2" HorizontalAlignment="Right"/>
+                    <TextBlock x:Name="DashboardDateText" Text="Local date pending" FontSize="10" Foreground="#7E9CB2" HorizontalAlignment="Right"/>
                   </StackPanel>
                 </Border>
                 </Grid>
@@ -134,8 +134,8 @@
             </Border>
 
             <!-- Wrapping panels: at the 900px minimum window, stack rather than clip. -->
-            <WrapPanel Orientation="Horizontal">
-              <Border Classes="hud" Width="432" MinHeight="222" Margin="0,0,12,12" Background="#10273B" Padding="16">
+            <WrapPanel x:Name="DashboardStatusWrap" Orientation="Horizontal">
+              <Border x:Name="DashboardStatusCard" Classes="hud" Width="432" MinHeight="222" Margin="0,0,12,12" Background="#10273B" Padding="16">
                 <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
                   <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Classes="hud-label" Text="◈  SYSTEM STATUS  /  ACTIVE SESSION"/>
@@ -161,7 +161,7 @@
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="4">
                       <TextBlock Classes="hud-label" Text="UPTIME" FontSize="9"/>
-                      <TextBlock Text="D2 / Pending" FontSize="12" Foreground="#ACBED0"/>
+                      <TextBlock x:Name="DashboardUptimeText" Text="00:00:00" FontSize="12" Foreground="#ACBED0"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="4">
                       <TextBlock Classes="hud-label" Text="ACCESS" FontSize="9"/>
@@ -170,17 +170,17 @@
                   </Grid>
                 </Grid>
               </Border>
-              <Border Classes="hud" Width="432" MinHeight="222" Margin="0,0,0,12" Padding="14" Background="#0F2135">
+              <Border x:Name="DashboardTelemetryCard" Classes="hud" Width="432" MinHeight="222" Margin="0,0,0,12" Padding="14" Background="#0F2135">
                 <StackPanel Spacing="11">
                   <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Classes="hud-label" Text="▥  SYSTEM TELEMETRY  /  LIVE FEED"/>
-                    <TextBlock Grid.Column="1" Text="NOT CONNECTED" Foreground="#E1B36B" FontSize="9" FontWeight="SemiBold"/>
+                    <TextBlock Classes="hud-label" Text="▥  SYSTEM TELEMETRY  /  D2"/>
+                    <TextBlock Grid.Column="1" x:Name="DashboardTelemetryStateText" Text="CONNECTING" Foreground="#E1B36B" FontSize="9" FontWeight="SemiBold"/>
                   </Grid>
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
                     <Border Grid.Column="0" Background="#0A1929" BorderBrush="#245A74" BorderThickness="1" CornerRadius="5" Padding="10">
                       <StackPanel Spacing="7">
                         <TextBlock Classes="hud-label" Text="CPU USAGE" FontSize="9"/>
-                        <TextBlock Text="—" FontSize="27" FontWeight="SemiBold" Foreground="#6CCFE7"/>
+                        <TextBlock x:Name="DashboardCpuValueText" Text="—" FontSize="27" FontWeight="SemiBold" Foreground="#6CCFE7"/>
                         <Grid Height="64" ClipToBounds="True" Background="#0A1B2A">
                           <StackPanel VerticalAlignment="Center" Spacing="16" Opacity="0.3" IsHitTestVisible="False">
                             <Border Height="1" Background="#316481"/>
@@ -189,13 +189,13 @@
                           </StackPanel>
                           <TextBlock Text="AWAITING D3" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#67869E" FontSize="10" LetterSpacing="1"/>
                         </Grid>
-                        <TextBlock Text="CPU sampler / D2" FontSize="10" Foreground="#8DA9BB"/>
+                        <TextBlock x:Name="DashboardCpuDetailText" Text="Sampling system load..." FontSize="10" Foreground="#8DA9BB"/>
                       </StackPanel>
                     </Border>
                     <Border Grid.Column="1" Background="#0A1929" BorderBrush="#655639" BorderThickness="1" CornerRadius="5" Padding="10">
                       <StackPanel Spacing="7">
                         <TextBlock Text="RAM USAGE" Foreground="#E2B46D" FontSize="9" FontWeight="SemiBold" LetterSpacing="1.4"/>
-                        <TextBlock Text="—" FontSize="27" FontWeight="SemiBold" Foreground="#E1B66F"/>
+                        <TextBlock x:Name="DashboardRamValueText" Text="—" FontSize="27" FontWeight="SemiBold" Foreground="#E1B66F"/>
                         <Grid Height="64" ClipToBounds="True" Background="#101C28">
                           <StackPanel VerticalAlignment="Center" Spacing="16" Opacity="0.25" IsHitTestVisible="False">
                             <Border Height="1" Background="#8E7043"/>
@@ -204,7 +204,7 @@
                           </StackPanel>
                           <TextBlock Text="AWAITING D3" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#9B7E57" FontSize="10" LetterSpacing="1"/>
                         </Grid>
-                        <TextBlock Text="Physical memory / D2" FontSize="10" Foreground="#A7A194"/>
+                        <TextBlock x:Name="DashboardRamDetailText" Text="Checking physical RAM..." FontSize="10" Foreground="#A7A194"/>
                       </StackPanel>
                     </Border>
                   </Grid>
@@ -219,55 +219,55 @@
                   <TextBlock Text="HARDWARE OVERVIEW" FontSize="17" FontWeight="SemiBold" Foreground="#F0F9FF"/>
                   <TextBlock Classes="hud-label" Text="/ SYSTEM RESOURCES" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Grid.Column="1" Text="PROVIDERS  /  D2" Foreground="#66889E" VerticalAlignment="Center" FontSize="10"/>
+                <TextBlock Grid.Column="1" x:Name="DashboardProvidersText" Text="DATA  /  WINDOWS" Foreground="#66889E" VerticalAlignment="Center" FontSize="10"/>
               </Grid>
-              <WrapPanel Orientation="Horizontal">
-                <Border Classes="hud" Width="217" MinHeight="155" Margin="0,0,8,8" Padding="13" Background="#111F33">
+              <WrapPanel x:Name="DashboardHardwareWrap" Orientation="Horizontal">
+                <Border x:Name="DashboardCpuHardwareCard" Classes="hud" Width="217" MinHeight="155" Margin="0,0,8,8" Padding="13" Background="#111F33">
                   <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
                       <TextBlock Classes="hud-label" Text="◈  PROCESSOR"/>
                       <TextBlock Grid.Column="1" Text="CPU" Foreground="#5C92B0" FontSize="9"/>
                     </Grid>
-                    <TextBlock Text="CPU identification" FontSize="13" Foreground="#DCE9F5" TextWrapping="Wrap"/>
-                    <TextBlock Text="—" FontSize="24" Foreground="#65D3EA"/>
+                    <TextBlock x:Name="DashboardCpuModelText" Text="Detecting CPU model..." FontSize="13" Foreground="#DCE9F5" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="DashboardCpuLoadText" Text="—" FontSize="24" Foreground="#65D3EA"/>
                     <Border Background="#173149" Height="2"/>
-                    <TextBlock Text="NOT CONNECTED  /  D2" FontSize="10" Foreground="#8096A9"/>
+                    <TextBlock x:Name="DashboardCpuCoresText" Text="Hardware detection pending" FontSize="10" Foreground="#8096A9"/>
                   </StackPanel>
                 </Border>
-                <Border Classes="hud" Width="217" MinHeight="155" Margin="0,0,8,8" Padding="13" Background="#111F33">
+                <Border x:Name="DashboardGpuHardwareCard" Classes="hud" Width="217" MinHeight="155" Margin="0,0,8,8" Padding="13" Background="#111F33">
                   <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
                       <TextBlock Classes="hud-label" Text="◉  GRAPHICS"/>
                       <TextBlock Grid.Column="1" Text="GPU" Foreground="#5C92B0" FontSize="9"/>
                     </Grid>
-                    <TextBlock Text="Graphics hardware" FontSize="13" Foreground="#DCE9F5" TextWrapping="Wrap"/>
+                    <TextBlock Text="GPU sensors deferred" FontSize="13" Foreground="#DCE9F5" TextWrapping="Wrap"/>
                     <TextBlock Text="—" FontSize="24" Foreground="#65D3EA"/>
                     <Border Background="#173149" Height="2"/>
                     <TextBlock Text="GPU SENSORS  /  PLANNED" FontSize="10" Foreground="#8096A9"/>
                   </StackPanel>
                 </Border>
-                <Border Classes="hud" Width="217" MinHeight="155" Margin="0,0,8,8" Padding="13" Background="#151F30" BorderBrush="#615439">
+                <Border x:Name="DashboardMemoryHardwareCard" Classes="hud" Width="217" MinHeight="155" Margin="0,0,8,8" Padding="13" Background="#151F30" BorderBrush="#615439">
                   <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
                       <TextBlock Text="▥  MEMORY" Foreground="#E5B86A" FontSize="10" FontWeight="SemiBold" LetterSpacing="1.4"/>
                       <TextBlock Grid.Column="1" Text="RAM" Foreground="#AC8653" FontSize="9"/>
                     </Grid>
-                    <TextBlock Text="Physical memory" FontSize="13" Foreground="#DCE9F5" TextWrapping="Wrap"/>
-                    <TextBlock Text="—" FontSize="24" Foreground="#E6BB7A"/>
+                    <TextBlock x:Name="DashboardMemoryModelText" Text="Physical memory" FontSize="13" Foreground="#DCE9F5" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="DashboardMemoryUsedText" Text="—" FontSize="24" Foreground="#E6BB7A"/>
                     <Border Background="#443A2C" Height="2"/>
-                    <TextBlock Text="NOT CONNECTED  /  D2" FontSize="10" Foreground="#AE9A7D"/>
+                    <TextBlock x:Name="DashboardMemoryDetailText" Text="Memory reading pending" FontSize="10" Foreground="#AE9A7D"/>
                   </StackPanel>
                 </Border>
-                <Border Classes="hud" Width="217" MinHeight="155" Margin="0,0,0,8" Padding="13" Background="#151F30" BorderBrush="#615439">
+                <Border x:Name="DashboardDriveHardwareCard" Classes="hud" Width="217" MinHeight="155" Margin="0,0,0,8" Padding="13" Background="#151F30" BorderBrush="#615439">
                   <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
                       <TextBlock Text="▤  DRIVE SPACE" Foreground="#E5B86A" FontSize="10" FontWeight="SemiBold" LetterSpacing="1.4"/>
                       <TextBlock Grid.Column="1" Text="DISK" Foreground="#AC8653" FontSize="9"/>
                     </Grid>
-                    <TextBlock Text="Local storage" FontSize="13" Foreground="#DCE9F5" TextWrapping="Wrap"/>
-                    <TextBlock Text="—" FontSize="24" Foreground="#E6BB7A"/>
-                    <Border Background="#443A2C" Height="3" CornerRadius="2"/>
-                    <TextBlock Text="DRIVE SCAN  /  D2" FontSize="10" Foreground="#AE9A7D"/>
+                    <TextBlock x:Name="DashboardDriveNameText" Text="Local storage" FontSize="13" Foreground="#DCE9F5" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="DashboardDriveCapacityText" Text="—" FontSize="24" Foreground="#E6BB7A"/>
+                    <ProgressBar x:Name="DashboardDriveProgress" Minimum="0" Maximum="100" Value="0" Height="5" Background="#443A2C" Foreground="#E1B46A" BorderThickness="0"/>
+                    <TextBlock x:Name="DashboardDriveDetailText" Text="Scanning local disks..." FontSize="10" Foreground="#AE9A7D"/>
                   </StackPanel>
                 </Border>
               </WrapPanel>

@@ -1,6 +1,6 @@
 # Dashboard V2 Implementation Plan — BTX-02 Command Center
 
-> **Status: D1 CODED — AWAITING WINDOWS BUILD / VISUAL ACCEPTANCE; D2–D5 NOT STARTED**  
+> **Status: D1 VISUALLY ACCEPTED BY USER; D2 CODED — WINDOWS BUILD/RUNTIME VERIFICATION PENDING; D3–D5 NOT STARTED**  
 > **Last audited:** 2026-10-23  
 > **Repository:** [ben0kay/BEN_TOOLBOX_2.0](https://github.com/ben0kay/BEN_TOOLBOX_2.0) (main)  
 > **Purpose:** Implementation handoff for a future developer / ChatGPT / Codex session. This document describes work to perform; it does **not** claim that the design mockup or telemetry are already implemented.
@@ -16,7 +16,7 @@ Before writing code:
 5. **Only implement the phase requested**; keep commits small, preserve the existing tool windows and update the status table below and relevant README after completing each phase.
 6. Do not treat proposed files or services in this plan as already existing; check the repo first. Respect any newer user preferences or repository instructions.
 
-**Current baseline verified 2026-10-23:** Avalonia 12.1.4 / C# / .NET 10; main dashboard in `Views/MainWindow.axaml`, navigation and tool launching in `Views/MainWindow.axaml.cs`. Main window defaults to 1260 × 790 with 900 × 600 minimum and a 242 px left sidebar. Dashboard includes a hero/status panel and four navigation tiles (Game Development, File Toolbox, Inspectors, Settings). The same MainWindow contains alternate tool-list sections; `ShowSection()` toggles dashboard/tiles and other workspaces. Several native tool windows and services already work. **D1 static dashboard visuals are now coded, but their actual Avalonia Windows build/render is not yet confirmed. No telemetry/graphs/clock provider has been implemented.**
+**Current baseline verified 2026-10-23:** Avalonia 12.1.4 / C# / .NET 10; main dashboard in `Views/MainWindow.axaml`, navigation and tool launching in `Views/MainWindow.axaml.cs`. Main window now requests 1920 × 1080 with 900 × 600 minimum (working-area clamp on smaller displays) and a 242 px left sidebar. Dashboard includes a hero/status panel and four navigation tiles (Game Development, File Toolbox, Inspectors, Settings). The same MainWindow contains alternate tool-list sections; `ShowSection()` toggles dashboard/tiles and other workspaces. Several native tool windows and services already work. **D1 static visuals were accepted by the user. D2 local clock/physical RAM/CPU/disk providers and dynamic wide-window layout are now coded, but Windows build/runtime measurement verification is still outstanding. No D3 history graph renderer exists.**
 
 ## 1. User-approved visual direction
 
@@ -45,8 +45,8 @@ Aim for the visual character in the concept PNG: a premium dark navy, futuristic
 
 | Phase | Work | Status | Validation gate |
 | --- | --- | --- | --- |
-| **D1** | Dashboard layout foundation / static HUD styling | **CODED — BUILD/VISUAL TEST PENDING** | UI builds; four module buttons and all navigation work; layout resembles target at multiple sizes |
-| **D2** | Real local clock, CPU/RAM & disk data, hardware descriptions | **NOT STARTED** | Readings are real and labelled; safe unavailable fallbacks; no fake values |
+| **D1** | Dashboard layout foundation / static HUD styling | **VISUALLY ACCEPTED BY USER — FORMAL BUILD/REGRESSION STILL PENDING** | UI builds; four module buttons and all navigation work; layout resembles target at multiple sizes |
+| **D2** | Real local clock, CPU/RAM & disk data, hardware descriptions | **CODED — WINDOWS BUILD/RUNTIME TEST PENDING** | Readings are real and labelled; safe unavailable fallbacks; no fake values |
 | **D3** | Tiny telemetry graphs and bounded sampling lifecycle | **NOT STARTED** | Graphs reflect samples; no redundant polls; no updates when dashboard hidden |
 | **D4** | Final sci-fi styling and visual polish | **NOT STARTED** | Smooth, legible, restrained glow; no excessive idle render/animation |
 | **D5** | Windows tests, performance audit, regression pass, docs reconciliation | **NOT STARTED** | Checks below completed and known issues recorded |
@@ -187,6 +187,8 @@ These names are **suggestions**. Work with the repo as it exists when implementa
 
 **2026-10-23 — D1 code authored (Windows verification pending).** Changes: `Views/MainWindow.axaml` now contains a dedicated `DashboardPanel` with a technical command strip, static clock placeholder, honest active-local-session panel, CPU/RAM placeholder graph frames, four hardware status cards, and the four existing module navigation tiles. The new `Border.hud` / `TextBlock.hud-label` styling reuses the current dark palette. `Views/MainWindow.axaml.cs` now toggles one dashboard parent instead of individually toggling tiles and no longer exposes Stage 2 legacy copy. No hardware polling, real clock, sparkline rendering, or GPU sensors were implemented. **Static checks:** XML tag structure and code references reviewed; **`dotnet build`, `dotnet run`, responsive visual rendering and full tool navigation are NOT verified in this environment.** Do not mark D1 accepted until someone runs the Windows tests. D2–D5 remain not started.
 
+**2026-10-23 — D1 visual acceptance and D2 implementation.** User reported D1 "looks fine" and requested D2 alongside a **1920×1080 default window** for use on a full-HD screen. Added `Services/SystemTelemetryService.cs` (Windows `GetSystemTimes` delta-based system-wide CPU load, `GlobalMemoryStatusEx` physical RAM, `DriveInfo` accessible fixed-system-drive readings) and `Services/SystemHardwareService.cs` (cached registry processor model and GiB formatting). Added `Views/MainWindow.Dashboard.cs` partial class to manage one visible-only 1-second clock and a **non-overlapping** background sampler: CPU/RAM every 2 seconds, drives every 30 seconds. No graph history is collected yet; GPU sensors remain placeholders. `Views/MainWindow.axaml` now requests 1920×1080 and contains named live value targets, a real drive progress bar and dynamically sized status/hardware cards. Runtime clamps the requested dimensions to the primary display's available working area (physical pixels converted using DPI scaling). `Views/MainWindow.axaml.cs` calls `InitializeDashboard` and activates/deactivates polling with section navigation. **Not compiled or runtime-tested in this environment because .NET SDK and Windows UI are unavailable.** GPU model/usage, temperatures and D3 sparklines remain deliberately deferred. D3–D5 **not started**. At 1920px the layout should use the available horizontal width; at smaller window widths the cards should reflow.
+
 Future implementers: append date, commit SHA, files changed, what was tested (and where), user feedback, known errors and the next recommended task. Keep the phase table above in sync.
 
-**Next action:** Pull D1, run `dotnet build` and `dotnet run` on Windows, check the 1260 × 790 and 900 × 600 layouts, all four navigation tiles and other tool routes, and compare a screenshot with [the target image](../toolbox%20dashboard%20concept.png). Fix build/layout issues and record user approval before beginning D2.
+**Next action:** Pull D2, run `dotnet build` and `dotnet run` on Windows. Check actual CPU/RAM readings versus Task Manager and disk versus Explorer, refresh/idle sampling, correct local clock, navigation stop/resume, 1920×1080 initial sizing and 900×600 minimum layout. Fix any Avalonia/Windows build or UI issues, then continue to **D3 sparklines** after acceptance.
