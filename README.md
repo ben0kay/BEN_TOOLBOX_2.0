@@ -61,6 +61,8 @@ BEN TOOLBOX has four primary navigation sections. Many tools now open **native A
 | | Items & Resource Inspector | Native read-only content browser for the **isometric-new-2d ContentIndex.json schema-v1 export** (items, drops, recipes, biome bindings); not a general fantasy-2d content editor. |
 | **Settings** | Settings page | Navigation/visual shell exists; richer settings and shared project selection are future work. |
 
+**Planned File Toolbox module:** [YouTube Audio Downloader implementation plan](Notes/Plans/YOUTUBE_AUDIO_DOWNLOADER_IMPLEMENTATION_PLAN.md) — native Avalonia single-video YouTube URL → MP3 via the user's existing yt-dlp/FFmpeg installation. Includes a prominent **CHECK FOR UPDATES** button that uses `yt-dlp -U` only when appropriate for an official standalone binary, plus dependency diagnostics (FFmpeg and Deno/EJS), progress/cancel and safe exports. **Planning only; this downloader is not implemented yet.**
+
 The original scripts remain under **`BEN_TOOLBOX_OLDVERSION/`**. Native conversions do **not** necessarily have full feature parity with those scripts. Test any action that writes, exports, moves or deletes files on disposable data first.
 
 ### Current limits worth remembering
