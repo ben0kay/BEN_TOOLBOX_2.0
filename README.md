@@ -4,6 +4,10 @@
 
 > **Current state — October 2026:** The dashboard, navigation and many **native Avalonia utilities are already implemented as first passes**. The project is an actively tested desktop application, **not merely a PowerShell script launcher**, but it is not yet a feature-complete replacement for every legacy tool. Feature quality and Windows build/runtime testing vary by module.
 
+## BTX UI Kit — shared native tool styling (planned)
+
+**Visual reference:** The existing **YouTube Audio Downloader** window defines the preferred BEN TOOLBOX navy/cyan tool appearance. [BTX UI Kit implementation plan (T0–T5)](Notes/Plans/BTX_UI_KIT_IMPLEMENTATION_PLAN.md) describes extracting its colours, typography, outlined gradient panels, buttons, fields and status sections into **opt-in reusable Avalonia styles/components**. **Folder Backup** is the first planned migration; it shares `RemainingToolsWindow.cs` with Asset Usage Finder, so the pilot must remain backup-only. Other windows—including the dashboard and downloader—should not be globally restyled. The plan respects the separate [feature-folder cleanup backlog](Notes/Plans/FEATURE_FOLDER_CLEANUP_TASK.md) by keeping truly shared UI under `Shared/UI`. **Plan only: UI Kit implementation and Folder Backup migration have not been performed by this documentation change.**
+
 ## Dashboard vision — BTX-02 Command Center
 
 The current dashboard uses a dark navy/cyan design, left navigation and four **Available modules** cards. The next visual target is a more detailed but still usable *sci-fi developer command center*.
