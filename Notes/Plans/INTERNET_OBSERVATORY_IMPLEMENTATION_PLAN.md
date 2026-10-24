@@ -49,7 +49,7 @@ Official:
 
 USGS GeoJSON uses \`features[]\`, \`id\`, \`properties.mag/place/time/updated/url\`, \`geometry.coordinates = [longitude, latitude, depth]\`. Check missing/invalid values and units. Parse event timestamp in milliseconds since Unix epoch **to UTC** and show local/UTC preference explicitly.
 
-USGS short-window GeoJSON feeds are normally updated about once per minute; schedule a **default 2-minute refresh while active**, with manual Refresh. This does not guarantee event detection instantly. Deduplicate by stable USGS ID; differentiate newly reported vs updated events. Support filtering locally by minimum magnitude, selected time period and visible map bounds without new HTTP calls for each slider adjustment.
+USGS short-window GeoJSON feeds are normally updated about once per minute; schedule a **default 2-minute refresh while active**, with manual Refresh. This does not guarantee event detection instantly. Deduplicate by stable USGS ID; differentiate newly reported vs updated events. Support filtering locally by minimum magnitude, selected time period and visible map bounds without new HTTP calls for each slider adjustment. IO2 includes named presets: Past 24 hours, Past week, and Significant events. Select one appropriate allowlisted USGS feed per preset (for example 2.5_day, 4.5_week, significant_month); inspect actual feeds at implementation time. Display the exact feed, covered period and magnitude coverage beside counts: a thresholded feed is not a count of all earthquakes. Preset changes may fetch their corresponding feed; ordinary local filters must not trigger repeated network calls.
 
 Required details: magnitude (when supplied), location label, depth in km, event time, report/update time, tsunami flag if published, and link to the original USGS event page. Not every data field is guaranteed. Never label earthquakes as active hazards or issue safety alerts without authoritative context.
 
@@ -96,7 +96,7 @@ First NOAA module should show: Kp history/current reported value and timestamp, 
 - Use one clearly specified projection initially: **equirectangular** coordinate conversion from longitude/latitude to widget pixels (or another simple, fully documented projection). Test antimeridian, high latitudes, wide/narrow windows, DPI and scaled/panned map coordinates.
 - Show coastline/background only by default; USGS quake circles over map, with size/colour keyed to actual magnitude/depth only with an always-visible legend. Handle unreported magnitudes as unknown, not 0.
 - Click a pin to select its event; show accurate details in adjacent panel and a link to USGS.
-- Pan/zoom and clustered/lod/density behavior later; start with Fit World + selectable pins and filtered lists. Keep map labels minimal; avoid unsupported routing or live satellite map illusions.
+- Wheel zoom anchored at the pointer, drag-to-pan and Fit World belong in IO2, alongside selectable pins and filtered lists. Clamp transforms to useful world bounds and keep hit testing consistent with the rendered projection. Clustering/LOD/density behavior remains deferred. Keep map labels minimal; avoid unsupported routing or live satellite map illusions.
 - The pin layer should be redrawn **when data/filters/map transform change**, not on a forever running frame timer. Cache coastline drawing geometry and only rebuild if size/projection changes.
 - The map itself must render offline from bundled geometry; cached earthquake data can display a prominent **STALE/OFFLINE** timestamp.
 
@@ -106,9 +106,13 @@ First NOAA module should show: Kp history/current reported value and timestamp, 
 
 Suggested standalone window title: **BEN TOOLBOX / INTERNET OBSERVATORY**, preferred window size around 1440×900, responsive smaller-window layout and scrollable side panels. Keep restrained cyan and amber, green for verified healthy states and red for actual errors.
 
-**Top status bar:** Source health / Last updated UTC / Offline warning / REFRESH NOW / AUTO REFRESH toggle.
+**Top status bar:** Source health / Last updated UTC / Offline warning / REFRESH NOW / AUTO REFRESH toggle. Show readable retrieval age (e.g. Fetched 2 minutes ago) separately from provider/event timestamps. A failed refresh must retain the last successful snapshot, with an explicit STALE/OFFLINE warning and error; never replace useful cached events with an apparent successful empty result. Update age text on a modest visible-only cadence rather than a frame loop.
+
+**Module pages:** Give each implemented module a dedicated page: earthquake map/list/details, space-weather charts, website target list, and network probes/chart. Avoid a crowded all-modules dashboard or a persistent world map behind unrelated data. The first release is a polished earthquake explorer; add NOAA only after IO0–IO2 works well.
 
 **Left navigation inside tool:** OVERVIEW, EARTHQUAKES, SPACE WEATHER, WEBSITE WATCH, NETWORK (disabled/"Coming later" until each module truly implemented; never clickable fake screens).
+
+**Visual direction:** Large dark map, restrained cyan coastlines, readable event markers, compact detail panel, and an unambiguous selected-event highlight ring. Avoid constant flashing/pulsing dots or ornamental animation loops. Keep source links, legends and text equivalents readable.
 
 **Centre:** A large live-data world map on earthquake/overview view; on NOAA page a real small trend chart; no need to show a world map behind unrelated website/network metrics.
 
@@ -151,35 +155,19 @@ These are safe **starting suggestions**, not guarantees or contractual feed fres
 
 ## 7. Suggested file/folder layout
 
-Add focused code to current structure; avoid giant generic provider framework:
+Start this new tool in the user-approved feature-based layout, without reorganising existing tools or undertaking the broader cleanup task:
 
-\`\`\`text
-Views/
-  InternetObservatoryWindow.cs            # Root Avalonia window + active tab/filter state
-  InternetObservatory/
-    WorldMapView.cs                        # Bundled geographic projection and quake markers
-    ObservatoryStatusCard.cs               # Optional shared display component
-Services/
-  InternetObservatory/
-    ObservatoryHttpService.cs              # Shared HttpClient, timeout/cache/cancel policies
-    UsgsEarthquakeService.cs               # Fetch/parse GeoJSON and typed events
-    SpaceWeatherService.cs                 # NOAA Kp/product parsing, later
-    WebsiteWatchService.cs                 # Deferred
-    NetworkHealthService.cs                # Deferred
-    ObservatorySettingsStore.cs            # Local settings/cache path + basic persistence
-Models/
-  ObservatoryModels.cs                     # Small immutable records, no giant class hierarchy
-Assets/
-  InternetObservatory/
-    world_110m.*                           # License-checked compact Natural Earth map asset
-Tests/
-  InternetObservatorySmoke/
-    Program.cs / *.csproj                  # Fixture/fake-handler and projection tests
-Notes/Plans/
-  INTERNET_OBSERVATORY_IMPLEMENTATION_PLAN.md
-\`\`\`
+- `Features/Inspectors/InternetObservatory/InternetObservatoryWindow.cs` — root window, active page and UI coordination.
+- `Features/Inspectors/InternetObservatory/WorldMapView.cs` — projection, coastlines, pan/zoom and quake hit testing.
+- `Features/Inspectors/InternetObservatory/ObservatoryModels.cs` — small typed records.
+- `Features/Inspectors/InternetObservatory/UsgsEarthquakeService.cs` — bounded HTTP retrieval, parsing and freshness/cache state.
+- `Features/Inspectors/InternetObservatory/ObservatorySettingsStore.cs` — validated user preferences and bounded cache.
+- Future module-specific services/controls live beside these files when their phases are assigned; do not create placeholder implementation files now.
+- `Assets/InternetObservatory/` — attributed Natural Earth map geometry.
+- `Tests/InternetObservatorySmoke/` — fixture/fake-handler, projection, transform and persistence checks.
+- `Notes/Plans/INTERNET_OBSERVATORY_IMPLEMENTATION_PLAN.md` — authoritative scope/status.
 
-If repository conventions suggest fewer files or a different shared control, adapt. Read existing \`TelemetrySparkline\` and dashboard telemetry code before inventing a new chart implementation. **Do not modify/replace main Dashboard V2.**
+Avoid a giant provider framework or unnecessary subfolders. Reuse genuinely shared controls where appropriate. Read existing TelemetrySparkline and dashboard code before inventing new chart infrastructure. Do not modify/replace main Dashboard V2. See [future folder cleanup](FEATURE_FOLDER_CLEANUP_TASK.md); that broader refactor stays deferred.
 
 ## 8. Phased Codex implementation — one verified step at a time
 
@@ -187,16 +175,16 @@ If repository conventions suggest fewer files or a different shared control, ada
 | --- | --- | --- |
 | **IO0 — Architecture/contracts** | Confirm current repo code, USGS schema, Natural Earth asset/projection, module routing, data freshness and bounded worker lifecycle | **NOT STARTED** |
 | **IO1 — Earthquake data engine** | Typed USGS feed, parsing/validation, timeout/cache/ETag, dedupe and fixture smoke tests | **NOT STARTED** |
-| **IO2 — World map / Avalonia MVP** | Native Inspect tool, dark responsive Observatory window, real quake pins/list/details/filters, Refresh and offline status | **NOT STARTED** |
+| **IO2 — World map / Avalonia MVP** | Native Inspect tool, polished earthquake explorer, wheel zoom/pan/Fit, presets, real pins/list/details, freshness/offline status and basic saved view | **NOT STARTED** |
 | **IO3 — NOAA space weather** | SWPC Kp parser, timeline/chart, source timestamp, optional link to aurora forecast; zero fake data | **NOT STARTED** |
 | **IO4 — Website monitoring** | Add/remove URL targets, status/latency snapshots, optional readable change diff and bounded history | **NOT STARTED** |
 | **IO5 — Network health** | HTTP/DNS probes, rolling latency/status charts, separate errors, active-view-only probes | **NOT STARTED** |
-| **IO6 — Settings, alerts, refinement** | Persist filters/watch lists, safe cache, in-app event/change alerts, UI refinements and optional aurora overlay if justified | **NOT STARTED** |
+| **IO6 — Settings, alerts, refinement** | Extend IO2 persistence to later-module watch lists/settings, in-app event/change alerts, UI refinements and optional aurora overlay if justified | **NOT STARTED** |
 | **IO7 — End-to-end validation** | Windows build/visual checks, offline, cancellation, scalability, source URLs/attribution, documentation status | **NOT STARTED** |
 
 ### Recommended first implementation task: IO0 + IO1 + IO2 only
 
-Get a **working earthquake map with authentic USGS data**, rather than building five stub modules.
+Get a **polished earthquake explorer with authentic USGS data**, rather than building five stub modules. IO2 now includes basic preferences: selected implemented page (initially Earthquakes), feed preset, filters and map position/zoom. Save these as small versioned user-local settings, validate/clamp on load, and debounce writes or save on explicit changes/close, not every pointer movement. Recover gracefully from corrupt settings. IO6 extends persistence to later modules; it does not delay these basics.
 
 **IO0 acceptance**
 - [ ] Inspect \`ToolCatalog\`, native launcher, dashboard telemetry and existing visual style.
@@ -215,9 +203,12 @@ Get a **working earthquake map with authentic USGS data**, rather than building 
 **IO2 acceptance**
 - [ ] Open File/Inspect navigation → **Internet Observatory**; separate native window launches without touching Dashboard V2.
 - [ ] World map displays land/coastlines, actual earthquake pins accurately placed, selected event opens true details/USGS URL.
-- [ ] List and map filters correspond exactly; clicking list row highlights correct pin.
+- [ ] List and map filters correspond exactly; clicking list row highlights correct pin with a readable selection ring.
+- [ ] Pointer-anchored wheel zoom, drag pan and Fit World work; projection/hit testing stay aligned after transforms, resize and DPI scaling. Test antimeridian/high-latitude cases.
+- [ ] Past 24 hours, Past week and Significant events presets identify their exact USGS feed/period/magnitude coverage; all counts describe that selected feed/filter.
+- [ ] Selected implemented page, preset, filters and map view survive reopen; invalid/corrupt settings safely fall back to defaults without excessive writes.
 - [ ] Source, fetch age, warnings and offline state visible; no "LIVE" badge on stale data.
-- [ ] A blank map should not silently appear as success when feed fails: display error and cached-data age.
+- [ ] A blank map should not silently appear as success when feed fails: retain the last successful data, display failure/stale warning and readable retrieval age separately from provider timestamps.
 - [ ] Large result sets keep UI responsive, marker drawing cached/filtered; keyboard and window resize work.
 
 **IO3 acceptance**
@@ -274,4 +265,8 @@ Get a **working earthquake map with authentic USGS data**, rather than building 
 
 **Codex starter prompt:**
 
-> Read BEN TOOLBOX root README, \`Notes/Plans/INTERNET_OBSERVATORY_IMPLEMENTATION_PLAN.md\`, native \`ToolCatalog\` / \`MainWindow\` navigation, and the existing dashboard telemetry/visual controls. Implement **IO0–IO2 only**: a standalone native Internet Observatory in Inspect with actual USGS GeoJSON earthquake data, a legitimate lightweight world map, interactive pins, filters, detail panel, correct UTC timestamps, manual refresh, bounded auto-refresh, graceful offline/cache behavior and fake-handler tests. Keep NOAA/website/network modules planned but not superficially implemented. Respect idle cost, provider request rates, no fake live metrics, cancellation and existing dashboard compatibility. Update documentation and make one scoped GitHub commit.
+> Read BEN TOOLBOX root README, \`Notes/Plans/INTERNET_OBSERVATORY_IMPLEMENTATION_PLAN.md\`, native \`ToolCatalog\` / \`MainWindow\` navigation, and the existing dashboard telemetry/visual controls. Implement **IO0–IO2 only**: a standalone native Internet Observatory in Inspect with actual USGS GeoJSON earthquake data, a legitimate lightweight world map, interactive pins, pointer-anchored wheel zoom/drag pan/Fit World, named feed presets with honest coverage/count labels, compact detail panel and selection highlight, separate provider/fetch timestamps with readable age, manual refresh, bounded auto-refresh, stale-data retention, basic saved filters/map view and fake-handler tests. Keep new tool code together in Features/Inspectors/InternetObservatory/ without reorganising existing features. Keep NOAA/website/network modules planned but not superficially implemented. Respect idle cost, provider request rates, no fake live metrics, cancellation and existing dashboard compatibility. Update documentation and make one scoped GitHub commit.
+
+### 2026-10-24 — pre-implementation scope refinement
+
+User approved dedicated module pages, IO2 map zoom/pan/Fit, named earthquake feed presets, clear freshness with retained stale data, early basic view persistence, restrained map-led visuals and feature-based source organisation for this new tool. These requirements are incorporated above and in IO2 acceptance. IO0–IO2 remains the first implementation task; NOAA starts afterward. All phases remain NOT STARTED. This update changes documentation only; no code/assets/build or runtime validation performed.
