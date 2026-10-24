@@ -1,5 +1,7 @@
 # Seasonal Sprite Studio — Hybrid Avalonia + Godot Implementation Plan (V2)
 
+> **Current BEN TOOLBOX standalone-first execution notes:** [Seasonal Sprite Studio implementation notes](SEASONAL_SPRITE_STUDIO_IMPLEMENTATION_NOTES.md), phases A0–A5. User has chosen manual file loading/export and separate tools **before** automation. This V2 document remains the longer-term Avalonia↔Godot integration plan; do not interpret its suggested Godot-first sequencing as a prerequisite for testing the standalone Studio.
+>
 > **STATUS: PLANNED — NO IMPLEMENTATION CODE CHANGED.** Updated 2026-10-23.  
 > **This V2 replaces the previous Studio-first four-baked-PNG implementation plan.**  
 > **Scope:** BEN TOOLBOX Avalonia asset authoring + Fantasy 2D Godot dynamic seasons. Codex must receive explicit permission for each repo/phase.  
