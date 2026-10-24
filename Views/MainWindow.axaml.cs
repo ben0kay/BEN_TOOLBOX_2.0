@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using BEN_TOOLBOX_2_0.Services;
@@ -157,6 +158,22 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OpenTrendingTrailers(object? sender, RoutedEventArgs e)
+    {
+        const string chartsUrl = "https://charts.youtube.com/charts/TrendingTrailers/ca";
+        try
+        {
+            // ShellExecute asks the OS to launch its default browser; no scraping/network poll.
+            if (Process.Start(new ProcessStartInfo(chartsUrl) { UseShellExecute = true }) is null)
+                throw new InvalidOperationException("No default browser could be launched.");
+            NewsSidebarStatus.Text = "Requested official YouTube Charts in your browser.";
+        }
+        catch (Exception ex)
+        {
+            NewsSidebarStatus.Text = "Couldn't open YouTube Charts: " + ex.Message;
+        }
+    }
+
     private void ShowSection(string section)
     {
         DashboardNav.Classes.Set("active", section == "Dashboard");
@@ -167,7 +184,11 @@ public partial class MainWindow : Window
 
         var dashboard = section == "Dashboard";
         DashboardPanel.IsVisible = dashboard;
+        // The right quick-links rail is dashboard-only. Give other tool pages full width.
+        DashboardNewsSidebar.IsVisible = dashboard;
+        DashboardBodyGrid.ColumnDefinitions = new ColumnDefinitions(dashboard ? "*,248" : "*,0");
         SetDashboardActive(dashboard);
+        UpdateDashboardCardWidths();
         ToolListPanel.IsVisible = section is "Game" or "Files" or "Inspect";
         ToolsView.ItemsSource = section switch
         {

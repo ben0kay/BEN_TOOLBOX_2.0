@@ -12,6 +12,10 @@
 
 The current dashboard uses a dark navy/cyan design, left navigation and four **Available modules** cards. The next visual target is a more detailed but still usable *sci-fi developer command center*.
 
+**Dashboard right-side quick links (2026-10-24 code change; Windows visual test pending):** The dashboard now has a fixed **News & Trending** rail on the right to visually balance the left navigation and centre the existing module, session and hardware sections. Its first shortcut opens the official [YouTube Charts — Trending Movie Trailers (Canada)](https://charts.youtube.com/charts/TrendingTrailers/ca) in the default browser. This is a **static link**, not a scraped/ranked news feed. The rail is visible on Dashboard only; it releases its width for File Toolbox, Game Development, Inspectors and Settings. No network fetch or background polling is added. Source: `Views/MainWindow.axaml`, `Views/MainWindow.axaml.cs` and `Views/MainWindow.Dashboard.cs`. Headless dashboard layout assertions were extended, but actual Windows launch/DPI/browser testing is still needed.
+
+
+
 **Reference mockup (design target, NOT an implemented screenshot):**
 
 ![BEN TOOLBOX 2.0 Dashboard V2 design concept](toolbox%20dashboard%20concept.png)

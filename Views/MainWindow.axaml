@@ -92,6 +92,23 @@
     <Style Selector="Button.tile.settings"><Setter Property="Background" Value="#302A23"/><Setter Property="BorderBrush" Value="#947448"/></Style>
     <Style Selector="Button.tile:pointerover"><Setter Property="Background" Value="#154259"/><Setter Property="BorderBrush" Value="#35D9FA"/></Style>
     <Style Selector="Button.tile:focus-visible"><Setter Property="BorderBrush" Value="#FFFFFF"/><Setter Property="BorderThickness" Value="2"/></Style>
+    <Style Selector="Button.trend-link">
+      <Setter Property="Background" Value="#0C4058"/>
+      <Setter Property="BorderBrush" Value="#2D8CAA"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="5"/>
+      <Setter Property="Padding" Value="12"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="Button.trend-link:pointerover">
+      <Setter Property="Background" Value="#155873"/>
+      <Setter Property="BorderBrush" Value="#35D9FA"/>
+    </Style>
+    <Style Selector="Button.trend-link:focus-visible">
+      <Setter Property="BorderBrush" Value="#FFFFFF"/>
+      <Setter Property="BorderThickness" Value="2"/>
+    </Style>
   </Window.Styles>
   <Grid ColumnDefinitions="242,*" RowDefinitions="*">
     <Border Grid.Column="0" Background="#0D1828" BorderBrush="#24516B" BorderThickness="0,0,1,0">
@@ -145,7 +162,8 @@
           </StackPanel>
         </Grid>
       </Border>
-      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+      <Grid x:Name="DashboardBodyGrid" Grid.Row="1" ColumnDefinitions="*,248">
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="28,24,28,36" Spacing="19">
           <StackPanel Spacing="8">
             <TextBlock x:Name="PageKicker" Text="CONTROL DECK  /  OVERVIEW" Foreground="#61C8EB" FontSize="11" LetterSpacing="2"/>
@@ -373,6 +391,47 @@
           </Border>
         </StackPanel>
       </ScrollViewer>
+      <!-- Static dashboard shortcut rail, paired visually with the left navigation. -->
+      <Border x:Name="DashboardNewsSidebar" Grid.Column="1"
+              Background="#0D1828" BorderBrush="#24516B" BorderThickness="1,0,0,0">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="16,24,16,24" Spacing="16">
+            <StackPanel Spacing="7">
+              <TextBlock Text="NEWS  /  QUICK LINKS" Foreground="#6B809B"
+                         FontSize="11" LetterSpacing="1.5"/>
+              <TextBlock Text="News &amp; Trending" Foreground="#35D9FA" FontSize="21"
+                         FontWeight="SemiBold" TextWrapping="Wrap"/>
+              <TextBlock Text="Your favourite sources, one click away."
+                         Foreground="#9CB2C5" FontSize="12" TextWrapping="Wrap"/>
+            </StackPanel>
+            <Border Background="#10283B" BorderBrush="#16748E" BorderThickness="1"
+                    CornerRadius="6" Padding="13">
+              <StackPanel Spacing="11">
+                <TextBlock Text="01  /  ENTERTAINMENT" FontSize="10" FontWeight="SemiBold"
+                           Foreground="#85CEE5" LetterSpacing="1.1"/>
+                <TextBlock Text="Trending Movie Trailers" FontSize="15"
+                           FontWeight="SemiBold" Foreground="#F0F9FF" TextWrapping="Wrap"/>
+                <TextBlock Text="YouTube Charts  ·  Canada" FontSize="11"
+                           Foreground="#8AAFC4" TextWrapping="Wrap"/>
+                <Button x:Name="TrendingTrailersButton" Classes="trend-link"
+                        Click="OpenTrendingTrailers"
+                        ToolTip.Tip="Open YouTube's official Canadian Trending Movie Trailers chart"
+                        AutomationProperties.Name="Open trending movie trailers on YouTube Charts">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="OPEN CHARTS" Foreground="#AEEFFF"
+                               FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock Grid.Column="1" Text="↗" Foreground="#35D9FA" FontSize="15"/>
+                  </Grid>
+                </Button>
+              </StackPanel>
+            </Border>
+            <TextBlock x:Name="NewsSidebarStatus"
+                       Text="Opens the official rankings in your browser. No background requests."
+                       FontSize="11" Foreground="#8AAFC4" TextWrapping="Wrap"/>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
     </Grid>
   </Grid>
 </Window>

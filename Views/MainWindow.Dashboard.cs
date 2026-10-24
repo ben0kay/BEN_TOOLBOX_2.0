@@ -60,8 +60,10 @@ public partial class MainWindow
 
     private void UpdateDashboardCardWidths()
     {
-        // Sidebar = 242; content margins = 56; reserve scroll bar and section padding.
-        var available = Math.Max(280, Bounds.Width - 242 - 56 - 24 - 40);
+        // Left nav 242px + dashboard-only right rail 248px.
+        // Reserve content margins, scrollbar and inner section padding; wrap cards sooner.
+        var rightRail = _dashboardActive ? 248 : 0;
+        var available = Math.Max(280, Bounds.Width - 242 - rightRail - 56 - 24 - 40);
         bool twoStatusColumns = available >= 900;
         var statusWidth = twoStatusColumns ? (available - 12) / 2 : available - 12;
         DashboardStatusCard.Width = statusWidth;
