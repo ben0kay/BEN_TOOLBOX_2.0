@@ -16,6 +16,7 @@ public static class ToolCatalog
 {
     private static readonly ToolDefinition[] Tools =
     {
+        new("youtube-audio-downloader","Files","YouTube Audio Downloader","Download one YouTube video as MP3 using local yt-dlp, with manual updates.",""),
         new("sprite-splitter","Game","Sprite Splitter","Cut PNG sprite sheets into separate images.","GameDev_Toolbox/Tools/SpriteSplitter/SpriteSplitter.ps1"),
         new("seasonal-sprite-studio","Game","Seasonal Sprite Studio","Detect and paint foliage masks, protect bark, save mask projects and preview seasons.",""),
         new("pixel-art-converter","Game","Pixel Art Converter","Pixelate PNGs, edit palettes, export or send converted images to Sprite Batch.",""),

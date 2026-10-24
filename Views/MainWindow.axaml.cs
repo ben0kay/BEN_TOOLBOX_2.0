@@ -84,6 +84,13 @@ public partial class MainWindow : Window
                 InfoDescription.Text = tool.Name + " opened in Avalonia. The legacy PowerShell version is preserved.";
                 return;
             }
+            if (tool.Id == "youtube-audio-downloader")
+            {
+                new YouTubeAudioDownloaderWindow().Show(this);
+                InfoTitle.Text = "YOUTUBE AUDIO DOWNLOADER";
+                InfoDescription.Text = "Single-video MP3 downloads and manual yt-dlp updates.";
+                return;
+            }
             if (tool.Id == "seasonal-sprite-studio")
             {
                 new SeasonalSpriteStudioWindow().Show(this);

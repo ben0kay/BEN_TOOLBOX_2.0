@@ -1,0 +1,14 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using BEN_TOOLBOX_2_0;
+using BEN_TOOLBOX_2_0.Views;
+using BEN_TOOLBOX_2_0.Services;
+AppBuilder.Configure<App>().UseHeadless(new AvaloniaHeadlessPlatformOptions()).SetupWithoutStarting();
+if(!ToolCatalog.ByCategory("Files").Any(t=>t.Id=="youtube-audio-downloader"))throw new Exception("Tool registration missing");
+var window=new YouTubeAudioDownloaderWindow();window.Show();Dispatcher.UIThread.RunJobs();
+if(!window.GetVisualDescendants().OfType<Button>().Any(b=>Equals(b.Content,"CHECK FOR UPDATES")))throw new Exception("Updater missing");
+window.Width=650;window.Height=580;Dispatcher.UIThread.RunJobs();window.Close();Dispatcher.UIThread.RunJobs();
+Console.WriteLine("PASS: native tool catalog, window construction, updater, compact layout and clean close.");

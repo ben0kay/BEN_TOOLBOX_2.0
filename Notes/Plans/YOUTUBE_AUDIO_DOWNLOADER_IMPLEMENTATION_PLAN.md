@@ -1,6 +1,6 @@
 # YouTube Audio Downloader — Native Avalonia Implementation Plan
 
-> **STATUS: PLANNED — NO APPLICATION CODE IMPLEMENTED**
+> **STATUS: Y0–Y3 IMPLEMENTED; Linux build/fake-process/headless checks passed. Windows end-to-end validation pending.**
 >
 > **Created:** 2026-10-24
 > **Repository:** ben0kay/BEN_TOOLBOX_2.0 / main
@@ -178,10 +178,10 @@ Do not modify Seasonal Sprite Studio, Pixel Art Converter, Sprite Batch or their
 
 | Phase | Deliverable | Status |
 | --- | --- | --- |
-| **Y0 — contracts** | Confirm yt-dlp/FFmpeg/JS requirements, update-origin policy, URL and output safety, menu placement | **NOT STARTED** |
-| **Y1 — download service** | Locate configured yt-dlp and FFmpeg; download a single audio-only YouTube URL to MP3 with safe arguments, cancellation, progress and smoke tests | **NOT STARTED** |
-| **Y2 — Avalonia UI** | Register native Files tool, URL/folder/quality controls, progress, cancel, status/error log and Open Folder | **NOT STARTED** |
-| **Y3 — manual updater** | **CHECK FOR UPDATES** runs \`-U\` on selected official release binary, pip/path guidance, version/exit status/log and concurrency guard | **NOT STARTED** |
+| **Y0 — contracts** | Confirm yt-dlp/FFmpeg/JS requirements, update-origin policy, URL and output safety, menu placement | **IMPLEMENTED — Windows validation pending** |
+| **Y1 — download service** | Locate configured yt-dlp and FFmpeg; download a single audio-only YouTube URL to MP3 with safe arguments, cancellation, progress and smoke tests | **IMPLEMENTED — Windows validation pending** |
+| **Y2 — Avalonia UI** | Register native Files tool, URL/folder/quality controls, progress, cancel, status/error log and Open Folder | **IMPLEMENTED — Windows validation pending** |
+| **Y3 — manual updater** | **CHECK FOR UPDATES** runs \`-U\` on selected official release binary, pip/path guidance, version/exit status/log and concurrency guard | **IMPLEMENTED — Windows validation pending** |
 | **Y4 — diagnostics/persistence** | Settings store, explicit installed-version/path display, FFmpeg and JS/EJS doctor, actionable warnings/failures | **NOT STARTED** |
 | **Y5 — validation/refinement** | Windows functional tests, headless fake-process tests, documentation, responsive UX, limits, no regression | **NOT STARTED** |
 
@@ -231,3 +231,19 @@ Do not modify Seasonal Sprite Studio, Pixel Art Converter, Sprite Batch or their
 **Codex starter prompt:**
 
 > Read BEN TOOLBOX 2.0's root README and \`Notes/Plans/YOUTUBE_AUDIO_DOWNLOADER_IMPLEMENTATION_PLAN.md\`. Implement phases Y0 through Y3 for a native **Files → YouTube Audio Downloader** (single YouTube URL → MP3) using the user's configured/local yt-dlp and FFmpeg. Include **CHECK FOR UPDATES** on the first working screen: \`-U\` for the exact selected standalone release executable, show versions and errors, and do not blindly update package-managed installations. Run fake-process smoke tests and actual .NET build where available. Respect no-shell injection, cancellation, protected output files and responsive Avalonia UI. Update documentation and commit. Leave Y4/Y5 enhancement/testing status honest.
+
+### 2026-10-24 — Y0–Y3 implementation
+
+Native Files catalog/routing, single-video MP3 service and UI, selected-executable updater with explicit standalone confirmation, bounded logs, throttled progress, async stdout/stderr drain, cancellation/process-tree termination, private output staging and non-overwriting collision handling implemented. User configuration is not hardcoded. Local paths/quality preferences are persisted as a small Y4 prerequisite; dependency discovery/version checks are basic, not a complete doctor or proof of EJS availability. Standalone confirmation is not persisted and resets when a different executable is selected.
+
+`--ignore-config` isolates operations from user/global yt-dlp configuration. Official upstream README was checked for current update, audio extraction and progress/output conventions. No binaries were bundled/downloaded. No package-manager commands are executed. Failed/cancelled intermediates are retained and logged, not recursively deleted. Final completion requires successful exit, an existing nonempty staged MP3 and successful non-overwriting move. Reported MP3 presence is verified, not audio decoding or duration validity.
+
+Validation performed on Linux .NET 10: main app build (0 errors; existing ImageSharp advisories/legacy warnings), fake-process tests (URL/argv, progress, output collision, extractor failure, rejected output escape, cancellation, busy guard, missing dependency/executable, updater confirmation/version refresh), and headless Avalonia constructor/catalog/compact-window checks. No real YouTube download or actual self-update was run; Windows functional/DPI/pointer/process-tree validation remains pending.
+
+```powershell
+dotnet build
+dotnet run --project Tests/YouTubeAudioSmoke
+dotnet run --project Tests/YouTubeAudioUiSmoke
+```
+
+The fake executable fixture requires Linux/python3; on Windows it runs URL/argv checks and explicitly reports the remaining fixture as skipped. The headless test does not validate actual Windows dialogs. For Windows acceptance select the user's existing exe via Browse (`D:\Ben Data\Music\MANUAL DOWNLOADS\YTDLP\yt-dlp.exe`), FFmpeg folder `C:\ffmpeg\bin`, then test a permitted video, cancellation/close, duplicate titles and manual update. Deno was not found in the user's PATH screenshot; report runtime warnings independently rather than implying updating fixes this.
