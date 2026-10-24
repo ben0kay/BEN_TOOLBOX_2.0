@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace BEN_TOOLBOX_2_0.Services;
 
-public sealed record YouTubeAudioSettings(string Executable, string FfmpegFolder, string OutputFolder, int Quality);
+public sealed record YouTubeAudioSettings(string Executable, string FfmpegFolder, string OutputFolder, int Quality, bool Categorized = false, AudioCategory Category = AudioCategory.Music);
 public static class YouTubeAudioSettingsStore
 {
     private static string FilePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"BEN_TOOLBOX_2_0","youtube-audio.json");

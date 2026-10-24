@@ -27,7 +27,7 @@ V1:
 - No need for Python, browser automation, external paid APIs or elevated privileges when a working standalone binary is available.
 - Only download media the user is permitted to download. Do not implement bypasses for protected, DRM-controlled, paywalled or unauthorized content.
 
-Deferred: playlists/multiple URLs, queue/history, metadata tagging/cover art, M4A/Opus/video format selection, subscription automation, native auto-installers, in-app binary distribution, login/cookies, custom command box/advanced arbitrary flags.
+Deferred: playlist expansion, persistent queue/history, metadata tagging/cover art, M4A/Opus/video format selection, subscription automation, native auto-installers, in-app binary distribution, login/cookies, custom command box/advanced arbitrary flags.
 
 ## 2. Confirmed official yt-dlp behavior
 
@@ -249,3 +249,13 @@ dotnet run --project Tests/YouTubeAudioUiSmoke
 The fake executable fixture requires Linux/python3; on Windows it runs URL/argv checks and explicitly reports the remaining fixture as skipped. The headless test does not validate actual Windows dialogs. For Windows acceptance select the user's existing exe via Browse (`D:\Ben Data\Music\MANUAL DOWNLOADS\YTDLP\yt-dlp.exe`), FFmpeg folder `C:\ffmpeg\bin`, then test a permitted video, cancellation/close, duplicate titles and manual update. Deno was not found in the user's PATH screenshot; report runtime warnings independently rather than implying updating fixes this.
 
 **Follow-up:** At the user’s explicit request, Windows now defaults to `D:\Ben Data\Music\MANUAL DOWNLOADS\YTDLP\yt-dlp.exe`; saved nonempty selections still take precedence and Browse remains available. Pasted surrounding quotes are stripped before executable validation/launch, including previously saved quoted paths. Service smoke tests cover quoted paths and a quoted updater executable.
+
+### Queue and sci-fi UI follow-up — 2026-10-24
+
+Explicitly authorised extension beyond original single-link scope: paste one or multiple URLs (one per line), assign Music/Other before adding, editable per-row categories/removal, 100-item session queue. Download Queue also adds any currently pasted links before starting. One sequential download at a time; item failure does not abort the remaining queue. Completed items are skipped on subsequent runs; failed/cancelled items are retried; untouched items remain queued on cancellation. Clear Finished removes completed rows. No persistent queue/history or playlist expansion was added.
+
+`YouTubeAudioQueue` owns parsing, category destination resolution and sequential failure/cancel rules. Destinations are the fixed enum-named Music/Other children of an existing base directory; category folders are created as needed. Linked category directories are rejected. The Windows base defaults to the supplied yt-dlp directory; old single-link settings migrate to the executable directory, while categorised saved settings retain their chosen base. Per-item paths resolve against the base selected at queue start. Quality/executable settings apply to that run. Category preference and a migration marker extend the backwards-compatible settings record.
+
+Native UI restyled with dark gradient/cyan framed panels, compact input controls, input/tools columns, narrow-window stacking, real percentage or indeterminate progress, persistent progress/cancel controls, timestamps and collapsible logs. This is a first pass inspired by the reference rather than an exact reproduction of rendered artwork. No shader dependency, artificial waveform/speed/ETA or background animation/polling added. Download/update concurrency remains guarded and window close cancels owned processes.
+
+Validation: existing service fake-process tests passed; added queue tests cover multiline parse, per-link routing, failure continuation, completed-item skipping, retry, cancellation remainder and invalid URL batches. Headless Skia test constructs/shows the native window, adds two links via the actual Add button, verifies category controls, renders an inspected 1220×940 preview, checks compact layout and closes cleanly. Main project builds with 0 errors and existing advisory/legacy warnings. Windows multi-link/folder and interactive visual acceptance remain pending; only the prior single-link Windows download was user-confirmed.

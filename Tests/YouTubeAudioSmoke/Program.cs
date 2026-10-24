@@ -61,6 +61,27 @@ print('BTX_FILE:'+json.dumps(file))
     await service.UpdateAsync("\""+exe+"\"",true,s=>log.Add(s),default);
     Check(log.Any(s=>s.StartsWith("Before:"))&&log.Any(s=>s.StartsWith("After:")),"Update versions missing");
     await Fails<FileNotFoundException>(()=>service.VersionAsync(Path.Combine(root,"missing"),default));
+    var queue=YouTubeAudioQueue.Parse("https://youtu.be/one\nhttps://youtu.be/fail\nhttps://youtu.be/three",AudioCategory.Music);
+    queue[1].Category=AudioCategory.Other;
+    var destinations=new List<string>();int calls=0;
+    await YouTubeAudioQueue.RunAsync(queue,root,(item,folder,changed,ct)=>
+    {
+        calls++;destinations.Add(folder);
+        if(item.Url.EndsWith("fail"))throw new IOException("fixture failure");
+        return Task.FromResult(Path.Combine(folder,"song.mp3"));
+    },(_,_)=>{},default);
+    Check(queue[0].State=="Complete"&&queue[1].State=="Failed"&&queue[2].State=="Complete","Queue did not continue after failure");
+    Check(destinations[0]==Path.Combine(root,"Music")&&destinations[1]==Path.Combine(root,"Other"),"Per-link routing");
+    await YouTubeAudioQueue.RunAsync(queue,root,(_,_,_,_)=>{calls++;return Task.FromResult("retry.mp3");},(_,_)=>{},default);
+    Check(calls==4,"Queue downloaded completed items again");
+    using(var stopQueue=new CancellationTokenSource())
+    {
+        var waiting=YouTubeAudioQueue.Parse("https://youtu.be/one\nhttps://youtu.be/two",AudioCategory.Other);
+        await Fails<OperationCanceledException>(()=>YouTubeAudioQueue.RunAsync(waiting,root,(_,_,_,ct)=>{stopQueue.Cancel();ct.ThrowIfCancellationRequested();return Task.FromResult("");},(_,_)=>{},stopQueue.Token));
+        Check(waiting[0].State=="Cancelled"&&waiting[1].State=="Waiting","Queue cancellation continued into remaining items");
+    }
+    await Fails<ArgumentException>(()=>Task.FromResult(YouTubeAudioQueue.Parse("https://youtu.be/one\nbad link",AudioCategory.Other)));
+    Console.WriteLine("PASS: multi-link parsing, per-item category, continue on failure, skip completed, retry and cancel remainder.");
     Console.WriteLine("PASS: URL/argv safety, progress, staged output/collisions, failure, cancellation, updater guard and version refresh, missing executable.");
 }
 finally{Directory.Delete(root,true);}
