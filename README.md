@@ -72,6 +72,8 @@ The sci-fi interface uses dark gradient panels, cyan outlines, a two-column inpu
 **Validation:** .NET 10 Linux build, fake-process service/queue tests and headless Avalonia UI checks passed. The user confirmed a real single-link download worked on Windows after removing quotes; quoted executable paths are now accepted. Real Windows multi-link/category, update, DPI and process-tree cancellation testing remain pending. [Implementation plan](Notes/Plans/YOUTUBE_AUDIO_DOWNLOADER_IMPLEMENTATION_PLAN.md).
 
 
+**Planned Internet Observatory:** [Implementation plan (IO0–IO7)](Notes/Plans/INTERNET_OBSERVATORY_IMPLEMENTATION_PLAN.md) — standalone native Avalonia monitoring command center: **USGS earthquakes on a world map first**, followed by NOAA space weather, optional website change/availability checks and simple network latency/health. Built from real sourced feeds, an efficient bundled map, bounded refresh/caching and explicit offline/stale status. First Codex milestone is **IO0–IO2**, not every module at once. **Documentation only; not implemented.**
+
 The original scripts remain under **`BEN_TOOLBOX_OLDVERSION/`**. Native conversions do **not** necessarily have full feature parity with those scripts. Test any action that writes, exports, moves or deletes files on disposable data first.
 
 ### Current limits worth remembering
