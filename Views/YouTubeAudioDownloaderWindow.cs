@@ -19,7 +19,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
     private readonly YouTubeAudioService service=new();
     private readonly TextBox url=new(){PlaceholderText="https://www.youtube.com/watch?v=…"};
     private readonly TextBox destination=new(){Text=Environment.GetFolderPath(Environment.SpecialFolder.MyMusic)};
-    private readonly TextBox executable=new(){Text=YouTubeAudioService.Find("yt-dlp")??""};
+    private readonly TextBox executable=new(){Text=OperatingSystem.IsWindows()?@"D:\Ben Data\Music\MANUAL DOWNLOADS\YTDLP\yt-dlp.exe":YouTubeAudioService.Find("yt-dlp")??""};
     private readonly TextBox ffmpeg=new(){Text=Path.GetDirectoryName(YouTubeAudioService.Find("ffmpeg")??"")??""};
     private readonly ComboBox quality=new(){ItemsSource=new[]{"Best (VBR 0)","High (VBR 2)","192 kbps","128 kbps"},SelectedIndex=0};
     private readonly CheckBox standalone=new(){Content=new TextBlock{Text="I confirm this is an official standalone release binary (enables -U)",TextWrapping=TextWrapping.Wrap}};
@@ -83,7 +83,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         {
             inputs.IsEnabled=false;
             var saved=await YouTubeAudioSettingsStore.LoadAsync();
-            if(saved is not null){executable.Text=saved.Executable;ffmpeg.Text=saved.FfmpegFolder;destination.Text=saved.OutputFolder;quality.SelectedIndex=Math.Clamp(saved.Quality,0,3);}
+            if(saved is not null){if(!string.IsNullOrWhiteSpace(saved.Executable))executable.Text=YouTubeAudioService.NormalizePath(saved.Executable);ffmpeg.Text=saved.FfmpegFolder;destination.Text=saved.OutputFolder;quality.SelectedIndex=Math.Clamp(saved.Quality,0,3);}
             inputs.IsEnabled=true;
         };
         cancel.Click+=(_,_)=>active?.Cancel();
@@ -113,6 +113,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         active=new CancellationTokenSource();inputs.IsEnabled=false;cancel.IsEnabled=true;progress.IsIndeterminate=true;status.Text="Working…";timer.Start();
         try
         {
+            executable.Text=YouTubeAudioService.NormalizePath(executable.Text??"");
             try{await YouTubeAudioSettingsStore.SaveAsync(new(executable.Text??"",ffmpeg.Text??"",destination.Text??"",quality.SelectedIndex));}
             catch(Exception ex) when(ex is IOException or UnauthorizedAccessException){Log("Could not remember preferences: "+ex.Message);}
             await operation(active.Token);Flush();if(status.Text=="Working…")status.Text="Finished. See diagnostics.";}

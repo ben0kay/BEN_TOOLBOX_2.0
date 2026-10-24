@@ -3,6 +3,7 @@ using System.Text.Json;
 
 void Check(bool condition,string message){if(!condition)throw new Exception(message);}
 async Task Fails<T>(Func<Task> action) where T:Exception {try{await action();}catch(T){return;}throw new Exception("Expected "+typeof(T).Name);}
+Check(YouTubeAudioService.NormalizePath(" \"D:\\folder name\\yt-dlp.exe\" ")=="D:\\folder name\\yt-dlp.exe","Quoted paths");
 foreach(var invalid in new[]{"http://youtube.com/watch?v=a","https://youtube.com.evil.test/watch?v=a","https://youtube.com/playlist?list=x","--exec=oops","https://user@youtube.com/watch?v=a"})
     await Fails<ArgumentException>(()=>Task.FromResult(YouTubeAudioService.ValidateUrl(invalid)));
 var argsList=YouTubeAudioService.DownloadArguments("https://www.youtube.com/watch?v=abc&list=xyz","/space path","/ffmpeg","0");
@@ -57,7 +58,7 @@ print('BTX_FILE:'+json.dumps(file))
     }
     finally{Environment.SetEnvironmentVariable("PATH",oldPath);}
     await Fails<InvalidOperationException>(()=>service.UpdateAsync(exe,false,_=>{},default));
-    await service.UpdateAsync(exe,true,s=>log.Add(s),default);
+    await service.UpdateAsync("\""+exe+"\"",true,s=>log.Add(s),default);
     Check(log.Any(s=>s.StartsWith("Before:"))&&log.Any(s=>s.StartsWith("After:")),"Update versions missing");
     await Fails<FileNotFoundException>(()=>service.VersionAsync(Path.Combine(root,"missing"),default));
     Console.WriteLine("PASS: URL/argv safety, progress, staged output/collisions, failure, cancellation, updater guard and version refresh, missing executable.");

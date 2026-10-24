@@ -15,6 +15,7 @@ public sealed record AudioStatus(string State, double? Percent = null, string? O
 
 public sealed class YouTubeAudioService
 {
+    public static string NormalizePath(string value) => value.Trim().Trim('"');
     private readonly SemaphoreSlim gate = new(1,1);
     public static string? Find(string name, string? adjacent = null)
     {
@@ -48,6 +49,7 @@ public sealed class YouTubeAudioService
         string? stage=null;
         try
         {
+            options=options with { Executable=NormalizePath(options.Executable), FfmpegFolder=NormalizePath(options.FfmpegFolder), OutputFolder=NormalizePath(options.OutputFolder) };
             ValidateUrl(url);
             var output=Path.GetFullPath(options.OutputFolder);
             if(!Directory.Exists(output)) throw new DirectoryNotFoundException("Choose an existing output folder.");
@@ -103,6 +105,7 @@ public sealed class YouTubeAudioService
     }
     public async Task UpdateAsync(string exe,bool confirmedStandalone,Action<string> log,CancellationToken token)
     {
+        exe=NormalizePath(exe);
         if(!confirmedStandalone) throw new InvalidOperationException("For pip, winget or another package manager, update through that manager. Confirm standalone release binary only if known.");
         if(!await gate.WaitAsync(0,token)) throw new InvalidOperationException("An operation is already running.");
         try
@@ -116,6 +119,7 @@ public sealed class YouTubeAudioService
     public static string Redact(string line) => System.Text.RegularExpressions.Regex.Replace(line,@"https?://[^\s]+","[URL redacted]");
     public static async Task RunAsync(string exe,IEnumerable<string> arguments,Action<string> line,CancellationToken token)
     {
+        exe=NormalizePath(exe);
         if(!Path.IsPathFullyQualified(exe)||!File.Exists(exe)) throw new FileNotFoundException("Select the exact yt-dlp executable first.");
         var start=new ProcessStartInfo(exe){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
         foreach(var argument in arguments) start.ArgumentList.Add(argument);

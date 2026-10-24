@@ -247,3 +247,5 @@ dotnet run --project Tests/YouTubeAudioUiSmoke
 ```
 
 The fake executable fixture requires Linux/python3; on Windows it runs URL/argv checks and explicitly reports the remaining fixture as skipped. The headless test does not validate actual Windows dialogs. For Windows acceptance select the user's existing exe via Browse (`D:\Ben Data\Music\MANUAL DOWNLOADS\YTDLP\yt-dlp.exe`), FFmpeg folder `C:\ffmpeg\bin`, then test a permitted video, cancellation/close, duplicate titles and manual update. Deno was not found in the user's PATH screenshot; report runtime warnings independently rather than implying updating fixes this.
+
+**Follow-up:** At the user’s explicit request, Windows now defaults to `D:\Ben Data\Music\MANUAL DOWNLOADS\YTDLP\yt-dlp.exe`; saved nonempty selections still take precedence and Browse remains available. Pasted surrounding quotes are stripped before executable validation/launch, including previously saved quoted paths. Service smoke tests cover quoted paths and a quoted updater executable.
