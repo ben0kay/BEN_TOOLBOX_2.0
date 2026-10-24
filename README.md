@@ -53,7 +53,8 @@ BEN TOOLBOX has four primary navigation sections. Many tools now open **native A
 | **File Toolbox** | Duplicate File Finder | Native file comparison, hash verification and guarded Windows Recycle Bin operations; destructive actions require care. |
 | | Folder Backup | Native non-overwriting backup planning/preview and execution with progress/cancellation. |
 | | Clipboard to PNG | Native snip/clipboard PNG saver; Windows global `Ctrl+Shift+V` hotkey while the app runs. |
-| **Project Inspectors** | **Sprite Inventory** | **Standalone native inspector**: image format, dimensions, file size/path, filters/sorting and one on-demand scaled preview. Not inside Resource Checker. |
+| **Project Inspectors** | Internet Observatory | Native USGS earthquake map, feed presets, filters, event details and offline cache. IO0–IO2 implemented; Windows validation pending. |
+| | **Sprite Inventory** | **Standalone native inspector**: image format, dimensions, file size/path, filters/sorting and one on-demand scaled preview. Not inside Resource Checker. |
 | | File Size Inspector | Native read-only ranking of the largest project files. |
 | | Asset Usage Finder | Native read-only tracing of direct/indirect Godot resource references, with limits for dynamic paths. |
 | | Lighting & Shadow Inspector | Native read-only exported settings/shader/scene inspection; not live Godot lighting. |
@@ -209,3 +210,22 @@ dotnet run --project Tests/SeasonalUiSmoke/SeasonalUiSmoke.csproj
 ```
 
 Seasonal Sprite Studio also includes **Leafless / Branch Prototype**: remove selected foliage, mark a trunk connection and up to 16 branch tips, then generate curved/tapered branches with seeded forks and wood shading. Protect original wood first; default brown-wood preservation and locked visible pixels keep its RGBA/coordinates unchanged. Compare Original/Leafless/Generated views at Actual Size, save points with the mask project, and export a separate aligned PNG. This is an experimental local procedural sketch, not AI reconstruction. Build, preservation/persistence tests and headless layout pass; real-tree appearance/Windows interaction still need evaluation. See standalone notes section 18. A4/A5 remain separate.
+
+## Internet Observatory — IO0–IO2
+
+Open **Project Inspectors → Internet Observatory**. This standalone explorer uses actual USGS data and does not replace Dashboard V2. Presets: **Past 24 hours (M2.5+)**, **Past week (M4.5+)**, and **Significant events (30 days)**. Counts describe the chosen feed and filters, not all earthquakes worldwide. Timestamps are explicitly UTC.
+
+Wheel zoom, drag pan and **Fit World** navigate a bundled Natural Earth basemap. Keyboard: arrows pan, +/- zoom, Home fits. Select a pin or list row for magnitude, depth, coordinates, event/update times and the published tsunami flag; Open USGS Report opens the source page when supplied. Marker size indicates magnitude; colour indicates depth with a visible legend. Unknown values remain unknown. Magnitude and map-bounds filters use cached data without additional HTTP requests.
+
+Refresh manually or every two minutes while visible and not minimised. Retrieval age, provider generation time and stale/error state are separate; failed refreshes retain available data. The basemap works offline. Three bounded caches (maximum 4 MiB each, expire after 30 days) and view preferences live under `%LOCALAPPDATA%\BEN_TOOLBOX_2_0\InternetObservatory`. Preferences save on normal close. Closing cancels and awaits owned requests; there is no background service. NOAA, website and network modules remain planned.
+
+Code lives together in `Features/Inspectors/InternetObservatory/`; geography and attribution are in `Assets/InternetObservatory/`. Other tools were not reorganised. [Phase plan](Notes/Plans/INTERNET_OBSERVATORY_IMPLEMENTATION_PLAN.md).
+
+Validation: .NET 10 Linux build, deterministic service/projection/settings tests, actual USGS HTTP fetch and headless Skia window tests. Windows pointer/DPI/browser-launch and long-running resource measurements remain pending. Existing ImageSharp advisories and legacy warnings remain unrelated maintenance work.
+
+```powershell
+dotnet run --project Tests/InternetObservatorySmoke
+dotnet run --project Tests/InternetObservatoryUiSmoke
+# Optional real request alongside fixture tests:
+dotnet run --project Tests/InternetObservatorySmoke -- --online
+```

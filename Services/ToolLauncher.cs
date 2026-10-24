@@ -9,7 +9,7 @@ namespace BEN_TOOLBOX_2_0.Services;
 // Explicit allowlist: no arbitrary commands or user-supplied script paths.
 public sealed record ToolDefinition(string Id, string Category, string Name, string Description, string RelativePath)
 {
-    public string Status => Id is "pixel-art-converter" or "seasonal-sprite-studio" ? "NATIVE AVALONIA  /  IMAGE PROCESSING" : Id is "content-inspector" or "sprite-inventory" ? "NATIVE AVALONIA  /  READ ONLY" : "WINDOWS POWERSHELL  /  LOCAL";
+    public string Status => Id == "internet-observatory" ? "NATIVE AVALONIA / INTERNET DATA" : Id is "pixel-art-converter" or "seasonal-sprite-studio" ? "NATIVE AVALONIA  /  IMAGE PROCESSING" : Id is "content-inspector" or "sprite-inventory" ? "NATIVE AVALONIA  /  READ ONLY" : "WINDOWS POWERSHELL  /  LOCAL";
 }
 
 public static class ToolCatalog
@@ -26,6 +26,7 @@ public static class ToolCatalog
         new("folder-backup","Files","Folder Backup","Create dated folder backups with reports.","File_Toolbox/Tools/Backup/Backup.ps1"),
         new("clipboard-png","Files","Clipboard to PNG","Save Windows snips from the clipboard as numbered PNG files.",""),
         new("duplicates","Files","Duplicate File Finder","Compare file names and content; optionally recycle verified matches.","File_Toolbox/Tools/DuplicateFileFinder/DuplicateFileFinder.ps1"),
+        new("internet-observatory","Inspect","Internet Observatory","Explore real USGS earthquakes on an interactive world map.",""),
         new("sprite-inventory","Inspect","Sprite Inventory","Browse Godot sprite images, dimensions, file sizes and lazy previews.",""),
         new("content-inspector","Inspect","Items & Resource Inspector","Browse items, drops, crafting recipes, biome bindings and validation reports.",""),
         new("lighting","Inspect","Lighting & Shadow Inspector","Inspect the main light and shadow configuration.","GameDev_Toolbox/Tools/Inspectors/LightingInspector/LightingInspector.ps1"),

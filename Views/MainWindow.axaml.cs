@@ -2,6 +2,7 @@ using System;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using BEN_TOOLBOX_2_0.Services;
+using BEN_TOOLBOX_2_0.Features.Inspectors.InternetObservatory;
 
 namespace BEN_TOOLBOX_2_0.Views;
 
@@ -35,6 +36,13 @@ public partial class MainWindow : Window
         if (sender is not Button { Tag: ToolDefinition tool }) return;
         try
         {
+            if (tool.Id == "internet-observatory")
+            {
+                new InternetObservatoryWindow().Show(this);
+                InfoTitle.Text = "INTERNET OBSERVATORY";
+                InfoDescription.Text = "USGS earthquake explorer with source timestamps and offline map.";
+                return;
+            }
             if (tool.Id == "clipboard-png")
             {
                 new ClipboardPngWindow().Show(this);

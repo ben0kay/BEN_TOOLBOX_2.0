@@ -1,6 +1,6 @@
 # Internet Observatory — Native Avalonia Implementation Plan
 
-> **STATUS: PLANNED — NO APPLICATION CODE IMPLEMENTED**
+> **STATUS: IO0–IO2 IMPLEMENTED — Linux build, service/live-feed and headless UI checks passed. Windows interactive acceptance pending. IO3–IO7 remain planned.**
 >
 > **Created:** 2026-10-24  
 > **Repository:** ben0kay/BEN_TOOLBOX_2.0 / main  
@@ -173,9 +173,9 @@ Avoid a giant provider framework or unnecessary subfolders. Reuse genuinely shar
 
 | Phase | Outcome | Status |
 | --- | --- | --- |
-| **IO0 — Architecture/contracts** | Confirm current repo code, USGS schema, Natural Earth asset/projection, module routing, data freshness and bounded worker lifecycle | **NOT STARTED** |
-| **IO1 — Earthquake data engine** | Typed USGS feed, parsing/validation, timeout/cache/ETag, dedupe and fixture smoke tests | **NOT STARTED** |
-| **IO2 — World map / Avalonia MVP** | Native Inspect tool, polished earthquake explorer, wheel zoom/pan/Fit, presets, real pins/list/details, freshness/offline status and basic saved view | **NOT STARTED** |
+| **IO0 — Architecture/contracts** | Confirm current repo code, USGS schema, Natural Earth asset/projection, module routing, data freshness and bounded worker lifecycle | **IMPLEMENTED — Windows acceptance pending** |
+| **IO1 — Earthquake data engine** | Typed USGS feed, parsing/validation, timeout/cache/ETag, dedupe and fixture smoke tests | **IMPLEMENTED — Windows acceptance pending** |
+| **IO2 — World map / Avalonia MVP** | Native Inspect tool, polished earthquake explorer, wheel zoom/pan/Fit, presets, real pins/list/details, freshness/offline status and basic saved view | **IMPLEMENTED — Windows acceptance pending** |
 | **IO3 — NOAA space weather** | SWPC Kp parser, timeline/chart, source timestamp, optional link to aurora forecast; zero fake data | **NOT STARTED** |
 | **IO4 — Website monitoring** | Add/remove URL targets, status/latency snapshots, optional readable change diff and bounded history | **NOT STARTED** |
 | **IO5 — Network health** | HTTP/DNS probes, rolling latency/status charts, separate errors, active-view-only probes | **NOT STARTED** |
@@ -270,3 +270,25 @@ Get a **polished earthquake explorer with authentic USGS data**, rather than bui
 ### 2026-10-24 — pre-implementation scope refinement
 
 User approved dedicated module pages, IO2 map zoom/pan/Fit, named earthquake feed presets, clear freshness with retained stale data, early basic view persistence, restrained map-led visuals and feature-based source organisation for this new tool. These requirements are incorporated above and in IO2 acceptance. IO0–IO2 remains the first implementation task; NOAA starts afterward. All phases remain NOT STARTED. This update changes documentation only; no code/assets/build or runtime validation performed.
+
+### 2026-10-24 — IO0–IO2 implementation and validation
+
+Implemented feature-local ObservatoryModels.cs (including pure WorldProjection math), UsgsEarthquakeService.cs, ObservatorySettingsStore.cs, WorldMapView.cs and InternetObservatoryWindow.cs under Features/Inspectors/InternetObservatory/. Registered the native Inspect tool and explicit launch route. Main Dashboard V2 and existing tools retain their behaviour.
+
+Map: bundled, credited Natural Earth physical land v4.1.0 at 1:110m, 128 rings extracted with coordinates rounded to five decimals. Source checksum and conversion instructions live in Assets/InternetObservatory/ATTRIBUTION.md. The same equirectangular projection draws coastlines and event pins; geometry is constructed once and transformed for zoom/pan. Wheel pointer anchoring, drag pan, Fit World, keyboard arrows/+/-/Home, list/pin selection and a selected-event ring are included. Overlapping events may require list selection; clustering and street-level detail remain deferred.
+
+Data: fixed HTTPS USGS presets, explicit User-Agent, redirects disabled, 20-second request timeout, 4 MiB body/cache limit, 5,000-event cap, content-type/schema checks, finite coordinates, nullable magnitude/depth, UTC millisecond timestamps and stable-ID dedupe retaining newest update. Invalid records are counted. Safe USGS report URLs only. Handles ETag/Last-Modified, 304, Cache-Control max-age/no-cache/no-store, bounded Retry-After and 429/5xx backoff. Errors preserve the last available snapshot. Three per-feed versioned caches expire after 30 days; atomic writes and graceful corrupt/unwritable-cache handling.
+
+UI: dedicated Earthquakes page, later modules labelled planned, named preset coverage next to counts, local magnitude/map-bounds filters, event list, source detail/link and legend. Fetch age, provider timestamp and event/update times are distinct, with explicit stale/unavailable warnings. Responsive map/sidebar layout stacks at smaller widths. Settings persist selected preset, filters, auto-refresh and map zoom/centre on normal close. No writes on every pointer event.
+
+Lifecycle: a visible-only 15-second age/status timer checks whether a two-minute network refresh is due. Auto-refresh OFF disables scheduled requests; hidden/minimised windows pause and cancel requests. Feed switching cancels prior work and generation checks reject stale responses. Closing cancels and awaits owned requests before disposing the HTTP client. No background service, remote tile traffic or artificial live metrics.
+
+Actual verification on Linux .NET 10:
+- Main build: 0 errors; existing ImageSharp vulnerability advisories/legacy API/platform warnings remain.
+- InternetObservatorySmoke: schema/empty/bad JSON/null fields/dedup/UTC/coordinate order, wrong content type/oversized content, ETag/304, cache recovery/stale retention, max-age/no-store, Retry-After/backoff, simulated timeout and cancellation, settings corruption recovery, projection edges/inverse/pointer zoom/pan and invalid saved-view values.
+- Optional real HTTP service check returned 69 USGS events, provider-generated 2026-10-24T16:24:08Z. This is a test observation, not hardcoded data.
+- InternetObservatoryUiSmoke: headless native catalog/window/embedded map rendering, map/list selection and hit testing, filters/preset changes, compact layout, saved view, feed-switch cancellation and close-during-request cleanup. A rendered 1440×940 preview is inspected. Fixture locations are labelled Fixture and exist only in tests.
+
+Commands: dotnet build; dotnet run --project Tests/InternetObservatorySmoke; dotnet run --project Tests/InternetObservatoryUiSmoke. Add -- --online to the service smoke test for a real USGS request.
+
+Pending: Windows real mouse capture/DPI/multi-monitor/browser launching and long-running active/hidden CPU/memory/network measurements. UTC-only display; local-time preference, alerts, persistent event history and later provider modules remain unimplemented. IO3 NOAA is next only when requested; inspect its current schema before coding. Historical NOT STARTED entries above describe earlier plan-only updates and are superseded by this log/current phase table.
