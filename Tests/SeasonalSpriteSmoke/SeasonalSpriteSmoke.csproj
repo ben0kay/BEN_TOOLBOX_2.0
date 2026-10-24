@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../Models/BranchPrototype.cs" Link="BranchPrototype.cs" />
+    <Compile Include="../../Services/BranchPrototypeService.cs" Link="BranchPrototypeService.cs" />
     <Compile Include="../../Models/SeasonalMaskProject.cs" Link="SeasonalMaskProject.cs" />
     <Compile Include="../../Services/SeasonalMaskService.cs" Link="SeasonalMaskService.cs" />
     <Compile Include="../../Services/SeasonalProjectStore.cs" Link="SeasonalProjectStore.cs" />

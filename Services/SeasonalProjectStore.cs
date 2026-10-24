@@ -7,14 +7,14 @@ using BEN_TOOLBOX_2_0.Models;
 namespace BEN_TOOLBOX_2_0.Services;
 
 public sealed record SeasonalProjectFile(int Version,string SourcePath,string SourceHash,int Width,int Height,
-    byte[] Automatic,byte[] Added,byte[] Removed,byte[] Protected,FoliageDetection Detection,SeasonalLook Look);
+    byte[] Automatic,byte[] Added,byte[] Removed,byte[] Protected,FoliageDetection Detection,SeasonalLook Look,BranchPrototype? Branches=null);
 public sealed record SeasonalProjectLoad(SeasonalMaskProject Project,bool SourceChanged);
 public static class SeasonalProjectStore
 {
     private static readonly JsonSerializerOptions Json=new(){WriteIndented=true};
     public static void Save(SeasonalMaskProject p,string path,CancellationToken token)
     {
-        var data=new SeasonalProjectFile(1,p.SourcePath,p.SourceHash,p.Width,p.Height,p.Automatic,p.Added,p.Removed,p.Protected,p.Detection,p.Look);
+        var data=new SeasonalProjectFile(1,p.SourcePath,p.SourceHash,p.Width,p.Height,p.Automatic,p.Added,p.Removed,p.Protected,p.Detection,p.Look,p.Branches);
         SeasonalMaskService.SaveNew(path,JsonSerializer.SerializeToUtf8Bytes(data,Json),token);
     }
     public static SeasonalProjectLoad Load(string path,CancellationToken token,string? relink=null)
@@ -29,7 +29,8 @@ public static class SeasonalProjectStore
         SeasonalMaskService.Validate(data.Detection);SeasonalMaskService.Validate(data.Look);
         var source=SeasonalMaskService.Load(relink??data.SourcePath,token);
         if(source.Width!=data.Width||source.Height!=data.Height)throw new IOException("Source dimensions differ. Existing masks cannot be aligned to this image.");
-        source.Automatic=data.Automatic;source.Added=data.Added;source.Removed=data.Removed;source.Protected=data.Protected;source.Detection=data.Detection;source.Look=data.Look;
+        source.Automatic=data.Automatic;source.Added=data.Added;source.Removed=data.Removed;source.Protected=data.Protected;source.Detection=data.Detection;source.Look=data.Look;source.Branches=data.Branches??new();
+        if(source.Branches.Tips?.Length>16)throw new IOException("Too many branch prototype points.");
         return new(source,!source.SourceHash.Equals(data.SourceHash,StringComparison.OrdinalIgnoreCase));
     }
     public static string PresetFolder=>Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"BEN_TOOLBOX_2_0","SeasonalLooks");

@@ -13,6 +13,10 @@ public sealed class SeasonalMaskCanvas : Control
     public Action<Point>? Paint;
     public Action? StrokeEnded;
     public Action<Point>? Pick;
+    public Action<Point,bool>? BranchPointPicked;
+    public BranchPoint? BranchRoot { get; set; }
+    public BranchPoint[] BranchTips { get; set; }=Array.Empty<BranchPoint>();
+    public bool ShowBranchPoints { get; set; }
     public MaskBrush Mode { get; set; }=MaskBrush.Pan;
     public double BrushRadius { get; set; }=10;
     private Bitmap? bitmap;
@@ -34,13 +38,30 @@ public sealed class SeasonalMaskCanvas : Control
         scale=Math.Min(Bounds.Width/bitmap.PixelSize.Width,Bounds.Height/bitmap.PixelSize.Height)*0.95;
         offset=new Vector((Bounds.Width-bitmap.PixelSize.Width*scale)/2,(Bounds.Height-bitmap.PixelSize.Height*scale)/2);InvalidateVisual();
     }
+    public void ActualSize()
+    {
+        fit=false;scale=1;
+        if(bitmap is not null)offset=new Vector((Bounds.Width-bitmap.PixelSize.Width)/2,(Bounds.Height-bitmap.PixelSize.Height)/2);
+        InvalidateVisual();
+    }
     private Point Pixel(Point p)=>new((p.X-offset.X)/scale,(p.Y-offset.Y)/scale);
     public override void Render(DrawingContext context)
     {
         base.Render(context);
         for(int y=0;y<Bounds.Height;y+=16)for(int x=0;x<Bounds.Width;x+=16)context.FillRectangle(((x/16+y/16)&1)==0?Light:Dark,new Rect(x,y,16,16));
         if(bitmap is not null)context.DrawImage(bitmap,new Rect(bitmap.Size),new Rect(offset.X,offset.Y,bitmap.PixelSize.Width*scale,bitmap.PixelSize.Height*scale));
-        if(cursor is Point point && Mode is not MaskBrush.Pan and not MaskBrush.PickColour)context.DrawEllipse(null,new Pen(Brushes.White,1),point,BrushRadius*scale,BrushRadius*scale);
+        if(ShowBranchPoints)
+        {
+            if(BranchRoot is not null)Marker(BranchRoot,Brushes.Orange);
+            foreach(var tip in BranchTips)Marker(tip,Brushes.Cyan);
+        }
+        void Marker(BranchPoint point,IBrush colour)
+        {
+            var pos=new Point(offset.X+point.X*scale,offset.Y+point.Y*scale);
+            context.DrawEllipse(null,new Pen(colour,2),pos,5,5);
+            context.DrawLine(new Pen(colour,1),new Point(pos.X-8,pos.Y),new Point(pos.X+8,pos.Y));
+        }
+        if(cursor is Point point && Mode is MaskBrush.Add or MaskBrush.Remove or MaskBrush.Protect or MaskBrush.Unprotect)context.DrawEllipse(null,new Pen(Brushes.White,1),point,BrushRadius*scale,BrushRadius*scale);
     }
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
@@ -54,7 +75,8 @@ public sealed class SeasonalMaskCanvas : Control
         if(props.IsMiddleButtonPressed || (props.IsLeftButtonPressed&&(Mode==MaskBrush.Pan||space))){dragging=point;e.Pointer.Capture(this);}
         else if(props.IsLeftButtonPressed)
         {
-            if(Mode==MaskBrush.PickColour)Pick?.Invoke(Pixel(point));
+            if(Mode is MaskBrush.BranchRoot or MaskBrush.BranchTip)BranchPointPicked?.Invoke(Pixel(point),Mode==MaskBrush.BranchRoot);
+            else if(Mode==MaskBrush.PickColour)Pick?.Invoke(Pixel(point));
             else{painting=true;e.Pointer.Capture(this);Paint?.Invoke(Pixel(point));}
         }
         e.Handled=true;

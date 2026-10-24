@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace BEN_TOOLBOX_2_0.Models;
 
@@ -7,8 +8,8 @@ public sealed record FoliageDetection(double Hue = 110, double Tolerance = 55, d
     double MinLight = 0.03, int MinAlpha = 8, double CanopyBias = 0, double Softness = 0.2, int Grow = 0, int RemoveIslands = 0,
     string? PickColour = null, double ColourTolerance = 0.3);
 public enum StudioSeason { Spring, Summer, Autumn, Winter }
-public enum StudioView { Original, Overlay, AutomaticMask, ProtectionMask, EffectiveMask, Seasonal }
-public enum MaskBrush { Pan, Add, Remove, Protect, Unprotect, PickColour }
+public enum StudioView { Original, Overlay, AutomaticMask, ProtectionMask, EffectiveMask, Seasonal, Leafless, Branches }
+public enum MaskBrush { Pan, Add, Remove, Protect, Unprotect, PickColour, BranchRoot, BranchTip }
 public sealed record SeasonalLook(StudioSeason Season = StudioSeason.Summer, double Strength = 1,
     double AutumnProgress = 0.65, double Snow = 0.4, int SnowPatch = 12, int Seed = 17);
 
@@ -26,10 +27,11 @@ public sealed class SeasonalMaskProject
     public byte[] Protected { get; set; } = Array.Empty<byte>();
     public FoliageDetection Detection { get; set; } = new();
     public SeasonalLook Look { get; set; } = new();
+    public BranchPrototype Branches { get; set; } = new();
     public SeasonalMaskProject Snapshot() => new()
     {
         SourcePath=SourcePath,SourceHash=SourceHash,Width=Width,Height=Height,Rgba=Rgba,
-        Automatic=(byte[])Automatic.Clone(),Added=(byte[])Added.Clone(),Removed=(byte[])Removed.Clone(),Protected=(byte[])Protected.Clone(),Detection=Detection,Look=Look
+        Automatic=(byte[])Automatic.Clone(),Added=(byte[])Added.Clone(),Removed=(byte[])Removed.Clone(),Protected=(byte[])Protected.Clone(),Detection=Detection,Look=Look,Branches=Branches with { Tips=Branches.Tips?.ToArray() }
     };
 }
 public readonly record struct MaskDelta(int Layer, int Index, byte Before, byte After);

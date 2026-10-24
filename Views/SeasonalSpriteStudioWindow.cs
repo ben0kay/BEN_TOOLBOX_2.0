@@ -26,13 +26,17 @@ public sealed class SeasonalSpriteStudioWindow : Window
     private readonly TextBlock status=new(){Text="Load a final-sized transparent PNG. Source artwork is always read-only.",TextWrapping=TextWrapping.Wrap};
     private readonly TextBlock sourceInfo=new(){Text="No source loaded",TextWrapping=TextWrapping.Wrap};
     private readonly TextBlock pickInfo=new(){Text="Detector: hue selection",TextWrapping=TextWrapping.Wrap};
-    private readonly ComboBox view=new(){ItemsSource=new[]{"Original","Mask Overlay","Automatic Mask","Protected Trunk","Effective Mask","Seasonal Preview"},SelectedIndex=1};
-    private readonly ComboBox brush=new(){ItemsSource=new[]{"Pan","Add Foliage","Remove Foliage","Protect Trunk","Unprotect","Pick Similar Colour"},SelectedIndex=0};
+    private readonly ComboBox view=new(){ItemsSource=new[]{"Original","Mask Overlay","Automatic Mask","Protected Trunk","Effective Mask","Seasonal Preview","Leafless removal","Generated branches"},SelectedIndex=1};
+    private readonly ComboBox brush=new(){ItemsSource=new[]{"Pan","Add Foliage","Remove Foliage","Protect Trunk","Unprotect","Pick Similar Colour","Mark Branch Root","Mark Branch Tips"},SelectedIndex=0};
     private readonly ComboBox season=new(){ItemsSource=new[]{"Spring","Summer","Autumn","Winter (leafy)"},SelectedIndex=1};
     private readonly CheckBox foliageVisible=new(){Content="Show foliage overlay",IsChecked=true},protectionVisible=new(){Content="Show trunk protection overlay",IsChecked=true};
     private readonly Slider hue=S(0,360,110),tolerance=S(1,180,55),saturation=S(0,1,0.18),dark=S(0,1,0.03),alpha=S(0,255,8,true),canopy=S(0,1,0),softness=S(0,1,0.2),grow=S(-4,4,0,true),islands=S(0,16,0,true),colourDistance=S(0.01,1,0.3);
     private readonly Slider radius=S(1,64,10,true),strength=S(0.01,1,1),overlay=S(0,1,0.55),effect=S(0,1,1),autumn=S(0,1,0.65),snow=S(0,1,0.4),patch=S(1,128,12,true);
     private readonly TextBox presetName=new(){PlaceholderText="Seasonal preset name"};
+    private readonly Slider branchThickness=S(1,48,12),branchCurve=S(0,1,0.2),branchForks=S(0,4,2,true),branchSeed=S(0,9999,17,true),branchCutoff=S(1,255,32,true),branchVariation=S(0,0.5,0.18);
+    private readonly TextBox branchColour=new(){Text="#73503A"};
+    private readonly CheckBox preserveBrown=new(){Content="Preserve detected brown wood",IsChecked=true};
+    private readonly TextBlock branchInfo=new(){Text="No connection points",TextWrapping=TextWrapping.Wrap};
     private readonly Button cancel=new(){Content="CANCEL",IsEnabled=false};
     private readonly StackPanel left=new(){Spacing=9},right=new(){Spacing=10};
     private readonly Dictionary<long,MaskDelta> stroke=new();
@@ -77,15 +81,31 @@ public sealed class SeasonalSpriteStudioWindow : Window
             new TextBlock { Text="Winter keeps leaves. Snow is an offline approximation; Godot runtime snow remains separate.",TextWrapping=TextWrapping.Wrap },Number("Winter snow coverage",snow,false),Number("Snow patch size",patch,false),presetName,
             Button("SAVE LOOK PRESET",async()=>await RunJob(async token=>{var look=ReadLook();string name=presetName.Text??"";await Task.Run(()=>SeasonalProjectStore.SaveLook(name,look,token),token);status.Text="Look preset saved (colour/snow settings only).";})),
             Button("LOAD LOOK PRESET",async()=>await LoadLook())));
+        right.Children.Add(Group("LEAFLESS / BRANCH PROTOTYPE",
+            new TextBlock { Text="Experimental procedural sketch. Original wood stays fixed; hidden branches are invented. Protect visible wood first. Orange = root; cyan = tips. Markers are not exported.",TextWrapping=TextWrapping.Wrap },branchInfo,
+            Button("MARK TRUNK CONNECTION",()=>{brush.SelectedIndex=(int)MaskBrush.BranchRoot;view.SelectedIndex=(int)StudioView.Leafless;return Task.CompletedTask;}),
+            Button("MARK BRANCH TIPS (up to 16)",()=>{brush.SelectedIndex=(int)MaskBrush.BranchTip;view.SelectedIndex=(int)StudioView.Leafless;return Task.CompletedTask;}),
+            Button("REMOVE LAST TIP",()=>{if(project is not null){project.Branches=project.Branches with { Tips=(project.Branches.Tips??Array.Empty<BranchPoint>()).SkipLast(1).ToArray() };BranchChanged(false);}return Task.CompletedTask;}),
+            Button("CLEAR CONNECTION POINTS",()=>{if(project is not null){project.Branches=project.Branches with { Root=null,Tips=Array.Empty<BranchPoint>() };BranchChanged(false);}return Task.CompletedTask;}),
+            Number("Branch base thickness (source pixels)",branchThickness,false,false),Number("Curvature",branchCurve,false,false),Number("Forks per branch",branchForks,false,false),Number("Seed",branchSeed,false,false),Number("Leaf removal cutoff",branchCutoff,false,false),Label("Wood colour (#RRGGBB)",branchColour),Number("Wood colour variation",branchVariation,false,false),preserveBrown,
+            Button("SAMPLE SOURCE WOOD COLOUR",()=>{if(project is not null)branchColour.Text=BranchPrototypeService.SampleWood(project);return Task.CompletedTask;}),
+            Button("PREVIEW LEAF REMOVAL",()=>{view.SelectedIndex=(int)StudioView.Leafless;Request(false);return Task.CompletedTask;}),
+            Button("GENERATE / UPDATE BRANCHES",()=>{view.SelectedIndex=(int)StudioView.Branches;Request(false);return Task.CompletedTask;}),
+            Button("NEXT SEED",()=>{branchSeed.Value=(branchSeed.Value+1)%10000;return Task.CompletedTask;}),
+            Button("ACTUAL SIZE (1×)",()=>{canvas.ActualSize();return Task.CompletedTask;}),Button("EXPORT LEAFLESS PROTOTYPE…",async()=>await ExportBranches())));
         right.Children.Add(Group("PROJECT / EXPORT",Button("SAVE MASK PROJECT AS…",async()=>await SaveProject()),Button("OPEN MASK PROJECT…",async()=>await OpenProject()),Button("EXPORT GODOT FOLIAGE MASK…",async()=>await ExportMask()),
             new TextBlock { Text="Exports grayscale RGB with opaque alpha, exactly matching source dimensions. Existing files are not overwritten. Seasonal PNG exports are a later phase.",TextWrapping=TextWrapping.Wrap }));
         var rightScroll=new ScrollViewer { Content=right,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };Grid.SetColumn(rightScroll,2);columns.Children.Add(rightScroll);
         var footer=new Grid { ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=8 };footer.Children.Add(status);Grid.SetColumn(cancel,1);footer.Children.Add(cancel);Grid.SetRow(footer,2);root.Children.Add(footer);Content=root;
         cancel.Click+=(_,_)=>running?.Cancel();
-        view.SelectionChanged+=(_,_)=>Request(false);season.SelectionChanged+=(_,_)=>Changed(false);
+        view.SelectionChanged+=(_,_)=>{UpdateBranchPoints();Request(false);};season.SelectionChanged+=(_,_)=>Changed(false);
         foliageVisible.IsCheckedChanged+=(_,_)=>Request(false);protectionVisible.IsCheckedChanged+=(_,_)=>Request(false);
         brush.SelectionChanged+=(_,_)=>{EndStroke();canvas.Mode=(MaskBrush)Math.Max(0,brush.SelectedIndex);};
         radius.PropertyChanged+=(_,e)=>{if(e.Property==Slider.ValueProperty)canvas.BrushRadius=radius.Value;};
+        foreach(var slider in new[]{branchThickness,branchCurve,branchForks,branchSeed,branchCutoff,branchVariation})
+            slider.PropertyChanged+=(_,e)=>{if(e.Property==Slider.ValueProperty)BranchChanged(true);};
+        branchColour.TextChanged+=(_,_)=>BranchChanged(true);preserveBrown.IsCheckedChanged+=(_,_)=>BranchChanged(true);
+        canvas.BranchPointPicked=PlaceBranchPoint;
         canvas.Paint=Paint;canvas.StrokeEnded=EndStroke;canvas.Pick=Pick;
         DragDrop.SetAllowDrop(canvas,true);
         canvas.AddHandler(DragDrop.DragOverEvent,(_,e)=>{e.DragEffects=e.DataTransfer.Contains(DataFormat.File)?DragDropEffects.Copy:DragDropEffects.None;e.Handled=true;});
@@ -145,7 +165,8 @@ public sealed class SeasonalSpriteStudioWindow : Window
         hue.Value=d.Hue;tolerance.Value=d.Tolerance;saturation.Value=d.MinSaturation;dark.Value=d.MinLight;alpha.Value=d.MinAlpha;canopy.Value=d.CanopyBias;softness.Value=d.Softness;grow.Value=d.Grow;islands.Value=d.RemoveIslands;colourDistance.Value=d.ColourTolerance;pickedColour=d.PickColour;
         season.SelectedIndex=(int)l.Season;effect.Value=l.Strength;autumn.Value=l.AutumnProgress;snow.Value=l.Snow;patch.Value=l.SnowPatch;
         pickInfo.Text=pickedColour is null?"Detector: hue selection":"Picked colour: "+pickedColour;
-        loadingControls=false;
+        var branch=project.Branches;branchThickness.Value=branch.Thickness;branchCurve.Value=branch.Curvature;branchForks.Value=branch.Forks;branchSeed.Value=branch.Seed;branchCutoff.Value=branch.LeafCutoff;branchColour.Text=branch.Colour;branchVariation.Value=branch.ColourVariation;preserveBrown.IsChecked=branch.PreserveBrown;
+        UpdateBranchPoints();loadingControls=false;
     }
     private void Request(bool detector)
     {
@@ -172,7 +193,7 @@ public sealed class SeasonalSpriteStudioWindow : Window
                         if(!mask.Any(v=>v>0))status.Text="No obvious foliage found. Adjust detection or paint Add Foliage.";
                     }
                     var snapshot=current.Snapshot();var mode=(StudioView)Math.Max(0,view.SelectedIndex);double opacity=overlay.Value;bool foliage=foliageVisible.IsChecked==true,protect=protectionVisible.IsChecked==true;
-                    var data=await Task.Run(()=>SeasonalMaskService.Render(snapshot,mode,opacity,foliage,protect,lifetime.Token),lifetime.Token);
+                    var data=await Task.Run(()=>mode is StudioView.Leafless or StudioView.Branches ? BranchPrototypeService.Render(snapshot,snapshot.Branches,mode==StudioView.Branches,lifetime.Token) : SeasonalMaskService.Render(snapshot,mode,opacity,foliage,protect,lifetime.Token),lifetime.Token);
                     if(closed||busy||!ReferenceEquals(project,current))continue;
                     using var stream=new MemoryStream(data);var next=new Bitmap(stream);var previous=bitmap;bitmap=next;canvas.Source=next;previous?.Dispose();
                 }
@@ -239,7 +260,7 @@ public sealed class SeasonalSpriteStudioWindow : Window
         await RunJob(async token=>
         {
             var loaded=await Task.Run(()=>SeasonalMaskService.Load(path,token),token);if(closed)return;
-            project=loaded;detectedSettings=null;projectFile=null;history.Clear();unsaved=true;SetControls();sourceInfo.Text=$"{Path.GetFileName(path)}\n{loaded.Width}×{loaded.Height}";dirty=true;detectDirty=true;
+            project=loaded;canvas.Source=null;bitmap?.Dispose();bitmap=null;view.SelectedIndex=(int)StudioView.Overlay;detectedSettings=null;projectFile=null;history.Clear();unsaved=true;SetControls();sourceInfo.Text=$"{Path.GetFileName(path)}\n{loaded.Width}×{loaded.Height}";dirty=true;detectDirty=true;
             status.Text="Heuristic foliage selection. Correct bark/branches with Protect Trunk. Pink overlay = protection.";
         });
     }
@@ -268,8 +289,45 @@ public sealed class SeasonalSpriteStudioWindow : Window
                 var relink=await PickFile(PngType);if(relink is null)return;loaded=await Task.Run(()=>SeasonalProjectStore.Load(path,token,relink),token);
             }
             if(loaded.SourceChanged&&!await Confirm("Source image changed","This image has the same dimensions but a different hash. Explicitly reuse the saved masks? Check alignment carefully."))return;
-            if(closed)return;project=loaded.Project;detectedSettings=project.Detection;projectFile=path;history.Clear();unsaved=loaded.SourceChanged;SetControls();dirty=true;detectDirty=false;
+            if(closed)return;project=loaded.Project;canvas.Source=null;bitmap?.Dispose();bitmap=null;view.SelectedIndex=(int)StudioView.Overlay;detectedSettings=project.Detection;projectFile=path;history.Clear();unsaved=loaded.SourceChanged;SetControls();dirty=true;detectDirty=false;
             sourceInfo.Text=$"{Path.GetFileName(project.SourcePath)}\n{project.Width}×{project.Height}\n{Path.GetFileName(path)}";status.Text=loaded.SourceChanged?"Relinked changed source. Inspect all mask alignment before exporting.":"Mask project restored exactly.";
+        });
+    }
+    private void BranchChanged(bool updateOptions)
+    {
+        if(loadingControls||project is null)return;
+        if(updateOptions)project.Branches=project.Branches with { Thickness=branchThickness.Value,Curvature=branchCurve.Value,Forks=(int)branchForks.Value,Seed=(int)branchSeed.Value,LeafCutoff=(int)branchCutoff.Value,Colour=(branchColour.Text??"").Trim(),ColourVariation=branchVariation.Value,PreserveBrown=preserveBrown.IsChecked==true };
+        unsaved=true;UpdateBranchPoints();Request(false);
+    }
+    private void UpdateBranchPoints()
+    {
+        canvas.BranchRoot=project?.Branches.Root;canvas.BranchTips=project?.Branches.Tips??Array.Empty<BranchPoint>();
+        canvas.ShowBranchPoints=view.SelectedIndex is (int)StudioView.Leafless or (int)StudioView.Branches;
+        branchInfo.Text=$"Root: {(canvas.BranchRoot is null?"not marked":$"{canvas.BranchRoot.X:0}, {canvas.BranchRoot.Y:0}")} • {canvas.BranchTips.Length}/16 tips";
+        canvas.InvalidateVisual();
+    }
+    private void PlaceBranchPoint(Point point,bool root)
+    {
+        if(project is null||busy||point.X<0||point.Y<0||point.X>=project.Width||point.Y>=project.Height)return;
+        var picked=new BranchPoint(Math.Round(point.X),Math.Round(point.Y));picked=picked with { X=Math.Min(project.Width-1,picked.X),Y=Math.Min(project.Height-1,picked.Y) };
+        if(root)project.Branches=project.Branches with { Root=picked };
+        else
+        {
+            var tips=project.Branches.Tips??Array.Empty<BranchPoint>();if(tips.Length>=16){status.Text="Maximum 16 tips. Remove one or clear points.";return;}
+            project.Branches=project.Branches with { Tips=tips.Append(picked).ToArray() };
+        }
+        BranchChanged(false);
+    }
+    private async Task ExportBranches()
+    {
+        if(project is null)return;
+        var path=await SaveFile(Path.GetFileNameWithoutExtension(project.SourcePath)+"_leafless_prototype.png","png");if(path is null)return;
+        await RunJob(async token=>
+        {
+            await EnsureDetection(token);var snapshot=project.Snapshot();
+            var data=await Task.Run(()=>BranchPrototypeService.Render(snapshot,snapshot.Branches,true,token),token);
+            await Task.Run(()=>SeasonalMaskService.SaveNew(path,data,token),token);
+            status.Text=$"Exported branch prototype {snapshot.Width}×{snapshot.Height}. Protected/source wood stays in place; no markers exported.";
         });
     }
     private async Task ExportMask()

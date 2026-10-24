@@ -52,8 +52,39 @@ try
     Check(SeasonalProjectStore.Load(project,token).SourceChanged,"Changed-source hash not detected");
     using(var changed=new Image<Rgba32>(41,64))changed.SaveAsPng(source);
     try{SeasonalProjectStore.Load(project,token);throw new Exception("Wrong-sized source accepted");}catch(IOException){}
+    var branchSource=Path.Combine(root,"branch-tree.png");
+    using(var tree=new Image<Rgba32>(64,64))
+    {
+        for(int y=4;y<40;y++)for(int x=4;x<60;x++)tree[x,y]=new Rgba32(40,180,30,255);
+        for(int y=30;y<63;y++)for(int x=28;x<36;x++)tree[x,y]=new Rgba32(120,75,40,255);
+        tree[10,10]=new Rgba32(110,65,35,128);tree.SaveAsPng(branchSource);
+    }
+    var branchHash=SHA256.HashData(File.ReadAllBytes(branchSource));var branchProject=SeasonalMaskService.Load(branchSource,token);
+    branchProject.Automatic=SeasonalMaskService.Detect(branchProject,branchProject.Detection,token);
+    branchProject.Protected[12*64+8]=255;
+    branchProject.Branches=new(new(32,48),new[]{new BranchPoint(8,8),new BranchPoint(55,8),new BranchPoint(32,4)},Thickness:8,Seed:17);
+    var branchBytes=BranchPrototypeService.Render(branchProject,branchProject.Branches,true,token);
+    Check(branchBytes.SequenceEqual(BranchPrototypeService.Render(branchProject,branchProject.Branches,true,token)),"Branch seed not deterministic");
+    Check(!branchBytes.SequenceEqual(BranchPrototypeService.Render(branchProject,branchProject.Branches with {Seed=18},true,token)),"Branch seed did not change sketch");
+    using(var branchImage=Image.Load<Rgba32>(branchBytes))
+    {
+        Check(branchImage.Width==64&&branchImage.Height==64,"Branch prototype changed canvas dimensions");
+        int connectedPixels=0;
+        for(int y=0;y<64;y++)for(int x=0;x<64;x++)
+        {
+            int i=y*64+x,j=i*4;var originalPixel=new Rgba32(branchProject.Rgba[j],branchProject.Rgba[j+1],branchProject.Rgba[j+2],branchProject.Rgba[j+3]);
+            if(branchProject.Protected[i]>0 || originalPixel.A>0 && (SeasonalMaskService.Effective(branchProject,i)<32 || BranchPrototypeService.IsBrown(originalPixel.R,originalPixel.G,originalPixel.B)))
+                Check(branchImage[x,y].Equals(originalPixel),"Original visible wood/protected pixels moved or changed");
+            if(SeasonalMaskService.Effective(branchProject,i)>32&&branchProject.Protected[i]==0&&branchImage[x,y].A>0&&branchImage[x,y].R>branchImage[x,y].G)connectedPixels++;
+        }
+        Check(connectedPixels>20,"No branches generated in former canopy");
+    }
+    string branchSave=Path.Combine(root,"branch.seasonal.json");SeasonalProjectStore.Save(branchProject,branchSave,token);
+    var branchOpened=SeasonalProjectStore.Load(branchSave,token).Project;
+    Check(branchOpened.Branches.Root==branchProject.Branches.Root&&branchOpened.Branches.Tips!.SequenceEqual(branchProject.Branches.Tips!),"Branch points not persisted");
+    Check(branchHash.SequenceEqual(SHA256.HashData(File.ReadAllBytes(branchSource))),"Branch source PNG changed");
     using var cancelled=new CancellationTokenSource();cancelled.Cancel();
     try{SeasonalMaskService.Detect(p,p.Detection,cancelled.Token);throw new Exception("Cancellation ignored");}catch(OperationCanceledException){}
-    Console.WriteLine("PASS: foliage/bark, protection/removal, transparent gating, mask PNG contract, source safety, seasons, save/load, identity, undo/redo and cancellation.");
+    Console.WriteLine("PASS: foliage/bark, protection/removal, transparent gating, mask PNG contract, source safety, seasons, save/load, identity, undo/redo, procedural branch preservation/persistence and cancellation.");
 }
 finally{Directory.Delete(root,true);}

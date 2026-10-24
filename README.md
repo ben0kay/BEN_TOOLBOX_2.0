@@ -194,3 +194,5 @@ Switch between Original, Overlay, Automatic/Protected/Effective Mask and Seasona
 dotnet run --project Tests/SeasonalSpriteSmoke/SeasonalSpriteSmoke.csproj
 dotnet run --project Tests/SeasonalUiSmoke/SeasonalUiSmoke.csproj
 ```
+
+Seasonal Sprite Studio also includes **Leafless / Branch Prototype**: remove selected foliage, mark a trunk connection and up to 16 branch tips, then generate curved/tapered branches with seeded forks and wood shading. Protect original wood first; default brown-wood preservation and locked visible pixels keep its RGBA/coordinates unchanged. Compare Original/Leafless/Generated views at Actual Size, save points with the mask project, and export a separate aligned PNG. This is an experimental local procedural sketch, not AI reconstruction. Build, preservation/persistence tests and headless layout pass; real-tree appearance/Windows interaction still need evaluation. See standalone notes section 18. A4/A5 remain separate.

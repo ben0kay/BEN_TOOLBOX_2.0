@@ -309,3 +309,24 @@ dotnet run --project Tests/PixelArtSmoke/PixelArtSmoke.csproj
 **Still required on Windows:** actual oak/blossom screenshots, painting/picking at multiple zoom levels, slider responsiveness at large sizes, save/reopen/relink dialogs, snow appearance and DPI. Headless checks do not prove Windows interaction or visual quality. Current ImageSharp 3.1.12 advisory warnings remain known separate dependency work.
 
 **Next:** user validates A0–A3 manually; fix feedback before A4 optional baked PNG exports. A5 handoffs, multi-file masks and Godot modifications remain unimplemented.
+
+## 18. Leafless / Branch Prototype — BP0 — 2026-10-24
+
+**User-authorized experiment, implemented separately from A4/A5.** A0–A3 season/mask workflows remain available. This is procedural geometry/raster processing, no AI/API dependency or reconstruction of the original hidden wood.
+
+### Try it
+
+1. Load a sprite/mask project and refine foliage selection. Protect visible trunk/wood using the existing protection brush.
+2. Expand **Leafless / Branch Prototype**, click **Preview Leaf Removal**. Default cutoff 32 removes effective-mask pixels at or above that confidence; lower values remove more fringes.
+3. Click **Mark Trunk Connection**, then click visible trunk wood near the canopy. Click **Mark Branch Tips** and add a few target ends (maximum 16). Orange marker = root, cyan = tips. Middle/Space drag still pans. Remove Last Tip and Clear Connection Points allow correction.
+4. **Generate / Update Branches** renders a seeded, curved/tapered leader to the uppermost tip, side branches attached to that leader, optional secondary forks and subtly shaded wood. Thickness 1–48 source pixels, curvature 0–1, forks 0–4, seed 0–9999, wood hex colour/variation, and sampling source wood colour are available. Use **Next Seed** for another sketch.
+5. Toggle Original / Leafless Removal / Generated Branches through View. Use **Actual Size (1×)** to judge game-distance appearance; Fit/wheel/pan remain available. Connection markers are canvas overlays only, never part of PNG data.
+6. Export Leafless Prototype creates a separate `_leafless_prototype.png`; source and existing files cannot be overwritten. Source canvas dimensions/root registration remain unchanged. Mask projects now also save connection points and branch settings (optional JSON property, backward compatible with earlier version-1 projects).
+
+### Pixel preservation and limitations
+
+Any positive ProtectionMask value locks that source RGBA byte-for-byte. Remaining visible, unremoved source pixels are also locked. Default **Preserve detected brown wood** additionally locks visible reddish/brown pixels (`R > G*1.12`, `R > B*1.25`, `R-G > 8`) even if included in foliage selection. This is a heuristic: brown autumn leaves may also be preserved; refine masks/protection or disable that option deliberately. Generated branches draw behind locked pixels and can occupy removed leaf pixels or previously transparent gaps within the existing canvas. They do not recover original branches, move the trunk, trim/recenter or darken the original wood. Shading applies only to new branches. Full source alpha is preserved for locked wood; formerly leafy pixels intentionally become transparent or generated wood, so total alpha/silhouette is allowed to change.
+
+Preview uses the Studio’s single throttled worker. The procedural result is regenerated from immutable source/mask/options snapshots, not accumulated over prior previews. Strokes/seasonal masks stay separate from branch geometry. Points have Remove Last/Clear actions; they are not part of the mask brush undo stack. Output cancellation uses existing safe creation/cleanup. Artwork quality and branch connections require human visual inspection; no claim of production-quality automatic leafless conversion.
+
+**Actual validation:** .NET 10 build passes; SeasonalSpriteSmoke passes including seed determinism/variation, original pixel/canvas preservation, generated wood, source hash safety and saved point round-trip; SeasonalUiSmoke passes constructor/default/minimum layout. Windows marking/zoom/export and representative actual tree appearance remain pending. Existing ImageSharp advisory warnings remain separate dependency work.
