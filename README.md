@@ -233,3 +233,9 @@ dotnet run --project Tests/InternetObservatoryUiSmoke
 # Optional real request alongside fixture tests:
 dotnet run --project Tests/InternetObservatorySmoke -- --online
 ```
+
+### Dashboard presentation refresh — 2026-10-24
+
+The dashboard now opens with compact **Choose a workspace** cards: aqua Game Development, periwinkle File Toolbox, mint Inspectors and amber Settings. Cards cap at 300 logical pixels and wrap on smaller windows. Separate framed **Session & Performance** and **Your Computer** sections use the downloader-inspired navy/cyan palette. The redundant Desktop Interface Active banner was removed; local time/date now appear beside the main HUD close button. The single shell clock continues across workspaces; CPU/RAM sampling and graph history remain dashboard-only, with their existing cadence/limits.
+
+This is a scoped main-window presentation change, not completion of the shared [BTX UI Kit](Notes/Plans/BTX_UI_KIT_IMPLEMENTATION_PLAN.md) rollout. Tool windows, navigation callbacks and services are preserved. Build, headless renders at 900/1440/1920 widths, navigation, shell-clock tick/lifecycle and telemetry-history checks passed on Linux. Real Windows appearance/DPI and your tester's review remain pending. The existing telemetry smoke test needed an explicit System import to compile; its assertions are unchanged.

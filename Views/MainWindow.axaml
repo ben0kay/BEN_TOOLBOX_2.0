@@ -6,7 +6,7 @@
         Title="BEN TOOLBOX 2.0"
         Width="1920" Height="1080" MinWidth="900" MinHeight="600"
         WindowStartupLocation="CenterScreen"
-        Background="#070E19" Foreground="#E8F4FF"
+        Background="#060F1C" Foreground="#E8F4FF"
         FontFamily="Inter">
   <Window.Styles>
     <Style Selector="Button.nav">
@@ -28,11 +28,11 @@
       <Setter Property="Foreground" Value="#82D9F3"/>
     </Style>
     <Style Selector="Button.tile">
-      <Setter Property="Background" Value="#101E2F"/>
-      <Setter Property="BorderBrush" Value="#2A5771"/>
+      <Setter Property="Background" Value="#0B2031"/>
+      <Setter Property="BorderBrush" Value="#16748E"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="Padding" Value="18"/>
+      <Setter Property="CornerRadius" Value="4"/>
+      <Setter Property="Padding" Value="16"/>
       <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
       <Setter Property="HorizontalAlignment" Value="Stretch"/>
       <Setter Property="MinWidth" Value="0"/>
@@ -73,6 +73,25 @@
       <Setter Property="Foreground" Value="#91A8BE"/>
       <Setter Property="FontSize" Value="12"/>
     </Style>
+    <!-- Dashboard-only accents. Shared BTX kit adoption remains a separate task. -->
+    <Style Selector="Border.dashboard-section">
+      <Setter Property="Padding" Value="20"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="BorderBrush" Value="#20516A"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+          <GradientStop Color="#10283B" Offset="0"/>
+          <GradientStop Color="#071321" Offset="1"/>
+        </LinearGradientBrush>
+      </Setter>
+    </Style>
+    <Style Selector="Button.tile.game"><Setter Property="Background" Value="#0B2A39"/><Setter Property="BorderBrush" Value="#248CA2"/></Style>
+    <Style Selector="Button.tile.files"><Setter Property="Background" Value="#1A243E"/><Setter Property="BorderBrush" Value="#596CA7"/></Style>
+    <Style Selector="Button.tile.inspect"><Setter Property="Background" Value="#102F2E"/><Setter Property="BorderBrush" Value="#368878"/></Style>
+    <Style Selector="Button.tile.settings"><Setter Property="Background" Value="#302A23"/><Setter Property="BorderBrush" Value="#947448"/></Style>
+    <Style Selector="Button.tile:pointerover"><Setter Property="Background" Value="#154259"/><Setter Property="BorderBrush" Value="#35D9FA"/></Style>
+    <Style Selector="Button.tile:focus-visible"><Setter Property="BorderBrush" Value="#FFFFFF"/><Setter Property="BorderThickness" Value="2"/></Style>
   </Window.Styles>
   <Grid ColumnDefinitions="242,*" RowDefinitions="*">
     <Border Grid.Column="0" Background="#0D1828" BorderBrush="#24516B" BorderThickness="0,0,1,0">
@@ -107,10 +126,15 @@
     <Grid Grid.Column="1" RowDefinitions="70,*">
       <Border Grid.Row="0" BorderBrush="#253247" BorderThickness="0,0,0,1" Background="#0B1828">
         <Grid ColumnDefinitions="*,Auto" Margin="32,0" VerticalAlignment="Center">
-          <TextBlock Text="BTX-02  /  DEVELOPMENT CONTROL INTERFACE" FontSize="11" FontWeight="SemiBold" Foreground="#7D93AF" LetterSpacing="2" VerticalAlignment="Center"/>
+          <TextBlock Text="BTX-02  /  PERSONAL TOOLBOX" TextTrimming="CharacterEllipsis" FontSize="11" FontWeight="SemiBold" Foreground="#8AAFC4" LetterSpacing="1.2" VerticalAlignment="Center"/>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+            <StackPanel Spacing="1" VerticalAlignment="Center" Margin="0,0,8,0">
+              <TextBlock x:Name="DashboardTimeText" Text="--:--:--" FontSize="20" FontWeight="SemiBold" Foreground="#35D9FA" HorizontalAlignment="Right"/>
+              <TextBlock x:Name="DashboardDateText" Text="Local date" FontSize="10" Foreground="#8AAFC4" HorizontalAlignment="Right"/>
+            </StackPanel>
+
             <Border Background="#1C2A3B" CornerRadius="20" Padding="13,7" VerticalAlignment="Center">
-              <TextBlock Text="●  LOCAL TERMINAL     /     ONLINE" Foreground="#A2D9ED" FontSize="12"/>
+              <TextBlock Text="●  ON THIS PC" Foreground="#A2D9ED" FontSize="12"/>
             </Border>
             <!-- Always-visible close control, including when native title-bar buttons are obscured. -->
             <Button Classes="app-close" Width="36" Height="32" Click="CloseToolbox"
@@ -126,52 +150,73 @@
           <StackPanel Spacing="8">
             <TextBlock x:Name="PageKicker" Text="CONTROL DECK  /  OVERVIEW" Foreground="#61C8EB" FontSize="11" LetterSpacing="2"/>
             <TextBlock x:Name="PageTitle" Text="Command Center" FontSize="32" FontWeight="Bold" TextWrapping="Wrap"/>
-            <TextBlock x:Name="PageSubtitle" Text="Modular utilities  /  Developer operations  /  System oversight" Foreground="#9BAFC8" FontSize="14" TextWrapping="Wrap"/>
+            <TextBlock x:Name="PageSubtitle" Text="Choose a workspace to get started. Computer information is shown below." Foreground="#9BAFC8" FontSize="14" TextWrapping="Wrap"/>
           </StackPanel>
           <!-- D1: dashboard-only content. A single parent is toggled by ShowSection(). -->
-          <StackPanel x:Name="DashboardPanel" Spacing="17">
-            <!-- Real local clock refreshes only while the dashboard is visible. -->
-            <Border Classes="hud" Background="#0E2237" Padding="14">
-              <Grid>
-                <!-- Static, low-cost HUD corner brackets over the command strip. -->
-                <Border Width="36" Height="2" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-13,-13,0,0" Background="#57D3EC" IsHitTestVisible="False"/>
-                <Border Width="2" Height="22" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-13,-13,0,0" Background="#57D3EC" IsHitTestVisible="False"/>
-                <Border Width="36" Height="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-13,-13" Background="#2F829D" IsHitTestVisible="False"/>
-                <Border Width="2" Height="22" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-13,-13" Background="#2F829D" IsHitTestVisible="False"/>
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                <StackPanel Spacing="5" VerticalAlignment="Center">
-                  <TextBlock Classes="hud-label" Text="◈  BTX-02 / LOCAL CONTROL DECK"/>
-                  <TextBlock Text="DESKTOP INTERFACE ACTIVE" FontSize="15" FontWeight="SemiBold" Foreground="#E7F6FF"/>
-                  <TextBlock Classes="hud-muted" Text="Native utilities online  •  Local-only execution"/>
+          <StackPanel x:Name="DashboardPanel" Spacing="24">
+            <!-- Preserve the four existing module buttons and their navigation callbacks. -->
+            <Border Classes="dashboard-section" BorderBrush="#246E88">
+            <StackPanel Spacing="14">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <TextBlock x:Name="SectionHeading" Text="Choose a workspace" FontSize="20" FontWeight="SemiBold" Foreground="#E9F8FF"/>
+                  <TextBlock Classes="hud-label" Text="/ YOUR TOOLS" VerticalAlignment="Center"/>
                 </StackPanel>
-                <Border Grid.Column="1" Classes="hud" Background="#0C1A2A" BorderBrush="#36768C" Padding="14,9" MinWidth="154">
-                  <StackPanel Spacing="4" HorizontalAlignment="Right">
-                    <TextBlock Classes="hud-label" Text="SYSTEM TIME  /  LOCAL" HorizontalAlignment="Right"/>
-                    <TextBlock x:Name="DashboardTimeText" Text="--:--:--" FontSize="27" FontWeight="SemiBold" Foreground="#DAF5FC" HorizontalAlignment="Right"/>
-                    <TextBlock x:Name="DashboardDateText" Text="Local date pending" FontSize="10" Foreground="#7E9CB2" HorizontalAlignment="Right"/>
-                  </StackPanel>
-                </Border>
-                </Grid>
+                <TextBlock Grid.Column="1" Text="SELECT TO OPEN" Foreground="#66889E" FontSize="10" VerticalAlignment="Center"/>
               </Grid>
+              <WrapPanel x:Name="DashboardModulesWrap" Orientation="Horizontal">
+                <Button x:Name="GameTile" Classes="tile game" Click="NavigateGame" MinHeight="124" Width="290" Margin="0,0,12,12">
+                  <StackPanel Spacing="8">
+                    <TextBlock Text="01 / CREATE" FontSize="12" Foreground="#77D7EE" LetterSpacing="1.2"/>
+                    <TextBlock Text="GAME DEVELOPMENT   ›" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="Sprites, artwork and game resources." Foreground="#95A8BD" FontSize="12" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Button>
+                <Button x:Name="FilesTile" Classes="tile files" Click="NavigateFiles" MinHeight="124" Width="290" Margin="0,0,12,12">
+                  <StackPanel Spacing="8">
+                    <TextBlock Text="02 / ORGANISE" FontSize="12" Foreground="#A3A8FF" LetterSpacing="1.2"/>
+                    <TextBlock Text="FILE TOOLBOX   ›" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="Back up folders, find duplicates and download audio." Foreground="#95A8BD" FontSize="12" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Button>
+                <Button x:Name="InspectTile" Classes="tile inspect" Click="NavigateInspect" MinHeight="124" Width="290" Margin="0,0,12,12">
+                  <StackPanel Spacing="8">
+                    <TextBlock Text="03 / EXPLORE" FontSize="12" Foreground="#84DDB4" LetterSpacing="1.2"/>
+                    <TextBlock Text="INSPECTORS   ›" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="Explore project data, files and the earthquake map." Foreground="#95A8BD" FontSize="12" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Button>
+                <Button x:Name="SettingsTile" Classes="tile settings" Click="NavigateSettings" MinHeight="124" Width="290" Margin="0,0,12,12">
+                  <StackPanel Spacing="8">
+                    <TextBlock Text="04 / PREFERENCES" FontSize="12" Foreground="#EBC58A" LetterSpacing="1.2"/>
+                    <TextBlock Text="SETTINGS   ›" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="Application preferences (more options coming)." Foreground="#95A8BD" FontSize="12" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Button>
+              </WrapPanel>
+            </StackPanel>
             </Border>
 
             <!-- Wrapping panels: at the 900px minimum window, stack rather than clip. -->
-            <WrapPanel x:Name="DashboardStatusWrap" Orientation="Horizontal">
-              <Border x:Name="DashboardStatusCard" Classes="hud" Width="432" MinHeight="222" Margin="0,0,12,12" Background="#10273B" Padding="16">
+            <Border Classes="dashboard-section" Background="#0B1E2B" BorderBrush="#2C6475">
+            <StackPanel Spacing="14">
+              <TextBlock Text="SESSION &amp; PERFORMANCE" FontSize="17" FontWeight="SemiBold" Foreground="#71D9E9"/>
+              <WrapPanel x:Name="DashboardStatusWrap" Orientation="Horizontal">
+              <Border x:Name="DashboardStatusCard" Classes="hud" Width="432" MinHeight="185" Margin="0,0,12,12" Background="#0B2430" Padding="16">
                 <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
                   <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Classes="hud-label" Text="◈  SYSTEM STATUS  /  ACTIVE SESSION"/>
+                    <TextBlock Classes="hud-label" Text="CURRENT SESSION"/>
                     <TextBlock Grid.Column="1" Text="●  LOCAL" Foreground="#75D9B9" FontSize="10" FontWeight="SemiBold"/>
                   </Grid>
-                  <Grid Grid.Row="1" ColumnDefinitions="*,96" ColumnSpacing="12">
+                  <Grid Grid.Row="1" ColumnDefinitions="*,72" ColumnSpacing="12">
                     <StackPanel Spacing="8" VerticalAlignment="Center">
-                      <TextBlock Text="All systems standing by." FontSize="20" FontWeight="SemiBold" Foreground="#F1FBFF" TextWrapping="Wrap"/>
-                      <TextBlock Text="Your native toolbox modules are available below. Remote execution is not enabled." FontSize="12" Foreground="#A8C2D2" TextWrapping="Wrap"/>
+                      <TextBlock Text="Your toolbox is ready." FontSize="20" FontWeight="SemiBold" Foreground="#F1FBFF" TextWrapping="Wrap"/>
+                      <TextBlock Text="Choose a workspace above, then launch the tool you want to try." FontSize="12" Foreground="#A8C2D2" TextWrapping="Wrap"/>
                     </StackPanel>
                     <Border Grid.Column="1" Background="#0D2032" BorderBrush="#316A85" BorderThickness="1" CornerRadius="6" Padding="9">
                       <StackPanel Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Classes="hud-label" Text="SYSTEM LINK" HorizontalAlignment="Center" FontSize="9"/>
-                        <TextBlock Text="◎" FontSize="51" Foreground="#62D9EF" HorizontalAlignment="Center"/>
+                        <TextBlock Classes="hud-label" Text="LOCAL" HorizontalAlignment="Center" FontSize="9"/>
+                        <TextBlock Text="◎" FontSize="38" Foreground="#62D9EF" HorizontalAlignment="Center"/>
                         <TextBlock Text="UI READY" FontSize="10" Foreground="#89DCB8" HorizontalAlignment="Center" FontWeight="SemiBold"/>
                       </StackPanel>
                     </Border>
@@ -192,10 +237,10 @@
                   </Grid>
                 </Grid>
               </Border>
-              <Border x:Name="DashboardTelemetryCard" Classes="hud" Width="432" MinHeight="222" Margin="0,0,0,12" Padding="14" Background="#0F2135">
+              <Border x:Name="DashboardTelemetryCard" Classes="hud" Width="432" MinHeight="185" Margin="0,0,0,12" Padding="14" Background="#101C31">
                 <StackPanel Spacing="11">
                   <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Classes="hud-label" Text="▥  SYSTEM TELEMETRY  /  LIVE HISTORY"/>
+                    <TextBlock Classes="hud-label" Text="CPU &amp; MEMORY  /  LAST 2 MINUTES"/>
                     <TextBlock Grid.Column="1" x:Name="DashboardTelemetryStateText" Text="CONNECTING" Foreground="#E1B36B" FontSize="9" FontWeight="SemiBold"/>
                   </Grid>
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
@@ -233,18 +278,21 @@
                 </StackPanel>
               </Border>
             </WrapPanel>
+            </StackPanel>
+            </Border>
 
             <!-- Hardware cards deliberately do not invent machine specs or measurements. -->
+            <Border Classes="dashboard-section" Background="#101A29" BorderBrush="#465770">
             <StackPanel Spacing="12">
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Orientation="Horizontal" Spacing="10">
-                  <TextBlock Text="HARDWARE OVERVIEW" FontSize="17" FontWeight="SemiBold" Foreground="#F0F9FF"/>
-                  <TextBlock Classes="hud-label" Text="/ SYSTEM RESOURCES" VerticalAlignment="Center"/>
+                  <TextBlock Text="YOUR COMPUTER" FontSize="17" FontWeight="SemiBold" Foreground="#F0F9FF"/>
+                  <TextBlock Classes="hud-label" Text="/ HARDWARE &amp; STORAGE" VerticalAlignment="Center"/>
                 </StackPanel>
                 <TextBlock Grid.Column="1" x:Name="DashboardProvidersText" Text="DATA  /  WINDOWS" Foreground="#66889E" VerticalAlignment="Center" FontSize="10"/>
               </Grid>
               <WrapPanel x:Name="DashboardHardwareWrap" Orientation="Horizontal">
-                <Border x:Name="DashboardCpuHardwareCard" Classes="hud" Width="217" MinHeight="155" Margin="0,0,8,8" Padding="13" Background="#111F33">
+                <Border x:Name="DashboardCpuHardwareCard" Classes="hud" Width="217" MinHeight="155" Margin="0,0,8,8" Padding="13" Background="#0C2030">
                   <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
                       <TextBlock Classes="hud-label" Text="◈  PROCESSOR"/>
@@ -256,16 +304,16 @@
                     <TextBlock x:Name="DashboardCpuCoresText" Text="Hardware detection pending" FontSize="10" Foreground="#8096A9"/>
                   </StackPanel>
                 </Border>
-                <Border x:Name="DashboardGpuHardwareCard" Classes="hud" Width="217" MinHeight="155" Margin="0,0,8,8" Padding="13" Background="#111F33">
+                <Border x:Name="DashboardGpuHardwareCard" Classes="hud" Width="217" MinHeight="155" Margin="0,0,8,8" Padding="13" Background="#1B2033">
                   <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
-                      <TextBlock Classes="hud-label" Text="◉  GRAPHICS"/>
+                      <TextBlock Classes="hud-label" Text="GRAPHICS"/>
                       <TextBlock Grid.Column="1" Text="GPU" Foreground="#5C92B0" FontSize="9"/>
                     </Grid>
-                    <TextBlock Text="GPU sensors deferred" FontSize="13" Foreground="#DCE9F5" TextWrapping="Wrap"/>
+                    <TextBlock Text="Graphics readings unavailable" FontSize="13" Foreground="#DCE9F5" TextWrapping="Wrap"/>
                     <TextBlock Text="—" FontSize="24" Foreground="#65D3EA"/>
                     <Border Background="#173149" Height="2"/>
-                    <TextBlock Text="GPU SENSORS  /  PLANNED" FontSize="10" Foreground="#8096A9"/>
+                    <TextBlock Text="Graphics monitoring planned" FontSize="10" Foreground="#8096A9"/>
                   </StackPanel>
                 </Border>
                 <Border x:Name="DashboardMemoryHardwareCard" Classes="hud" Width="217" MinHeight="155" Margin="0,0,8,8" Padding="13" Background="#151F30" BorderBrush="#615439">
@@ -294,47 +342,7 @@
                 </Border>
               </WrapPanel>
             </StackPanel>
-
-            <!-- Preserve the four existing module buttons and their navigation callbacks. -->
-            <StackPanel Spacing="14">
-              <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                  <TextBlock x:Name="SectionHeading" Text="Available modules" FontSize="20" FontWeight="SemiBold" Foreground="#E9F8FF"/>
-                  <TextBlock Classes="hud-label" Text="/ QUICK ACCESS" VerticalAlignment="Center"/>
-                </StackPanel>
-                <TextBlock Grid.Column="1" Text="04 MODULES  /  LOCAL" Foreground="#66889E" FontSize="10" VerticalAlignment="Center"/>
-              </Grid>
-              <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="12">
-                <Button x:Name="GameTile" Grid.Row="0" Grid.Column="0" Classes="tile" Click="NavigateGame" MinHeight="128">
-                  <StackPanel Spacing="8">
-                    <TextBlock Text="◆    01 / DEVELOPMENT" FontSize="12" Foreground="#77D7EE" LetterSpacing="1.2"/>
-                    <TextBlock Text="GAME DEVELOPMENT   ›" FontSize="16" FontWeight="SemiBold"/>
-                    <TextBlock Text="Sprites, artwork and game resources." Foreground="#95A8BD" FontSize="12" TextWrapping="Wrap"/>
-                  </StackPanel>
-                </Button>
-                <Button x:Name="FilesTile" Grid.Row="0" Grid.Column="1" Classes="tile" Click="NavigateFiles" MinHeight="128">
-                  <StackPanel Spacing="8">
-                    <TextBlock Text="▦    02 / FILE MANAGEMENT" FontSize="12" Foreground="#A3A8FF" LetterSpacing="1.2"/>
-                    <TextBlock Text="FILE TOOLBOX   ›" FontSize="16" FontWeight="SemiBold"/>
-                    <TextBlock Text="Backups, duplicates and file organization." Foreground="#95A8BD" FontSize="12" TextWrapping="Wrap"/>
-                  </StackPanel>
-                </Button>
-                <Button x:Name="InspectTile" Grid.Row="1" Grid.Column="0" Classes="tile" Click="NavigateInspect" MinHeight="128">
-                  <StackPanel Spacing="8">
-                    <TextBlock Text="◎    03 / INSPECTION" FontSize="12" Foreground="#84DDB4" LetterSpacing="1.2"/>
-                    <TextBlock Text="INSPECTORS   ›" FontSize="16" FontWeight="SemiBold"/>
-                    <TextBlock Text="Lighting, resource usage and diagnostics." Foreground="#95A8BD" FontSize="12" TextWrapping="Wrap"/>
-                  </StackPanel>
-                </Button>
-                <Button x:Name="SettingsTile" Grid.Row="1" Grid.Column="1" Classes="tile" Click="NavigateSettings" MinHeight="128">
-                  <StackPanel Spacing="8">
-                    <TextBlock Text="✦    04 / CONFIGURATION" FontSize="12" Foreground="#EBC58A" LetterSpacing="1.2"/>
-                    <TextBlock Text="SETTINGS   ›" FontSize="16" FontWeight="SemiBold"/>
-                    <TextBlock Text="Appearance, preferences and integrations." Foreground="#95A8BD" FontSize="12" TextWrapping="Wrap"/>
-                  </StackPanel>
-                </Button>
-              </Grid>
-            </StackPanel>
+            </Border>
           </StackPanel>
           <StackPanel x:Name="ToolListPanel" IsVisible="False" Spacing="12">
             <TextBlock Text="AVAILABLE UTILITIES  /  SELECT TO LAUNCH" Foreground="#76D0EA" FontSize="11" LetterSpacing="1.5"/>

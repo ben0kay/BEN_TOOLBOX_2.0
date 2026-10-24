@@ -1,6 +1,6 @@
 # Dashboard V2 Implementation Plan — BTX-02 Command Center
 
-> **Status: D1 VISUALLY ACCEPTED; D2 USER SCREENSHOT CONFIRMED READINGS; D3 CODED — WINDOWS BUILD/VISUAL TEST PENDING; D4–D5 NOT STARTED**  
+> **Status: D1 VISUALLY ACCEPTED; D2 USER SCREENSHOT CONFIRMED READINGS; D3 CODED — WINDOWS BUILD/VISUAL TEST PENDING; D4 PRESENTATION REFINEMENT CODED (WINDOWS REVIEW PENDING); D5 PENDING**
 > **Last audited:** 2026-10-23  
 > **Repository:** [ben0kay/BEN_TOOLBOX_2.0](https://github.com/ben0kay/BEN_TOOLBOX_2.0) (main)  
 > **Purpose:** Implementation handoff for a future developer / ChatGPT / Codex session. This document describes work to perform; it does **not** claim that the design mockup or telemetry are already implemented.
@@ -196,3 +196,11 @@ These names are **suggestions**. Work with the repo as it exists when implementa
 Future implementers: append date, commit SHA, files changed, what was tested (and where), user feedback, known errors and the next recommended task. Keep the phase table above in sync.
 
 **Next action:** Pull D3 and run `dotnet build`, `dotnet run` and `dotnet run --project Tests/TelemetryHistorySmoke/TelemetryHistorySmoke.csproj` on Windows. Let the Dashboard display for at least 15–30 seconds; CPU and RAM should draw real cyan/amber histories with changing readings and no fabricated graph. Navigate to Inspectors then back: collection must restart, no duplicate timer. Compare Task Manager and monitor resource usage. Send a D3 screenshot for acceptance before **D4 visual polish**.
+
+## 2026-10-24 — scoped dashboard presentation refinement
+
+Newer explicit user request: prioritise an understandable dashboard for a family tester. Implemented compact workspace cards first, distinct aqua/periwinkle/mint/amber category accents, physically separated Session & Performance and Your Computer frames, downloader-inspired navy panels, simplified copy, and top-HUD time/date beside Close. Removed the Desktop Interface Active hero banner. Card widths cap at 300 logical pixels with responsive wrapping. Existing navigation and telemetry providers/history are preserved.
+
+The single clock timer now remains enabled across main-window workspaces for the persistent HUD clock. CPU/RAM/disk sampling remains gated by _dashboardActive and keeps its previous non-overlap, cancellation and cadence. Window close stops the timer. This is a scoped D4-style improvement, not completion of all D4/D5 or the separate shared BTX UI Kit rollout.
+
+Linux build and headless layout/navigation/tick-lifecycle checks passed; previews inspected at 900, 1440 and 1920 widths. TelemetryHistorySmoke passed after adding its missing System import (no assertion changes). Native Windows timing, DPI and tester acceptance remain pending. Run: dotnet run --project Tests/DashboardUiSmoke and dotnet run --project Tests/TelemetryHistorySmoke.

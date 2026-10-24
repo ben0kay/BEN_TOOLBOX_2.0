@@ -210,9 +210,9 @@ public partial class MainWindow : Window
             default:
                 PageKicker.Text = "CONTROL DECK  /  OVERVIEW";
                 PageTitle.Text = "Command Center";
-                PageSubtitle.Text = "Modular utilities  /  Developer operations  /  System oversight";
+                PageSubtitle.Text = "Choose a workspace to get started. Computer information is shown below.";
                 InfoTitle.Text = "BTX-02   /   COMMAND CENTER";
-                InfoDescription.Text = "Local clock, CPU, physical memory and disk capacity are now sampled while this dashboard is visible. Live history graphs follow in D3.";
+                InfoDescription.Text = "Pick a workspace above, or use the left navigation. CPU and memory charts show recent readings from this PC.";
                 break;
         }
     }

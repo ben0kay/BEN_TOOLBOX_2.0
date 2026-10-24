@@ -8,7 +8,7 @@ using BEN_TOOLBOX_2_0.Services;
 
 namespace BEN_TOOLBOX_2_0.Views;
 
-// D2 dashboard lifecycle: one clock timer and one non-overlapping system sampler.
+// One shared shell clock timer; system sampling remains dashboard-only.
 // Keep system-specific calls in Services; D3 can reuse the same sampler for sparklines.
 public partial class MainWindow
 {
@@ -28,16 +28,19 @@ public partial class MainWindow
         DashboardProvidersText.Text = OperatingSystem.IsWindows()
             ? "PROVIDER / WINDOWS" : "PROVIDER / UNSUPPORTED OS";
 
+        UpdateDashboardClock();
         _dashboardTimer.Tick += DashboardClockTick;
         SizeChanged += (_, _) => UpdateDashboardCardWidths();
         Opened += (_, _) =>
         {
+            _dashboardTimer.Start();
             FitWindowToWorkingArea();
             UpdateDashboardCardWidths();
         };
         Closed += (_, _) =>
         {
             SetDashboardActive(false);
+            _dashboardTimer.Stop();
             _dashboardTimer.Tick -= DashboardClockTick;
         };
     }
@@ -57,8 +60,8 @@ public partial class MainWindow
 
     private void UpdateDashboardCardWidths()
     {
-        // Sidebar = 242; main content margin = 28 each side; reserve space for scroll bar.
-        var available = Math.Max(320, Bounds.Width - 242 - 56 - 24);
+        // Sidebar = 242; content margins = 56; reserve scroll bar and section padding.
+        var available = Math.Max(280, Bounds.Width - 242 - 56 - 24 - 40);
         bool twoStatusColumns = available >= 900;
         var statusWidth = twoStatusColumns ? (available - 12) / 2 : available - 12;
         DashboardStatusCard.Width = statusWidth;
@@ -69,6 +72,11 @@ public partial class MainWindow
         DashboardGpuHardwareCard.Width = cardWidth;
         DashboardMemoryHardwareCard.Width = cardWidth;
         DashboardDriveHardwareCard.Width = cardWidth;
+
+        // Keep module cards compact even on wide monitors; wrap into two columns on small screens.
+        int moduleColumns = available >= 1040 ? 4 : available >= 510 ? 2 : 1;
+        double moduleWidth = Math.Min(300, (available - 12 * moduleColumns) / moduleColumns);
+        GameTile.Width = FilesTile.Width = InspectTile.Width = SettingsTile.Width = moduleWidth;
     }
 
     private void SetDashboardActive(bool active)
@@ -93,7 +101,6 @@ public partial class MainWindow
         }
         else
         {
-            _dashboardTimer.Stop();
             _dashboardCancellation?.Cancel();
             _dashboardCancellation?.Dispose();
             _dashboardCancellation = null;
@@ -102,8 +109,8 @@ public partial class MainWindow
 
     private void DashboardClockTick(object? sender, EventArgs e)
     {
-        if (!_dashboardActive) return;
         UpdateDashboardClock();
+        if (!_dashboardActive) return;
         _dashboardSeconds++;
 
         // CPU/RAM update every 2 seconds; disk every 30 seconds.

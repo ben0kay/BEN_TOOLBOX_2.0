@@ -242,3 +242,11 @@ dotnet build
 **Recommended first Codex message:**
 
 > Read the BEN TOOLBOX root README, `Notes/Plans/BTX_UI_KIT_IMPLEMENTATION_PLAN.md` and `Notes/Plans/FEATURE_FOLDER_CLEANUP_TASK.md`. Treat `Views/YouTubeAudioDownloaderWindow.cs` as the visual reference, preserve its current appearance and behavior, and implement **T0–T3 only**: audit the design, create reusable **opt-in** BTX palette/styles/components, then restyle only the **Folder Backup** mode of `Views/RemainingToolsWindow.cs`. Do not affect Asset Usage Finder or the main Dashboard; do not move feature files as part of this task. Run build/smoke tests and actual Windows UI checks if available, report limitations, update the phase table, and push one scoped commit.
+
+### 2026-10-24 — separately authorised dashboard presentation pass
+
+The user explicitly requested dashboard changes before the kit rollout. This overrides the earlier dashboard exclusion only for this scoped main-window job: downloader-inspired local navy/cyan styling, four compact colour-coded workspace cards placed first, separate session/performance and hardware sections, removal of the Desktop Interface Active banner, and time/date relocated to the top HUD beside Close. Simpler copy helps a new tester understand navigation. Styling stays in MainWindow.axaml and does not globally affect tool windows or App.axaml.
+
+This does **not** implement T0–T5 or the Folder Backup pilot. Keep those phases pending; when the shared kit is later proven, dashboard adoption can be separately authorised. The moved clock uses the existing one-second timer across main-window sections; only the lightweight clock runs outside the dashboard, with telemetry still gated to dashboard visibility and the timer stopped on close. No new animation loops/dependencies.
+
+Validation: Linux .NET 10 app build; headless XAML/window/layout renders at 900×700, 1440×1000, 1920×1080; compact card widths/wrapping and navigation; enabled clock timer + direct tick callback outside dashboard, telemetry inactive there, clock timer stops on close; telemetry history assertions pass after fixing an existing missing System import in its standalone test. Headless timer scheduling does not reproduce the native event loop, so automatic clock timing and Windows DPI remain manual checks. User Windows review pending.
