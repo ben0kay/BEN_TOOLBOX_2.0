@@ -84,6 +84,13 @@ public partial class MainWindow : Window
                 InfoDescription.Text = tool.Name + " opened in Avalonia. The legacy PowerShell version is preserved.";
                 return;
             }
+            if (tool.Id == "seasonal-sprite-studio")
+            {
+                new SeasonalSpriteStudioWindow().Show(this);
+                InfoTitle.Text = "SEASONAL SPRITE STUDIO";
+                InfoDescription.Text = "Standalone foliage masks, protected trunk editing, mask projects and seasonal preview.";
+                return;
+            }
             if (tool.Id == "pixel-art-converter")
             {
                 new PixelArtConverterWindow().Show(this);

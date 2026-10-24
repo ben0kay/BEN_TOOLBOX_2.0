@@ -182,3 +182,15 @@ Pixel converter numeric input UI was revised after a Windows screenshot: compact
 
 
 Pixel Art Converter **Master Configs**: a panel above Pixel Detail now offers SAVE AS, LOAD, UPDATE and confirmed DELETE for complete named processing setups. The named JSON configurations persist per Windows user under `%LOCALAPPDATA%\BEN_TOOLBOX_2_0\PixelArtConfigs\master-configs.json`. They include all converter visual settings and embedded custom palette colours, but deliberately exclude input/output paths, queues, renaming and overwrite choices. Select and LOAD on the next session; no automatic application. Windows test pending.
+## Seasonal Sprite Studio — A0–A3
+
+Open **Game Development → Seasonal Sprite Studio** as a separate tool. Load a **final-sized PNG**, inspect the automatic green foliage overlay, and refine it using **Add/Remove Foliage, Protect Trunk, Unprotect, or Pick Similar Colour**. Detector changes retain painted corrections. Wheel zoom, middle/Space-drag pan, Fit, bounded undo/redo, and compact typed numeric fields are available.
+
+Switch between Original, Overlay, Automatic/Protected/Effective Mask and Seasonal Preview. Spring/Summer/Autumn/leafy Winter previews preserve the original canvas/alpha and protected bark; Winter snow is a local approximation. Save named look presets, save/reopen per-image mask projects, or export an aligned `*_foliage_mask.png` (gray RGB / fully opaque alpha). Source PNGs and existing outputs are never overwritten. Limit: 4096 per side / 4 million pixels. This does not remove leaves or reconstruct hidden branches.
+
+**Validation:** .NET 10 Linux build, new service and headless UI checks, and existing Pixel Art smoke tests passed. Windows appearance, painting, dialogs and DPI still need manual validation. A4 baked seasonal PNG export and A5 integration remain pending/deferred; Godot was not changed. See [standalone execution notes](Notes/Plans/SEASONAL_SPRITE_STUDIO_IMPLEMENTATION_NOTES.md).
+
+```powershell
+dotnet run --project Tests/SeasonalSpriteSmoke/SeasonalSpriteSmoke.csproj
+dotnet run --project Tests/SeasonalUiSmoke/SeasonalUiSmoke.csproj
+```

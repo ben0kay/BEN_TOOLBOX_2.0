@@ -1,6 +1,6 @@
 # Seasonal Sprite Studio — Standalone Implementation Notes
 
-> **STATUS: PLANNED — NOTHING IMPLEMENTED YET**
+> **STATUS: A0–A3 implemented; .NET build, service checks and headless UI smoke pass. Windows visual/painting acceptance pending. A4 pending; A5 deferred.**
 >
 > **Repository:** ben0kay/BEN_TOOLBOX_2.0, Game Development
 > **Created:** 2026-10-23
@@ -207,10 +207,10 @@ Do not put seasonal image processing inside \`PixelArtService\`, do not duplicat
 
 | Phase | Deliverable | Status |
 | --- | --- | --- |
-| **A0 — Mask engine** | Load one PNG, automatic green foliage selection, manual/protection mask model, correct effective-mask PNG export and smoke tests | **NOT STARTED** |
-| **A1 — Editor UI** | Register Game tool, resizable Avalonia editor, live mask overlay, detection sliders, pan/zoom, paint tools, pick colours, bounded undo/redo and mask export | **NOT STARTED** |
-| **A2 — Project persistence** | Versioned save/load of source identity + masks + manual edits + detector settings, validate mismatch/relink | **NOT STARTED** |
-| **A3 — Seasonal preview** | Spring/summer/autumn tone-aware foliage grading and leafy winter snow preview, preview toggles and optional look presets | **NOT STARTED** |
+| **A0 — Mask engine** | Load one PNG, automatic green foliage selection, manual/protection mask model, correct effective-mask PNG export and smoke tests | **IMPLEMENTED — service tests pass; Windows workflow pending** |
+| **A1 — Editor UI** | Register Game tool, resizable Avalonia editor, live mask overlay, detection sliders, pan/zoom, paint tools, pick colours, bounded undo/redo and mask export | **IMPLEMENTED — build/headless checks pass; Windows visual testing pending** |
+| **A2 — Project persistence** | Versioned save/load of source identity + masks + manual edits + detector settings, validate mismatch/relink | **IMPLEMENTED — service tests pass; Windows workflow pending** |
+| **A3 — Seasonal preview** | Spring/summer/autumn tone-aware foliage grading and leafy winter snow preview, preview toggles and optional look presets | **IMPLEMENTED — build/headless checks pass; Windows visual testing pending** |
 | **A4 — Optional baked outputs** | Export one/all seasonal PNGs, intact canvas/transparency, collision checks and no source overwrite | **NOT STARTED** |
 | **A5 — LATER integration** | Optional Sprite Batch -> Studio -> Sprite Batch direct workflow, batch mask generation, Pixel Art Converter handoff, Godot helpers | **DEFERRED** |
 
@@ -262,8 +262,50 @@ These **A0–A5 are the Toolbox execution phases** for this standalone-first imp
 
 **2026-10-23:** User elected **standalone-first** manual workflow to learn and validate the editor before automating handoffs. This note intentionally narrows the current BEN TOOLBOX implementation goal to **foliage-mask generation/editing**. The [V2 hybrid plan](SEASONAL_SPRITE_STUDIO_IMPLEMENTATION_PLAN.md) still explains eventual Godot consumption of the output mask. No source code implemented in this note; all A0–A4 pending, A5 deferred.
 
-**Recommended first Codex instruction:**
+**Original first-phase instruction (historical; superseded by section 17):**
 
 > Read BEN TOOLBOX's root README, this \`Notes/Plans/SEASONAL_SPRITE_STUDIO_IMPLEMENTATION_NOTES.md\`, and the related V2 integration plan. Implement **A0 only** in the Toolbox: a standalone foliage-mask service that can read a transparent PNG, compute green foliage scores, model manual corrections/trunk protection, combine the effective mask and export source-sized grayscale RGB/opaque-alpha PNG. Include synthetic tests, clean cancellation/performance limits and update this note with actual validation. Keep Pixel Art Converter/Sprite Batch and the Godot repo unchanged. Commit the scoped implementation.
 
-After A0 acceptance, request A1 separately to build the native editing interface and actual on-screen mask corrections.
+This original handoff has been superseded by the user’s A0–A3 authorization and section 17 below.
+
+## 17. A0–A3 implementation handoff — 2026-10-23
+
+The user authorized the first phases through A3. Implemented as a separate **Game Development → Seasonal Sprite Studio** tool. Pixel Art Converter/Sprite Batch processing and the Godot repository were not modified.
+
+### Implemented behaviour
+
+- **A0:** one cached RGBA source; deterministic hue/saturation/brightness/alpha foliage detection, optional canopy bias, feathered colour confidence, grow/shrink and eight-connected island removal; similar-colour RGB detection for blossom/unusual foliage.
+- Four independent byte masks: Automatic, Added, Removed and Protected. Effective = `max(Automatic, Added) × (1 − Removed/255) × (1 − Protected/255)`, zero wherever source alpha is zero. Protection wins. Add brush increases Added and clears Removed; Remove does the reverse. Detector regeneration replaces only Automatic.
+- **A1:** three-column native editor, source/mask/season views, green foliage and pink protection overlays with visibility toggles, Add/Remove/Protect/Unprotect/Pick brushes, interpolated strokes in source coordinates, wheel zoom, middle or Space+drag pan, Fit and a bounded undo/redo history. Each stroke caps at 65,536 modified layer entries, history at 80 strokes / 1 million deltas. Brush radius/strength and numeric parameters use sliders plus plain click-to-type fields (Enter or focus loss commits; no spinner arrows). Original source is always read-only.
+- Preview is one throttled (~120 ms start cadence) sequential worker. Automatic detection reruns only for detector changes; seasonal/view/brush changes reuse masks. Input limit: 4096 per side and 4 million pixels. Dirty preview stays queued while jobs run; save/export flushes pending detector settings first. Snapshot mask buffers are bounded by the source limit; source RGBA is shared read-only.
+- **A2:** Save Mask Project As creates a new version-1 `.seasonal.json`, containing source absolute path/hash/dimensions, four lossless base64 byte masks, detection settings and seasonal look. Open validates version, mask lengths, source dimensions and SHA-256; missing sources can be explicitly relinked. Same-size changed sources require explicit confirmation; wrong sizes are rejected. Project save/export never overwrites an existing file. Views/undo history are session-only, not persisted.
+- Export Godot Foliage Mask creates exact source-sized gray RGB, A=255 at every pixel, including black background. Preview overlay colours are not exported. No trimming, resizing or recentering.
+- **A3:** Spring, unchanged Summer, progressive yellow/orange/red Autumn and leafy Winter with cool grading and seeded patchy/top-edge snow. Per-pixel brightness variation is retained approximately; unselected bark and original alpha are preserved exactly. Season/effect changes switch to Seasonal Preview. Named look presets (colour/snow settings only) are saved under LocalAppData/BEN_TOOLBOX_2_0/SeasonalLooks and reload through a picker starting there. Winter is explicitly a CPU approximation, not a clone of Godot runtime snow. No leaf deletion or invented branches.
+
+### Files and tests
+
+- `Models/SeasonalMaskProject.cs`: state, options and bounded delta history.
+- `Services/SeasonalMaskService.cs`: decode, detection, mask combination, preview and PNG export.
+- `Services/SeasonalProjectStore.cs`: project identity/persistence and look presets.
+- `Views/SeasonalSpriteStudioWindow.cs`, `Views/Controls/SeasonalMaskCanvas.cs`: editor and pointer canvas.
+- `Tests/SeasonalSpriteSmoke/`: service/PNG identity/persistence/season checks.
+- `Tests/SeasonalUiSmoke/`: independent Avalonia.Headless constructor/layout checks; test-only Headless package, no production dependency change.
+
+Actual validation using local **.NET SDK 10.0.402 on Linux**:
+
+```text
+dotnet build BEN_TOOLBOX_2_0.csproj
+  0 errors; existing package advisories/obsolete API/platform warnings remain.
+dotnet run --project Tests/SeasonalSpriteSmoke/SeasonalSpriteSmoke.csproj
+  PASS: foliage/bark, protection/removal, transparent gating, mask PNG contract,
+  source safety, seasons, save/load, identity, undo/redo and cancellation.
+dotnet run --project Tests/SeasonalUiSmoke/SeasonalUiSmoke.csproj
+  PASS: constructor, headless layout, grouped controls, default/minimum preview and close.
+dotnet run --project Tests/PixelArtSmoke/PixelArtSmoke.csproj
+  PASS: retained canvas, sharp blocks, transparency, non-square source, original safety,
+  cancellation, export, collisions and Batch handoff.
+```
+
+**Still required on Windows:** actual oak/blossom screenshots, painting/picking at multiple zoom levels, slider responsiveness at large sizes, save/reopen/relink dialogs, snow appearance and DPI. Headless checks do not prove Windows interaction or visual quality. Current ImageSharp 3.1.12 advisory warnings remain known separate dependency work.
+
+**Next:** user validates A0–A3 manually; fix feedback before A4 optional baked PNG exports. A5 handoffs, multi-file masks and Godot modifications remain unimplemented.

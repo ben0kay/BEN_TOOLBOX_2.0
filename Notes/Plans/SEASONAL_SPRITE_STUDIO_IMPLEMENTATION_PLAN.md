@@ -2,7 +2,7 @@
 
 > **Current BEN TOOLBOX standalone-first execution notes:** [Seasonal Sprite Studio implementation notes](SEASONAL_SPRITE_STUDIO_IMPLEMENTATION_NOTES.md), phases A0–A5. User has chosen manual file loading/export and separate tools **before** automation. This V2 document remains the longer-term Avalonia↔Godot integration plan; do not interpret its suggested Godot-first sequencing as a prerequisite for testing the standalone Studio.
 >
-> **STATUS: PLANNED — NO IMPLEMENTATION CODE CHANGED.** Updated 2026-10-23.  
+> **STATUS: Toolbox A0–A3 now implemented; .NET/service/headless checks pass, Windows visual acceptance pending. Godot phases and baked outputs remain planned.** Updated 2026-10-23.
 > **This V2 replaces the previous Studio-first four-baked-PNG implementation plan.**  
 > **Scope:** BEN TOOLBOX Avalonia asset authoring + Fantasy 2D Godot dynamic seasons. Codex must receive explicit permission for each repo/phase.  
 > **Winter V1:** Leaves remain present, with existing Godot snow effects on top; no leaf removal or hidden-branch reconstruction.
@@ -137,11 +137,11 @@ ChatGPT transparent PNG → **Seasonal Sprite Studio** (mask selection and per-s
 | --- | --- | --- | --- |
 | **H0** | Both (spec/docs) | Approve mask PNG contract, final-asset pipeline and shader composition order | NOT STARTED |
 | **G1** | Fantasy 2D | Minimal manual F9 spring/summer/autumn/winter tint proof using existing foliage heuristic, preserving snow/wetness/wind | NOT STARTED |
-| **A0** | BEN TOOLBOX | Offline ImageSharp foliage detector + editable mask/protection models + mask-export tests | NOT STARTED |
-| **A1** | BEN TOOLBOX | Native Avalonia mask editor, brush/zoom/selection/layer toggles, last-request-wins preview | NOT STARTED |
-| **A2** | BEN TOOLBOX | Save/reopen per-artwork mask projects, source-hash/dimension validation, safe mask PNG export | NOT STARTED |
+| **A0** | BEN TOOLBOX | Offline ImageSharp foliage detector + editable mask/protection models + mask-export tests | IMPLEMENTED — Windows visual testing pending |
+| **A1** | BEN TOOLBOX | Native Avalonia mask editor, brush/zoom/selection/layer toggles, last-request-wins preview | IMPLEMENTED — Windows visual testing pending |
+| **A2** | BEN TOOLBOX | Save/reopen per-artwork mask projects, source-hash/dimension validation, safe mask PNG export | IMPLEMENTED — Windows visual testing pending |
 | **G2** | Fantasy 2D | Optional authored mask per TreeVisualVariant, shader sampling, correct shared material composition | NOT STARTED |
-| **A3** | BEN TOOLBOX | Spring/summer/autumn and snowy-LEAFY-winter previews + named seasonal presets | NOT STARTED |
+| **A3** | BEN TOOLBOX | Spring/summer/autumn and snowy-LEAFY-winter previews + named seasonal presets | IMPLEMENTED — Windows visual testing pending |
 | **A4** | BEN TOOLBOX | Optional baked variants, safe export, later handoff to Pixel Art Converter | NOT STARTED |
 | **G3** | Fantasy 2D | World seasons/calendar, transitions, biome response, shared debug controls | NOT STARTED |
 | **V** | Both | Build/runtime tests, actual sprite visual checks, performance, documentation reconciliation | NOT STARTED |
@@ -179,3 +179,5 @@ ChatGPT transparent PNG → **Seasonal Sprite Studio** (mask selection and per-s
 **Codex — first Godot job:** "Read Fantasy 2D root README, CodePreferences, Shared/Snow and Shared/Wetness shader/adapters, VegetationSway shader and TreeDefinition/TreeVisualVariant. Implement H0/G1 only: F9 manual seasonal foliage tint for oak/pink blossom, with unchanged trunk/shadows and working snow, wetness and wind. Update docs, test, one scoped commit. Do not implement the full calendar or edit BEN TOOLBOX."
 
 **Codex — first Toolbox job:** "Read BEN TOOLBOX README and the V2 Seasonal Sprite Studio plan. After H0 contract, implement A0 only: offline foliage mask detection with manual protection data model, PNG output exactly matching source dimensions and RGB-gray/opaque alpha contract, tests. Do not build a large editing UI or baked variants yet. Update notes and push one scoped commit."
+
+**2026-10-23 implementation update:** See standalone notes section 17 for A0–A3 implementation details, actual .NET/service/headless results, format/limits and Windows checks still pending. H0/G1/G2/G3 and A4/A5 are not claimed implemented.
