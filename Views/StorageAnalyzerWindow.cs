@@ -6,6 +6,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using BEN_TOOLBOX_2_0.Shared.UI;
 
 namespace BEN_TOOLBOX_2_0.Views;
 
@@ -17,7 +18,6 @@ public sealed class StorageAnalyzerWindow : Window
 {
     private static readonly IBrush Cyan = Brush.Parse("#53E1E9");
     private static readonly IBrush Muted = Brush.Parse("#98B8C8");
-    private static readonly IBrush PanelBrush = Brush.Parse("#0E2432");
     private readonly ComboBox drivePicker = new() { MinWidth = 200 };
     private readonly TextBlock state = new() { Text = "NO SCAN STARTED", Foreground = Cyan, FontWeight = FontWeight.SemiBold };
     private readonly TextBlock driveDetails = new() { Text = "Choose a drive. No files will be read.", Foreground = Muted, TextWrapping = TextWrapping.Wrap };
@@ -58,9 +58,10 @@ public sealed class StorageAnalyzerWindow : Window
         PopulateDrives();
         drivePicker.SelectionChanged += (_, _) => UpdateDriveDetails();
         toolbar.Children.Add(drivePicker);
-        var scan = new Button { Content = "SCAN SELECTED DRIVE  /  SA1", IsEnabled = false, Padding = new Thickness(18, 10) };
+        var scan = BtxUiKit.CreateButton("SCAN SELECTED DRIVE  /  SA1");
+        scan.IsEnabled = false;
         toolbar.Children.Add(scan);
-        var demo = new Button { Content = "SHOW DESIGN PREVIEW", Padding = new Thickness(18, 10), Background = Brush.Parse("#17516B"), Foreground = Cyan };
+        var demo = BtxUiKit.CreateButton("SHOW DESIGN PREVIEW", BtxUiKit.ButtonKind.Primary);
         demo.Click += (_, _) => { previewActive = !previewActive; demo.Content = previewActive ? "CLEAR DESIGN PREVIEW" : "SHOW DESIGN PREVIEW"; Render(); };
         toolbar.Children.Add(demo);
         toolbar.Children.Add(state);
@@ -244,10 +245,5 @@ public sealed class StorageAnalyzerWindow : Window
         return Card(stack);
     }
 
-    private static Border Card(Control content) => new()
-    {
-        Background = PanelBrush, BorderBrush = Brush.Parse("#26677A"),
-        BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8),
-        Padding = new Thickness(15), Child = content
-    };
+    private static Border Card(Control content) => BtxUiKit.CreatePanel(content);
 }

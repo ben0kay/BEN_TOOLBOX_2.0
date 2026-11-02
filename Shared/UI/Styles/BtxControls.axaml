@@ -1,0 +1,148 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Native Button, explicit opt-in. No global Button selectors. -->
+  <Style Selector="Button.btx-button">
+    <Setter Property="Foreground" Value="{DynamicResource BtxText}"/>
+    <Setter Property="Background" Value="{DynamicResource BtxSecondarySurface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BtxSecondaryBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="Padding" Value="14,9"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Name="PART_BtxSurface"
+                Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="{TemplateBinding CornerRadius}"
+                Padding="{TemplateBinding Padding}"
+                BoxShadow="0 0 7 0 #1628CDED">
+          <Border.Transitions>
+            <Transitions>
+              <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.16"/>
+            </Transitions>
+          </Border.Transitions>
+          <ContentPresenter Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                            RecognizesAccessKey="True"
+                            TextElement.Foreground="{TemplateBinding Foreground}"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Button.btx-button:pointerover">
+    <Setter Property="Background" Value="{DynamicResource BtxSecondaryHoverSurface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BtxHoverBorder}"/>
+  </Style>
+  <Style Selector="Button.btx-button:pointerover /template/ Border#PART_BtxSurface">
+    <Setter Property="BoxShadow" Value="0 0 10 1 #4B35D9FA, 0 0 20 2 #2028CDED"/>
+  </Style>
+  <Style Selector="Button.btx-button:pressed">
+    <Setter Property="Background" Value="{DynamicResource BtxPressedSurface}"/>
+  </Style>
+  <Style Selector="Button.btx-button:focus-visible">
+    <Setter Property="BorderBrush" Value="#F1FFFF"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <Style Selector="Button.btx-button:disabled">
+    <Setter Property="Opacity" Value="0.48"/>
+  </Style>
+  <Style Selector="Button.btx-button:disabled /template/ Border#PART_BtxSurface">
+    <Setter Property="BoxShadow" Value="0 0 0 0 #00000000"/>
+  </Style>
+  <Style Selector="Button.btx-button.btx-primary">
+    <Setter Property="Background" Value="{DynamicResource BtxPrimaryGradient}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BtxPrimaryBorder}"/>
+  </Style>
+  <Style Selector="Button.btx-button.btx-primary /template/ Border#PART_BtxSurface">
+    <Setter Property="BoxShadow" Value="0 0 9 1 #3435D9FA"/>
+  </Style>
+  <Style Selector="Button.btx-button.btx-primary:pointerover">
+    <Setter Property="Background" Value="{DynamicResource BtxPrimaryHoverGradient}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BtxHoverBorder}"/>
+  </Style>
+  <Style Selector="Button.btx-button.btx-primary:pointerover /template/ Border#PART_BtxSurface">
+    <Setter Property="BoxShadow" Value="0 0 12 2 #7635D9FA, 0 0 24 4 #2828CDED"/>
+  </Style>
+  <Style Selector="Button.btx-button.btx-danger">
+    <Setter Property="Background" Value="{DynamicResource BtxDangerSurface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BtxDangerBorder}"/>
+  </Style>
+  <Style Selector="Button.btx-button.btx-danger:pointerover">
+    <Setter Property="Background" Value="{DynamicResource BtxDangerHoverSurface}"/>
+    <Setter Property="BorderBrush" Value="#F099AF"/>
+  </Style>
+  <Style Selector="Button.btx-button.btx-quiet /template/ Border#PART_BtxSurface">
+    <Setter Property="BoxShadow" Value="0 0 0 0 #00000000"/>
+  </Style>
+  <Style Selector="Border.btx-panel">
+    <Setter Property="Background" Value="{DynamicResource BtxPanelGradient}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BtxPanelBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="7"/>
+    <Setter Property="Padding" Value="16"/>
+    <Setter Property="BoxShadow" Value="0 0 9 0 #1628CDED"/>
+  </Style>
+  <Style Selector="Border.btx-panel.btx-panel-active">
+    <Setter Property="BorderBrush" Value="{DynamicResource BtxPanelBorderActive}"/>
+    <Setter Property="BoxShadow" Value="0 0 13 1 #2428CDED"/>
+  </Style>
+  <Style Selector="Border.btx-accent-line">
+    <Setter Property="Height" Value="1"/>
+    <Setter Property="Background" Value="{DynamicResource BtxAccent}"/>
+  </Style>
+  <Style Selector="TextBlock.btx-heading">
+    <Setter Property="Foreground" Value="{DynamicResource BtxText}"/>
+    <Setter Property="FontSize" Value="28"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style Selector="TextBlock.btx-section-heading">
+    <Setter Property="Foreground" Value="{DynamicResource BtxAccent}"/>
+    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector="TextBlock.btx-kicker">
+    <Setter Property="Foreground" Value="{DynamicResource BtxAccent}"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="LetterSpacing" Value="1.4"/>
+  </Style>
+  <Style Selector="TextBlock.btx-muted">
+    <Setter Property="Foreground" Value="{DynamicResource BtxMuted}"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+  <Style Selector="TextBlock.btx-field-label">
+    <Setter Property="Foreground" Value="{DynamicResource BtxMuted}"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector="TextBox.btx-input">
+    <Setter Property="Background" Value="{DynamicResource BtxInputBackground}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BtxInputBorder}"/>
+    <Setter Property="CornerRadius" Value="4"/>
+  </Style>
+  <Style Selector="ComboBox.btx-input">
+    <Setter Property="Background" Value="{DynamicResource BtxInputBackground}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BtxInputBorder}"/>
+    <Setter Property="CornerRadius" Value="4"/>
+  </Style>
+  <Style Selector="CheckBox.btx-check">
+    <Setter Property="Foreground" Value="{DynamicResource BtxText}"/>
+  </Style>
+  <Style Selector="RadioButton.btx-check">
+    <Setter Property="Foreground" Value="{DynamicResource BtxText}"/>
+  </Style>
+  <Style Selector="ProgressBar.btx-progress">
+    <Setter Property="Foreground" Value="{DynamicResource BtxAccent}"/>
+    <Setter Property="Background" Value="{DynamicResource BtxProgressTrack}"/>
+    <Setter Property="Height" Value="10"/>
+  </Style>
+</Styles>

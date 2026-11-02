@@ -1,6 +1,6 @@
 # BTX UI Kit — Shared Avalonia Visual Design System Implementation Plan
 
-> **STATUS: PLANNED — NO UI CODE CHANGED BY THIS PLAN**
+> **STATUS: T0–T2 FOUNDATION CODED 2026-11-02; BUILD/WINDOWS VISUAL ACCEPTANCE PENDING. T3–T5 NOT STARTED.**
 >
 > **Created:** 2026-10-24
 > **Repo:** ben0kay/BEN_TOOLBOX_2.0
@@ -152,9 +152,9 @@ These are **proposed** filenames. Codex may consolidate types/resources when it 
 
 | Phase | Task | Status |
 | --- | --- | --- |
-| **T0 — Design audit/contract** | Inventory downloader visual patterns and existing window types, confirm exact tokens, choose opt-in scoping and shared layout conventions, capture baseline screenshots | **NOT STARTED** |
-| **T1 — Shared palette and styles** | Implement resource dictionary + semantic type/text/control classes with state styling, integrate opt-in theme safely alongside FluentTheme | **NOT STARTED** |
-| **T2 — Reusable layout components** | Implement minimal header, panel, field and optional status components/helpers; provide a simple usable example/template for future Codex jobs | **NOT STARTED** |
+| **T0 — Design audit/contract** | Inventory downloader visual patterns and existing window types, confirm exact tokens, choose opt-in scoping and shared layout conventions, capture baseline screenshots | **Source audit done; Windows screenshots pending** |
+| **T1 — Shared palette and styles** | Implement resource dictionary + semantic type/text/control classes with state styling, integrate opt-in theme safely alongside FluentTheme | **Code added; compilation/style-load/Windows verification pending** |
+| **T2 — Reusable layout components** | Implement minimal header, panel, field and optional status components/helpers; provide a simple usable example/template for future Codex jobs | **Code-built button/header/panel/field helpers added; status component and visual verification pending** |
 | **T3 — Folder Backup pilot** | Redesign **only backup mode** to the downloader-inspired panels, controls and status while keeping source/destination, exclusions, preview, backup, cancel behavior | **NOT STARTED** |
 | **T4 — Downloader refactor/validation** | Gradually point Audio Downloader to shared styles/components, remove duplicated local colour/style methods, ensure screenshot closely matches original and functionality untouched | **NOT STARTED** |
 | **T5 — Adoption & staged rollout** | Document mandatory UI guidelines for future native tools, inventory other windows and migrate one approved window at a time; possible theme variants later | **NOT STARTED** |
@@ -250,3 +250,22 @@ The user explicitly requested dashboard changes before the kit rollout. This ove
 This does **not** implement T0–T5 or the Folder Backup pilot. Keep those phases pending; when the shared kit is later proven, dashboard adoption can be separately authorised. The moved clock uses the existing one-second timer across main-window sections; only the lightweight clock runs outside the dashboard, with telemetry still gated to dashboard visibility and the timer stopped on close. No new animation loops/dependencies.
 
 Validation: Linux .NET 10 app build; headless XAML/window/layout renders at 900×700, 1440×1000, 1920×1080; compact card widths/wrapping and navigation; enabled clock timer + direct tick callback outside dashboard, telemetry inactive there, clock timer stops on close; telemetry history assertions pass after fixing an existing missing System import in its standalone test. Headless timer scheduling does not reproduce the native event loop, so automatic clock timing and Windows DPI remain manual checks. User Windows review pending.
+
+### 2026-11-02 — T0–T2 first code pass
+
+Audited the app-level FluentTheme, MainWindow's local dashboard button styles,
+Audio Downloader's local ActionButton/Panel helpers, and Storage Analyzer SA0.
+No already-implemented global BTX button factory was found.
+
+Introduced `Shared/UI/Styles/BtxColors.axaml` (palette/gradients),
+`BtxControls.axaml` (opt-in buttons with hover glow, focus, pressed and disabled
+states; panels, text, inputs and progress), and `Shared/UI/BtxUiKit.cs`
+(code-built button, header, panel, field helpers). See `Shared/UI/README.md`
+for both C# and AXAML usage. App.axaml includes styles after FluentTheme; no
+unscoped selector or third-party dependency added.
+
+Storage Analyzer SA0 toolbar buttons and outer panels are the first **limited**
+opt-in demonstration. Its scanner remains disabled, no real disk traversal or
+Explorer operation added. This is not the planned Folder Backup T3 pilot.
+Build/style-load, Windows screenshots, hover/keyboard/DPI tests remain pending;
+do not mark these phases fully accepted yet.

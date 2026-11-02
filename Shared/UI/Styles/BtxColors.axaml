@@ -1,0 +1,33 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- BTX navy/aqua design tokens. Never apply these globally without an opt-in class. -->
+  <SolidColorBrush x:Key="BtxWindowBackground" Color="#060F1C"/>
+  <SolidColorBrush x:Key="BtxText" Color="#E8F4FF"/>
+  <SolidColorBrush x:Key="BtxMuted" Color="#8AAFC4"/>
+  <SolidColorBrush x:Key="BtxAccent" Color="#35D9FA"/>
+  <SolidColorBrush x:Key="BtxPanelBorder" Color="#16748E"/>
+  <SolidColorBrush x:Key="BtxPanelBorderActive" Color="#55D8EE"/>
+  <SolidColorBrush x:Key="BtxInputBackground" Color="#061420"/>
+  <SolidColorBrush x:Key="BtxInputBorder" Color="#24627C"/>
+  <SolidColorBrush x:Key="BtxPrimaryBorder" Color="#2ED6FA"/>
+  <SolidColorBrush x:Key="BtxSecondaryBorder" Color="#20506A"/>
+  <SolidColorBrush x:Key="BtxHoverBorder" Color="#83F6FF"/>
+  <SolidColorBrush x:Key="BtxDangerBorder" Color="#B45F77"/>
+  <SolidColorBrush x:Key="BtxProgressTrack" Color="#112A3C"/>
+  <LinearGradientBrush x:Key="BtxPanelGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+    <GradientStop Color="#10283B" Offset="0"/>
+    <GradientStop Color="#071321" Offset="1"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="BtxPrimaryGradient" StartPoint="0%,0%" EndPoint="0%,100%">
+    <GradientStop Color="#155971" Offset="0"/>
+    <GradientStop Color="#0C4058" Offset="1"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="BtxPrimaryHoverGradient" StartPoint="0%,0%" EndPoint="0%,100%">
+    <GradientStop Color="#208CA3" Offset="0"/>
+    <GradientStop Color="#10536D" Offset="1"/>
+  </LinearGradientBrush>
+  <SolidColorBrush x:Key="BtxSecondarySurface" Color="#10283A"/>
+  <SolidColorBrush x:Key="BtxSecondaryHoverSurface" Color="#184357"/>
+  <SolidColorBrush x:Key="BtxPressedSurface" Color="#083045"/>
+  <SolidColorBrush x:Key="BtxDangerSurface" Color="#3B1D2C"/>
+  <SolidColorBrush x:Key="BtxDangerHoverSurface" Color="#663044"/>
+</ResourceDictionary>
