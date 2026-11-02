@@ -1,4 +1,5 @@
-<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:btx="using:BEN_TOOLBOX_2_0.Shared.UI">
   <!-- Native Button, explicit opt-in. No global Button selectors. -->
   <Style Selector="Button.btx-button">
     <Setter Property="Foreground" Value="{DynamicResource BtxText}"/>
@@ -144,5 +145,19 @@
     <Setter Property="Foreground" Value="{DynamicResource BtxAccent}"/>
     <Setter Property="Background" Value="{DynamicResource BtxProgressTrack}"/>
     <Setter Property="Height" Value="10"/>
+  </Style>
+
+  <!-- T2 visual extension: a chamfered, glow-edged HUD frame; opt in explicitly. -->
+  <Style Selector="btx|BtxTechFrame.btx-tech-frame">
+    <Setter Property="Padding" Value="16"/>
+    <Setter Property="SurfaceBrush" Value="{DynamicResource BtxPanelGradient}"/>
+    <Setter Property="OutlineBrush" Value="{DynamicResource BtxPanelBorder}"/>
+    <Setter Property="AccentBrush" Value="{DynamicResource BtxAccent}"/>
+    <Setter Property="GlowBrush" Value="{DynamicResource BtxTechGlow}"/>
+  </Style>
+  <Style Selector="btx|BtxTechFrame.btx-tech-frame.btx-tech-active">
+    <Setter Property="IsEmphasized" Value="True"/>
+    <Setter Property="OutlineBrush" Value="{DynamicResource BtxPanelBorderActive}"/>
+    <Setter Property="GlowBrush" Value="{DynamicResource BtxTechGlowActive}"/>
   </Style>
 </Styles>

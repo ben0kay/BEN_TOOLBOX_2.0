@@ -65,7 +65,7 @@ public sealed class StorageAnalyzerWindow : Window
         demo.Click += (_, _) => { previewActive = !previewActive; demo.Content = previewActive ? "CLEAR DESIGN PREVIEW" : "SHOW DESIGN PREVIEW"; Render(); };
         toolbar.Children.Add(demo);
         toolbar.Children.Add(state);
-        page.Children.Add(Card(toolbar));
+        page.Children.Add(Card(toolbar, emphasized: true));
 
         var layout = new Grid { ColumnDefinitions = new ColumnDefinitions("245,*,285"), ColumnSpacing = 13 };
         var left = new StackPanel { Spacing = 13 };
@@ -237,7 +237,7 @@ public sealed class StorageAnalyzerWindow : Window
         Child = new TextBlock { Text = message, Foreground = Muted, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16) }
     };
 
-    private static Border Section(string title, Control content)
+    private static Control Section(string title, Control content)
     {
         var stack = new StackPanel { Spacing = 12 };
         stack.Children.Add(new TextBlock { Text = title, Foreground = Cyan, FontSize = 12, FontWeight = FontWeight.SemiBold, LetterSpacing = 1 });
@@ -245,5 +245,6 @@ public sealed class StorageAnalyzerWindow : Window
         return Card(stack);
     }
 
-    private static Border Card(Control content) => BtxUiKit.CreatePanel(content);
+    private static BtxTechFrame Card(Control content, bool emphasized = false)
+        => BtxUiKit.CreateTechPanel(content, emphasized);
 }

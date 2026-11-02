@@ -269,3 +269,23 @@ opt-in demonstration. Its scanner remains disabled, no real disk traversal or
 Explorer operation added. This is not the planned Folder Backup T3 pilot.
 Build/style-load, Windows screenshots, hover/keyboard/DPI tests remain pending;
 do not mark these phases fully accepted yet.
+
+### 2026-11-02 — Shared HUD frame extension (post user button review)
+
+After the user visually approved the first button/glow pass, added a **reusable,
+static, custom-drawn** `Shared/UI/BtxTechFrame.cs` derived from Avalonia's
+`Decorator`. It renders a cached chamfered outline, subtle translucent
+glow, slim aqua top/bottom highlights, and a small left-edge tick. The native
+Decorator maintains content layout/padding. Configuration is through opt-in
+`btx-tech-frame` / `btx-tech-active` classes and palette resources;
+`BtxUiKit.CreateTechPanel` exposes the same frame to code-built tools.
+
+Applied to Storage Analyzer SA0's existing outer sections, emphasizing only
+the scan toolbar. No scanner, demo data, navigation, downloader or backup
+logic changes. This is visual refinement of the shared T2 foundation, **not**
+Folder Backup T3, or an animated per-frame effect.
+
+Validation: source/resource integrity checked. Still pending: dotnet build,
+Windows screenshots, 125–200% DPI and resize/hit-test review. If any frame
+appears overly bright, tune `BtxTechGlow` / `BtxTechGlowActive`, not every
+window independently.

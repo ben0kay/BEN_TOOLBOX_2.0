@@ -45,6 +45,20 @@ public static class BtxUiKit
         return panel;
     }
 
+
+    /// <summary>
+    /// Angled, illuminated frame. Use instead of CreatePanel when a tool needs
+    /// technical HUD framing; existing simple panels remain supported.
+    /// </summary>
+    public static BtxTechFrame CreateTechPanel(Control content, bool emphasized = false)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        var panel = new BtxTechFrame { Child = content };
+        panel.Classes.Add("btx-tech-frame");
+        if (emphasized) panel.Classes.Add("btx-tech-active");
+        return panel;
+    }
+
     public static StackPanel CreateHeader(string kicker, string title, string? subtitle = null)
     {
         var result = new StackPanel { Spacing = 5 };

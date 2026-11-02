@@ -43,3 +43,38 @@ BtxUiKit.ApplyButtonStyle(existingButton, BtxUiKit.ButtonKind.Secondary);
   Folder Backup T3 is still unstarted; do not touch Asset Usage Finder accidentally.
 - Validate actual .NET 10 / Avalonia 12 build, Windows hover/focus and high DPI
   before marking the visual design accepted.
+
+## Angled HUD frame (optional)
+
+For a responsive cut-corner frame with luminous accent rails, use
+`BtxTechFrame` instead of a normal `Border`. It uses a cached
+`StreamGeometry` during drawing and has **no animation timer**, so it doesn't
+redraw constantly while idle.
+
+C# example:
+
+```csharp
+var frame = BtxUiKit.CreateTechPanel(toolContent, emphasized: true);
+// Non-emphasized for ordinary sections:
+var section = BtxUiKit.CreateTechPanel(sectionContent);
+```
+
+AXAML example:
+
+```xml
+<Window xmlns:btx="using:BEN_TOOLBOX_2_0.Shared.UI" ...>
+  <btx:BtxTechFrame Classes="btx-tech-frame btx-tech-active">
+    <TextBlock Text="SCAN CONTROLS"/>
+  </btx:BtxTechFrame>
+</Window>
+```
+
+The theme controls `BtxTechGlow` / `BtxTechGlowActive` and the shared
+palette. Reserve `btx-tech-active` for a selected/important panel. Keep input
+focus rings, button styles and real interactions separate from decorative frames.
+
+**Storage Analyzer SA0** demonstrates the effect on the top scan toolbar
+(emphasized) and all outer sections (normal). The blank-state content remains
+unchanged. Animated moving light sweeps are intentionally deferred; they are
+not necessary for the static futuristic framing and would need opt-in motion
+and frame-rate/performance review.

@@ -30,4 +30,6 @@
   <SolidColorBrush x:Key="BtxPressedSurface" Color="#083045"/>
   <SolidColorBrush x:Key="BtxDangerSurface" Color="#3B1D2C"/>
   <SolidColorBrush x:Key="BtxDangerHoverSurface" Color="#663044"/>
+  <SolidColorBrush x:Key="BtxTechGlow" Color="#2028CDED"/>
+  <SolidColorBrush x:Key="BtxTechGlowActive" Color="#4435D9FA"/>
 </ResourceDictionary>
