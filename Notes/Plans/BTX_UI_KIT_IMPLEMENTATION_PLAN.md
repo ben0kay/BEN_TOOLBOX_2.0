@@ -1,6 +1,6 @@
 # BTX UI Kit — Shared Avalonia Visual Design System Implementation Plan
 
-> **STATUS: T0–T2 FOUNDATION CODED 2026-11-02; BUILD/WINDOWS VISUAL ACCEPTANCE PENDING. T3–T5 NOT STARTED.**
+> **STATUS: T0–T2 FOUNDATION CODED; T3 FOLDER BACKUP PILOT CODED 2026-11-02, WINDOWS BUILD/VISUAL/REGRESSION PENDING. T4–T5 NOT STARTED.**
 >
 > **Created:** 2026-10-24
 > **Repo:** ben0kay/BEN_TOOLBOX_2.0
@@ -155,7 +155,7 @@ These are **proposed** filenames. Codex may consolidate types/resources when it 
 | **T0 — Design audit/contract** | Inventory downloader visual patterns and existing window types, confirm exact tokens, choose opt-in scoping and shared layout conventions, capture baseline screenshots | **Source audit done; Windows screenshots pending** |
 | **T1 — Shared palette and styles** | Implement resource dictionary + semantic type/text/control classes with state styling, integrate opt-in theme safely alongside FluentTheme | **Code added; compilation/style-load/Windows verification pending** |
 | **T2 — Reusable layout components** | Implement minimal header, panel, field and optional status components/helpers; provide a simple usable example/template for future Codex jobs | **Code-built button/header/panel/field helpers added; status component and visual verification pending** |
-| **T3 — Folder Backup pilot** | Redesign **only backup mode** to the downloader-inspired panels, controls and status while keeping source/destination, exclusions, preview, backup, cancel behavior | **NOT STARTED** |
+| **T3 — Folder Backup pilot** | Redesign **only backup mode** to the downloader-inspired panels, controls and status while keeping source/destination, exclusions, preview, backup, cancel behavior | **CODED; Windows build, feature regression and screenshot acceptance pending** |
 | **T4 — Downloader refactor/validation** | Gradually point Audio Downloader to shared styles/components, remove duplicated local colour/style methods, ensure screenshot closely matches original and functionality untouched | **NOT STARTED** |
 | **T5 — Adoption & staged rollout** | Document mandatory UI guidelines for future native tools, inventory other windows and migrate one approved window at a time; possible theme variants later | **NOT STARTED** |
 
@@ -289,3 +289,31 @@ Validation: source/resource integrity checked. Still pending: dotnet build,
 Windows screenshots, 125–200% DPI and resize/hit-test review. If any frame
 appears overly bright, tune `BtxTechGlow` / `BtxTechGlowActive`, not every
 window independently.
+
+### 2026-11-02 — T3 Folder Backup pilot coded
+
+Scoped the new layout to `kind == "backup"` in
+`Views/RemainingToolsWindow.cs`. The other modes now use a separate
+`BuildLegacyLayout()` retaining the pre-existing UI, tool buttons, picker
+behavior and event handling. No asset-usage, artwork or backup service files
+were changed.
+
+The backup mode now has a reusable BTX header, two column Source/Destination
+and Exclusions/Filters panels, a bounded scrollable preview list, and a
+persistent status/actions footer. All buttons and inputs opt into shared BTX
+classes and angular `BtxTechFrame` panels. Only backup Browse buttons are
+restyled. Added one opt-in `ListBox.btx-results` style. The activity bar is
+indeterminate and appears only during actual Preview/Backup operations.
+
+Existing `FolderBackupService.PreviewAsync` and `RunAsync` calls, default
+exclusions, first 400 preview items, clipboard behavior in other modes,
+cancellation tokens, progress status messages, error wording and window-close
+cancellation remain intact. No filesystem operations are triggered by opening
+the window. No delete/overwrite behavior was introduced.
+
+**Validation still required:** Windows `dotnet build`, startup/style
+resource load, File Toolbox → Folder Backup source/destination pickers,
+Preview, Create Backup (using disposable sample paths), Cancel, status and
+list scrolling; compare Asset Usage Finder / Artwork Prompter before and
+after; check at 760×560 and 125–200% DPI. Code committed is not
+equivalent to user visual acceptance. T4/T5 remain pending.

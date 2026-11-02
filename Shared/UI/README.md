@@ -78,3 +78,22 @@ focus rings, button styles and real interactions separate from decorative frames
 unchanged. Animated moving light sweeps are intentionally deferred; they are
 not necessary for the static futuristic framing and would need opt-in motion
 and frame-rate/performance review.
+
+## Folder Backup — first full tool migration (T3)
+
+`Views/RemainingToolsWindow.cs` now uses `BuildBackupLayout()` exclusively
+for `kind == "backup"`: central BTX header, chamfered setup/filter/results
+panels, styled inputs and Browse buttons, BTX action buttons and a persistent
+status/footer. The original `BuildLegacyLayout()` retains Artwork Prompter and
+Asset Usage Finder styling/behavior.
+
+The backup activity bar is **indeterminate**, only visible while Preview or
+Create Backup is really running; it is not a fabricated percentage. Every
+existing service call, source/destination input, exclusion default, first-400
+preview limit, status message, and cancellation hook is retained. No new
+automatic filesystem scanning or cleanup actions were introduced.
+
+If modifying this layout, keep backup-only style classes within
+`BuildBackupLayout` or the `kind == "backup"` picker branch, and verify the
+other two modes before merging. Windows build/hover/DPI and smoke tests still
+determine whether T3 is visually accepted.

@@ -160,4 +160,10 @@
     <Setter Property="OutlineBrush" Value="{DynamicResource BtxPanelBorderActive}"/>
     <Setter Property="GlowBrush" Value="{DynamicResource BtxTechGlowActive}"/>
   </Style>
+  <Style Selector="ListBox.btx-results">
+    <Setter Property="Background" Value="{DynamicResource BtxInputBackground}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BtxInputBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="5"/>
+  </Style>
 </Styles>
