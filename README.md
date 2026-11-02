@@ -4,6 +4,12 @@
 
 > **Current state — October 2026:** The dashboard, navigation and many **native Avalonia utilities are already implemented as first passes**. The project is an actively tested desktop application, **not merely a PowerShell script launcher**, but it is not yet a feature-complete replacement for every legacy tool. Feature quality and Windows build/runtime testing vary by module.
 
+## BTX Storage Analyzer — SA0 interface shell (2026-11-02)
+
+**New tool:** File Toolbox → **BTX Storage Analyzer**. A dedicated Avalonia window (`Views/StorageAnalyzerWindow.cs`) now provides the initial aqua/navy layout: disk treemap, largest items, selected item, file-type breakdown, and largest categories. **Opening the tool does not scan any drive**, nor does choosing one. The drive picker only retrieves basic volume metadata; the Scan button is deliberately disabled until SA1. All result panels start blank. An optional **SHOW DESIGN PREVIEW** button populates explicitly fictional sample data to review the UI, and can be cleared. File/Explorer actions are deferred until genuine data is available. SA0 source is coded, but **Windows build, runtime, and visual testing are still pending**.
+
+The authoritative [Storage Analyzer SA0–SA4 implementation plan](Notes/Plans/STORAGE_ANALYZER_IMPLEMENTATION_PLAN.md) records remaining scanner, performance, interaction, exclusions and multi-drive work. First scan should target **one explicitly selected drive**; future multi-drive support is planned. No automatic scanning on launch, even after later phases.
+
 ## BTX UI Kit — shared native tool styling (planned)
 
 **Visual reference:** The existing **YouTube Audio Downloader** window defines the preferred BEN TOOLBOX navy/cyan tool appearance. [BTX UI Kit implementation plan (T0–T5)](Notes/Plans/BTX_UI_KIT_IMPLEMENTATION_PLAN.md) describes extracting its colours, typography, outlined gradient panels, buttons, fields and status sections into **opt-in reusable Avalonia styles/components**. **Folder Backup** is the first planned migration; it shares `RemainingToolsWindow.cs` with Asset Usage Finder, so the pilot must remain backup-only. Other windows—including the dashboard and downloader—should not be globally restyled. The plan respects the separate [feature-folder cleanup backlog](Notes/Plans/FEATURE_FOLDER_CLEANUP_TASK.md) by keeping truly shared UI under `Shared/UI`. **Plan only: UI Kit implementation and Folder Backup migration have not been performed by this documentation change.**
