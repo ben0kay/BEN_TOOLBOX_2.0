@@ -37,6 +37,13 @@ public partial class MainWindow : Window
         if (sender is not Button { Tag: ToolDefinition tool }) return;
         try
         {
+            if (tool.Id == "storage-analyzer")
+            {
+                new StorageAnalyzerWindow().Show(this);
+                InfoTitle.Text = "BTX STORAGE ANALYZER / SA0";
+                InfoDescription.Text = "Blank storage dashboard opened. Drive scanning is not implemented yet; design preview is optional.";
+                return;
+            }
             if (tool.Id == "internet-observatory")
             {
                 new InternetObservatoryWindow().Show(this);
