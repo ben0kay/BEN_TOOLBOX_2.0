@@ -4,11 +4,13 @@
 
 > **Current state — October 2026:** The dashboard, navigation and many **native Avalonia utilities are already implemented as first passes**. The project is an actively tested desktop application, **not merely a PowerShell script launcher**, but it is not yet a feature-complete replacement for every legacy tool. Feature quality and Windows build/runtime testing vary by module.
 
-## BTX Storage Analyzer — SA0 interface shell (2026-11-02)
+## BTX Storage Analyzer — SA1 real scan foundation (2026-11-02)
 
 **New tool:** File Toolbox → **BTX Storage Analyzer**. A dedicated Avalonia window (`Views/StorageAnalyzerWindow.cs`) now provides the initial aqua/navy layout: disk treemap, largest items, selected item, file-type breakdown, and largest categories. **Opening the tool does not scan any drive**, nor does choosing one. The drive picker only retrieves basic volume metadata; the Scan button is deliberately disabled until SA1. All result panels start blank. An optional **SHOW DESIGN PREVIEW** button populates explicitly fictional sample data to review the UI, and can be cleared. File/Explorer actions are deferred until genuine data is available. SA0 source is coded, but **Windows build, runtime, and visual testing are still pending**.
 
-The authoritative [Storage Analyzer SA0–SA4 implementation plan](Notes/Plans/STORAGE_ANALYZER_IMPLEMENTATION_PLAN.md) records remaining scanner, performance, interaction, exclusions and multi-drive work. First scan should target **one explicitly selected drive**; future multi-drive support is planned. No automatic scanning on launch, even after later phases.
+**SA1 implementation (code committed; .NET build and Windows review pending):** The Scan button is now enabled when a drive is selected, and explicitly starts a cancellable, read-only metadata scan. Filesystem enumeration runs off the UI thread and keeps a compact folder/file hierarchy for SA2. Before scanning, you can exclude folder names/wildcards, extensions, exact paths/subtrees, choose whether hidden/system entries are included, or opt into a development-cache preset. Junctions/reparse points are always skipped. During scanning the window shows real discovered file/folder/byte counters, elapsed time, inaccessible-item counts and an indeterminate activity bar (never a fictitious completion percentage). Cancelling returns a marked partial snapshot. When finished, SA1 shows the largest root-level items from **actual** file sizes; the full interactive treemap and Explorer actions remain in SA2/SA3. The separate optional fictional design preview still cannot open real paths.
+
+The authoritative [Storage Analyzer SA0–SA4 implementation plan](Notes/Plans/STORAGE_ANALYZER_IMPLEMENTATION_PLAN.md) tracks scanner assumptions, tests, treemap, performance, classifications and multi-drive work. First scans target **one explicitly selected drive**; future multi-drive support is planned. No automatic scanning on launch. Headless smoke test source: `dotnet run --project Tests/StorageAnalyzerScannerSmoke/StorageAnalyzerScannerSmoke.csproj` (not run here).
 
 ## BTX UI Kit — shared native tool styling (foundation coded; Windows testing pending)
 

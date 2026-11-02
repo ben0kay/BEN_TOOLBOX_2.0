@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Headless service-only tests: no Avalonia or UI required. -->
+    <Compile Include="../../Features/StorageAnalyzer/Models/StorageScanModels.cs" Link="StorageScanModels.cs" />
+    <Compile Include="../../Features/StorageAnalyzer/Services/ScanExclusionMatcher.cs" Link="ScanExclusionMatcher.cs" />
+    <Compile Include="../../Features/StorageAnalyzer/Services/StorageScanService.cs" Link="StorageScanService.cs" />
+  </ItemGroup>
+</Project>

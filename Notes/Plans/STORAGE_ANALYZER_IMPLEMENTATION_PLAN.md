@@ -2,7 +2,7 @@
 
 > Repository: BEN_TOOLBOX_2.0 · Category: **Files / File Toolbox**
 > Updated: 2026-11-02
-> Status: **SA0 CODED AND PUSHED TO main; WINDOWS BUILD AND VISUAL ACCEPTANCE PENDING. SA1–SA4 NOT STARTED.**
+> Status: **SA0 CODED. SA1 BACKGROUND METADATA SCANNER + UI CODED 2026-11-02; .NET BUILD, WINDOWS VISUAL AND FUNCTIONAL TESTS PENDING. SA2–SA4 NOT STARTED.**
 > Design direction: dark navy, aqua/cyan sci-fi panels, strong treemap, largest-item table, selected-item details, file-type breakdown, largest categories. Avoid decorative UI overwhelming actual files.
 
 ## Read first
@@ -27,7 +27,7 @@
 | Phase | Work | Status |
 | --- | --- | --- |
 | SA0 | Native Files tool, blank dashboard, manual drive choice, five result regions, opt-in fictional design preview, disabled scanner action | **Coded, committed; Windows build/visual test pending** |
-| SA1 | Real, cancellable, read-only metadata scanner for one selected drive, pre-scan exclusions, visible progress/errors | Not started |
+| SA1 | Real, cancellable, read-only metadata scanner for one selected drive, pre-scan exclusions, visible progress/errors | **Coded and committed; build/test/Windows verification pending** |
 | SA2 | Efficient real treemap geometry and hit-testing, zoom/drill-down, tooltips and synchronized selection | Not started |
 | SA3 | Largest-items browser, selected details, actual file-type/category summaries, Explorer reveal/open/copy path and guarded targeted rescan | Not started |
 | SA4 | Measure and optimize performance, cached snapshots, optional faster NTFS/MFT engine, multi-root UI/scanning | Not started |
@@ -93,3 +93,30 @@ Tasks:
 - No deletions/cleanup feature without a separate approved safety design.
 - Preserve preferred YouTube Downloader-derived BTX aqua/navy UI, but do not globally restyle unrelated windows.
 - If SA0 design preview needs more fidelity, polish its look **without** quietly implementing an actual scan.
+
+## SA1 implementation notes — 2026-11-02
+
+**Files:**
+- `Features/StorageAnalyzer/Models/StorageScanModels.cs`: immutable options, compact retained storage-node hierarchy, progress snapshots and final result. Child nodes retain parent/name rather than a full path string per file. Directory sizes and subtree counts are aggregated bottom-up in linear time.
+- `Features/StorageAnalyzer/Services/ScanExclusionMatcher.cs`: pre-traversal exact-path subtree pruning, wildcard folder-name matches, and extension filters. Paths are normalized with component-boundary checks, so excluding `C:\\Temp` does not accidentally exclude `C:\\Templates`.
+- `Features/StorageAnalyzer/Services/StorageScanService.cs`: iterative single-level `DirectoryInfo.EnumerateFileSystemInfos` with stack-driven traversal, cached metadata where available, explicit `ReparsePoint` skipping, error accounting and max 24 sampled errors, throttled progress (~250 ms), cancellation returning a labelled partial snapshot, and overlapping-root rejection.
+- `Views/StorageAnalyzerWindow.cs`: selected-drive manual Scan, Cancel, hidden/system toggle (enabled by default), opt-in dev-cache preset, user-editable excluded folder names/patterns, file extensions and explicit paths, real counters/progress/error info, and top 15 actual root items (temporary listing until SA2/SA3). Status uses an indeterminate activity bar rather than a fabricated completion percentage. The SA0 **fictional design preview remains explicitly separate** and still does not produce real file/Explorer actions.
+- `Tests/StorageAnalyzerScannerSmoke/StorageAnalyzerScannerSmoke.csproj` and `Program.cs`: dependency-free .NET 10 console checks for exact byte and file counts, skipped folder/ext/path behaviour, path-prefix boundaries, bottom-up aggregates, cancellation, progress and overlapping roots.
+
+**UI behaviour and limitations:**
+- Opening the window or choosing a drive reads *volume metadata only*. No file enumeration until explicit Scan click. A new scan replaces the previous result; changing drive invalidates previous scan data.
+- Drive picker/filters/demo are disabled during scanning, Cancel requests a partial finish; the scan service never mutates files. Closing the window cancels the worker and makes late UI callbacks no-ops.
+- "Logical bytes" means the sum of *included readable file lengths*, **not actual allocated disk usage**. Hidden/system items (when deselected), reparse items, explicit exclusions, inaccessible files, ADS and OS-level allocation overhead may make the result differ from used drive capacity. Hard links may be counted more than once when accessible under separate names.
+- The current largest-root-items list is a short real size summary for SA1 validation, **not** SA2's zoomable treemap or SA3's full sortable search, details and Explorer integration.
+- One drive is selectable in the UI. Options/results support multiple root collections internally, but overlapping roots are rejected and multi-drive UI is deferred to SA4.
+- An optional "Exclude development caches" checkbox skips `.git`, `.godot`, `node_modules`, `bin`, `obj` **only when explicitly checked**. All other filters start empty and editable; a user can decide to scan the entire drive or prune irrelevant folders.
+- Errors are counted, but only the first 24 messages are stored to bound report memory. When access fails partway through a directory, that directory may be incomplete; warnings and counts are displayed rather than silently implying completeness.
+
+**Validation status: source implemented and pushed; actual Windows/.NET build NOT executed in this session.** Do not mark SA1 accepted until:
+1. Run `dotnet build` and `dotnet run --project Tests/StorageAnalyzerScannerSmoke/StorageAnalyzerScannerSmoke.csproj` on the .NET 10 SDK.
+2. Check drive selection never starts scanning; Scan does, and Cancel returns a labelled partial result rather than hanging.
+3. Scan an *expendable test drive/folder* if available and compare byte totals, excluding `.tmp`, one explicit folder path and a directory-name pattern. SA1 UI currently selects a drive; test service accepts custom roots.
+4. Check inaccessible paths, unready/removable drive, root/child reparse points, deep directories, hidden/system toggle, deleted-mid-scan files, repeated scans, closing mid-scan and scrolling/resizing with DPI scaling.
+5. Verify SA0 demo remains fictional and Explorer/actions remain absent; other Toolbox windows unchanged.
+
+**Next:** SA2 squarified treemap rendering over the retained `StorageNode` hierarchy, hit-testing, breadcrumbs and zoom. Avoid creating one Avalonia control per file. No NTFS/MFT engine has been added.
