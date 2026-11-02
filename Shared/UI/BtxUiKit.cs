@@ -10,6 +10,30 @@ namespace BEN_TOOLBOX_2_0.Shared.UI;
 public static class BtxUiKit
 {
     public enum ButtonKind { Primary, Secondary, Danger, Quiet }
+    public enum TextKind { Accent, Muted, Heading, SectionHeading, Kicker, FieldLabel }
+
+    public static TextBlock CreateText(string text, TextKind kind = TextKind.Muted)
+    {
+        var label = new TextBlock { Text = text };
+        label.Classes.Add(kind switch
+        {
+            TextKind.Accent => "btx-accent",
+            TextKind.Heading => "btx-heading",
+            TextKind.SectionHeading => "btx-section-heading",
+            TextKind.Kicker => "btx-kicker",
+            TextKind.FieldLabel => "btx-field-label",
+            _ => "btx-muted"
+        });
+        return label;
+    }
+
+    public static T ApplyInputStyle<T>(T input, bool compact = false) where T : Control
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        input.Classes.Add("btx-input");
+        if (compact) input.Classes.Add("btx-compact");
+        return input;
+    }
 
     public static Button CreateButton(string text, ButtonKind kind = ButtonKind.Secondary)
     {
@@ -36,12 +60,13 @@ public static class BtxUiKit
         });
     }
 
-    public static Border CreatePanel(Control content, bool emphasized = false)
+    public static Border CreatePanel(Control content, bool emphasized = false, bool compact = false)
     {
         ArgumentNullException.ThrowIfNull(content);
         var panel = new Border { Child = content };
         panel.Classes.Add("btx-panel");
         if (emphasized) panel.Classes.Add("btx-panel-active");
+        if (compact) panel.Classes.Add("btx-compact");
         return panel;
     }
 

@@ -82,6 +82,12 @@
   <Style Selector="Button.btx-button.btx-quiet /template/ Border#PART_BtxSurface">
     <Setter Property="BoxShadow" Value="0 0 0 0 #00000000"/>
   </Style>
+  <Style Selector="Window.btx-tool-window">
+    <Setter Property="Background" Value="{DynamicResource BtxWindowBackground}"/>
+  </Style>
+  <Style Selector="TextBlock.btx-accent">
+    <Setter Property="Foreground" Value="{DynamicResource BtxAccent}"/>
+  </Style>
   <Style Selector="Border.btx-panel">
     <Setter Property="Background" Value="{DynamicResource BtxPanelGradient}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource BtxPanelBorder}"/>
@@ -89,6 +95,9 @@
     <Setter Property="CornerRadius" Value="7"/>
     <Setter Property="Padding" Value="16"/>
     <Setter Property="BoxShadow" Value="0 0 9 0 #1628CDED"/>
+  </Style>
+  <Style Selector="Border.btx-panel.btx-compact">
+    <Setter Property="CornerRadius" Value="3"/>
   </Style>
   <Style Selector="Border.btx-panel.btx-panel-active">
     <Setter Property="BorderBrush" Value="{DynamicResource BtxPanelBorderActive}"/>
@@ -130,10 +139,16 @@
     <Setter Property="BorderBrush" Value="{DynamicResource BtxInputBorder}"/>
     <Setter Property="CornerRadius" Value="4"/>
   </Style>
+  <Style Selector="TextBox.btx-input.btx-compact">
+    <Setter Property="CornerRadius" Value="3"/>
+  </Style>
   <Style Selector="ComboBox.btx-input">
     <Setter Property="Background" Value="{DynamicResource BtxInputBackground}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource BtxInputBorder}"/>
     <Setter Property="CornerRadius" Value="4"/>
+  </Style>
+  <Style Selector="ComboBox.btx-input.btx-compact">
+    <Setter Property="CornerRadius" Value="3"/>
   </Style>
   <Style Selector="CheckBox.btx-check">
     <Setter Property="Foreground" Value="{DynamicResource BtxText}"/>

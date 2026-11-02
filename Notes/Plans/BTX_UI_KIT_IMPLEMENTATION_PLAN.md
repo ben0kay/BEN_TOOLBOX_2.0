@@ -1,6 +1,6 @@
 # BTX UI Kit — Shared Avalonia Visual Design System Implementation Plan
 
-> **STATUS: T0–T2 FOUNDATION CODED; T3 FOLDER BACKUP PILOT CODED 2026-11-02, WINDOWS BUILD/VISUAL/REGRESSION PENDING. T4–T5 NOT STARTED.**
+> **STATUS: T0–T2 FOUNDATION CODED; T3 FOLDER BACKUP AND T4 DOWNLOADER MIGRATIONS CODED 2026-11-02; BUILD/WINDOWS VISUAL/REGRESSION PENDING. T5 NOT STARTED.**
 >
 > **Created:** 2026-10-24
 > **Repo:** ben0kay/BEN_TOOLBOX_2.0
@@ -156,7 +156,7 @@ These are **proposed** filenames. Codex may consolidate types/resources when it 
 | **T1 — Shared palette and styles** | Implement resource dictionary + semantic type/text/control classes with state styling, integrate opt-in theme safely alongside FluentTheme | **Code added; compilation/style-load/Windows verification pending** |
 | **T2 — Reusable layout components** | Implement minimal header, panel, field and optional status components/helpers; provide a simple usable example/template for future Codex jobs | **Code-built button/header/panel/field helpers added; status component and visual verification pending** |
 | **T3 — Folder Backup pilot** | Redesign **only backup mode** to the downloader-inspired panels, controls and status while keeping source/destination, exclusions, preview, backup, cancel behavior | **CODED; Windows build, feature regression and screenshot acceptance pending** |
-| **T4 — Downloader refactor/validation** | Gradually point Audio Downloader to shared styles/components, remove duplicated local colour/style methods, ensure screenshot closely matches original and functionality untouched | **NOT STARTED** |
+| **T4 — Downloader refactor/validation** | Gradually point Audio Downloader to shared styles/components, remove duplicated local colour/style methods, ensure screenshot closely matches original and functionality untouched | **CODED; .NET/Windows visual and downloader regression tests pending** |
 | **T5 — Adoption & staged rollout** | Document mandatory UI guidelines for future native tools, inventory other windows and migrate one approved window at a time; possible theme variants later | **NOT STARTED** |
 
 **Recommended execution order:** **T0 → T1 → T2 → T3**. Show the user Folder Backup's Windows result before implementing T4/T5. Do not alter existing downloader styling until the shared system is proven in the pilot, except to inspect/reference its original values.
@@ -317,3 +317,25 @@ Preview, Create Backup (using disposable sample paths), Cancel, status and
 list scrolling; compare Asset Usage Finder / Artwork Prompter before and
 after; check at 760×560 and 125–200% DPI. Code committed is not
 equivalent to user visual acceptance. T4/T5 remain pending.
+
+### 2026-11-02 — T4 Audio Downloader migration coded
+
+Scoped refactor of `Views/YouTubeAudioDownloaderWindow.cs`, shared
+`BtxUiKit.cs` and `BtxControls.axaml`. Local navy/cyan brush literals and
+per-window TextBox/ComboBox selectors removed from Downloader; title/status,
+metadata, input fields, buttons and compact gradient panels now use named
+BTX classes and factories. Added opt-in `btx-tool-window`, `btx-accent`
+and compact input/panel variants to reproduce the existing window geometry
+without migrating it to chamfered tech frames.
+
+Downloader functionality unchanged: YouTubeAudioQueue/Service operations,
+queue editing/limit, category selection, FFmpeg/yt-dlp paths, update actions,
+single-job concurrency, cancellation and close, settings persistence,
+progress/status 150ms flush and diagnostic bounds. Existing action-level
+exception reporting remains. No service files or other windows changed.
+
+**Validation pending:** dotnet build / AXAML style load, Windows screenshot
+comparison at same size and DPI, queue add/edit/remove/clear, download and
+cancel with safe test URL, output folder and executable/FFmpeg pickers,
+settings reload, updates/version and diagnostics, resize at 700px min width.
+Do not claim T4 user acceptance from source-only review. T5 remains pending.

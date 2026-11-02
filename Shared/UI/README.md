@@ -97,3 +97,36 @@ If modifying this layout, keep backup-only style classes within
 `BuildBackupLayout` or the `kind == "backup"` picker branch, and verify the
 other two modes before merging. Windows build/hover/DPI and smoke tests still
 determine whether T3 is visually accepted.
+
+## T4 — YouTube Audio Downloader migration
+
+`Views/YouTubeAudioDownloaderWindow.cs` now opts into the shared kit while
+keeping its existing two-column layout, 3 px radius gradient panels, labelled
+fields, button proportions and cyan/navy palette.
+
+- `BtxUiKit.CreatePanel(content, compact: true)` replaces its private copy of
+  gradient, border, glow and padding definitions.
+- `BtxUiKit.CreateField` replaces the local labelled-field builder.
+- `BtxUiKit.CreateButton` supplies primary/secondary actions; the existing
+  per-button async handlers still catch errors and update status.
+- `ApplyInputStyle(input, compact: true)` applies shared TextBox/ComboBox
+  colours to the download form, diagnostics and dynamically generated queue
+  category selectors (instead of the previous window-global selectors).
+- `BtxUiKit.CreateText` and `btx-accent` / `btx-muted` keep the original
+  title, info labels and status colour language without copying hex values.
+- The normal native radio/checkbox and progress semantics remain.
+- `Window.btx-tool-window` sets the shared navy window background only for
+  explicitly opted-in windows; other windows stay untouched.
+
+**No downloader engine changes:** existing Add Links, Download Queue,
+Clear Finished, row removal and category selection, output folder browsing,
+update/version checks, cancellation/close semantics, quality selection,
+diagnostics, settings persistence, progress timer and status handling remain
+as they were. The old local style and layout helpers are now thin bridges
+over central BTX factories. The new compact panel modifier is only 3 px
+corner rounding, not the angled tech frame: visual preservation takes
+priority over a redesign.
+
+T4 has been coded; actual .NET 10/Avalonia 12 compilation, Windows
+screenshots, 125–200% DPI, narrow widths and interaction checks are still
+required before marking it visually accepted.

@@ -12,14 +12,13 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
-using Avalonia.Styling;
+using BEN_TOOLBOX_2_0.Shared.UI;
 using BEN_TOOLBOX_2_0.Services;
 
 namespace BEN_TOOLBOX_2_0.Views;
 
 public sealed class YouTubeAudioDownloaderWindow : Window
 {
-    private static readonly IBrush Cyan=Brush.Parse("#35D9FA"), Muted=Brush.Parse("#8AAFC4");
     private readonly YouTubeAudioService service=new();
     private readonly TextBox url=new(){PlaceholderText="Paste video links here — one URL per line",AcceptsReturn=true,MinHeight=76,MaxHeight=140,TextWrapping=TextWrapping.Wrap};
     private readonly TextBox executable=new(){Text=OperatingSystem.IsWindows()?@"D:\Ben Data\Music\MANUAL DOWNLOADS\YTDLP\yt-dlp.exe":YouTubeAudioService.Find("yt-dlp")??""};
@@ -29,12 +28,12 @@ public sealed class YouTubeAudioDownloaderWindow : Window
     private readonly RadioButton music=new(){Content="MUSIC",GroupName="audio-category",IsChecked=true};
     private readonly RadioButton other=new(){Content="OTHER",GroupName="audio-category"};
     private readonly CheckBox standalone=new(){Content=new TextBlock{Text="Official standalone release binary — enable manual -U update",TextWrapping=TextWrapping.Wrap}};
-    private readonly TextBlock status=new(){Text="READY · Add links to begin",TextWrapping=TextWrapping.Wrap,Foreground=Cyan,FontSize=18};
-    private readonly TextBlock percent=new(){Text="—",Foreground=Cyan,FontSize=30,FontWeight=FontWeight.Bold};
-    private readonly TextBlock summary=new(){Text="0 ITEMS · SEQUENTIAL DOWNLOADS",Foreground=Muted,FontSize=12};
-    private readonly TextBlock current=new(){Text="Your queue is ready. Completed files will appear in Music or Other.",Foreground=Muted,TextWrapping=TextWrapping.Wrap};
+    private readonly TextBlock status=new(){Text="READY · Add links to begin",TextWrapping=TextWrapping.Wrap,FontSize=18};
+    private readonly TextBlock percent=new(){Text="—",FontSize=30,FontWeight=FontWeight.Bold};
+    private readonly TextBlock summary=new(){Text="0 ITEMS · SEQUENTIAL DOWNLOADS",FontSize=12};
+    private readonly TextBlock current=new(){Text="Your queue is ready. Completed files will appear in Music or Other.",TextWrapping=TextWrapping.Wrap};
     private readonly TextBox diagnostics=new(){IsReadOnly=true,AcceptsReturn=true,TextWrapping=TextWrapping.Wrap,Height=125,FontFamily=new FontFamily("Consolas"),FontSize=11};
-    private readonly ProgressBar progress=new(){Minimum=0,Maximum=100,Height=12,Foreground=Cyan,Background=Brush.Parse("#112A3C")};
+    private readonly ProgressBar progress=new(){Minimum=0,Maximum=100,Height=12};
     private readonly Button cancel=new(){Content="■  CANCEL QUEUE",IsEnabled=false};
     private readonly StackPanel editor=new(){Spacing=12}, tools=new(){Spacing=12}, rows=new(){Spacing=6};
     private readonly List<AudioQueueItem> queue=new();
@@ -49,26 +48,42 @@ public sealed class YouTubeAudioDownloaderWindow : Window
     public YouTubeAudioDownloaderWindow()
     {
         Title="BEN TOOLBOX · Audio Downloader";Width=1220;Height=940;MinWidth=700;MinHeight=650;
-        Background=Brush.Parse("#060F1C");
-        Styles.Add(new Style(x=>x.OfType<TextBox>()){Setters={new Setter(TextBox.BackgroundProperty,Brush.Parse("#061420")),new Setter(TextBox.BorderBrushProperty,Brush.Parse("#24627C")),new Setter(TextBox.CornerRadiusProperty,new CornerRadius(3))}});
-        Styles.Add(new Style(x=>x.OfType<ComboBox>()){Setters={new Setter(ComboBox.BackgroundProperty,Brush.Parse("#061420")),new Setter(ComboBox.BorderBrushProperty,Brush.Parse("#24627C"))}});
+        // T4: use shared semantic resources instead of downloader-only colour/style definitions.
+        // Keep the existing layout and controls; no queue or download behaviour is altered.
+        Classes.Add("btx-tool-window");
+        foreach(var box in new[]{url,executable,destination,ffmpeg,diagnostics})
+            BtxUiKit.ApplyInputStyle(box, compact:true);
+        BtxUiKit.ApplyInputStyle(quality, compact:true);
+        music.Classes.Add("btx-check");
+        other.Classes.Add("btx-check");
+        standalone.Classes.Add("btx-check");
+        status.Classes.Add("btx-accent");
+        percent.Classes.Add("btx-accent");
+        summary.Classes.Add("btx-muted");
+        current.Classes.Add("btx-muted");
+        progress.Classes.Add("btx-progress");
+        BtxUiKit.ApplyButtonStyle(cancel, BtxUiKit.ButtonKind.Secondary);
         var root=new Grid{Margin=new Thickness(20),RowDefinitions=new RowDefinitions("Auto,*,Auto"),RowSpacing=14};
         var header=new Grid{ColumnDefinitions=new ColumnDefinitions("Auto,*"),ColumnSpacing=16};
-        header.Children.Add(new TextBlock{Text="▥",FontSize=44,Foreground=Cyan,VerticalAlignment=VerticalAlignment.Center});
-        var heading=new StackPanel{Spacing=4};heading.Children.Add(new TextBlock{Text="AUDIO DOWNLOADER",FontSize=28,FontWeight=FontWeight.Bold,Foreground=Cyan});
-        heading.Children.Add(new TextBlock{Text="BEN TOOLBOX  /  LOCAL AUDIO OPERATIONS",FontSize=11,Foreground=Muted});
-        heading.Children.Add(new TextBlock{Text="YouTube → MP3 · Categorised queue · Native desktop",Foreground=Muted,FontSize=12});
+        var headerIcon=BtxUiKit.CreateText("▥",BtxUiKit.TextKind.Accent);
+        headerIcon.FontSize=44;headerIcon.VerticalAlignment=VerticalAlignment.Center;header.Children.Add(headerIcon);
+        var heading=new StackPanel{Spacing=4};
+        var mainTitle=BtxUiKit.CreateText("AUDIO DOWNLOADER",BtxUiKit.TextKind.Accent);
+        mainTitle.FontSize=28;mainTitle.FontWeight=FontWeight.Bold;heading.Children.Add(mainTitle);
+        var kicker=BtxUiKit.CreateText("BEN TOOLBOX  /  LOCAL AUDIO OPERATIONS");
+        kicker.FontSize=11;heading.Children.Add(kicker);
+        heading.Children.Add(BtxUiKit.CreateText("YouTube → MP3 · Categorised queue · Native desktop"));
         Grid.SetColumn(heading,1);header.Children.Add(heading);root.Children.Add(Panel(header));
         var columns=new Grid{ColumnDefinitions=new ColumnDefinitions("*,360"),RowDefinitions=new RowDefinitions("Auto,Auto"),ColumnSpacing=14,RowSpacing=14};Grid.SetRow(columns,1);root.Children.Add(new ScrollViewer{Content=columns,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled});Grid.SetRow(root.Children[^1],1);
         editor.Children.Add(Field("01  /  VIDEO LINKS",url));
         var categories=new StackPanel{Orientation=Orientation.Horizontal,Spacing=24};categories.Children.Add(music);categories.Children.Add(other);
         var choices=new Grid{ColumnDefinitions=new ColumnDefinitions("*,*"),ColumnSpacing=16};choices.Children.Add(Field("02  /  DESTINATION CATEGORY",categories));var qualityField=Field("MP3 QUALITY",quality);Grid.SetColumn(qualityField,1);choices.Children.Add(qualityField);editor.Children.Add(choices);
-        editor.Children.Add(new TextBlock{Text="Each added link remembers its category. Change it in the queue before starting.",Foreground=Muted,TextWrapping=TextWrapping.Wrap,FontSize=12});
+        editor.Children.Add(MutedText("Each added link remembers its category. Change it in the queue before starting.",wrap:true));
         var startActions=new WrapPanel{ItemSpacing=10,LineSpacing=8};
         startActions.Children.Add(ActionButton("+  ADD TO QUEUE",()=>{AddLinks();return Task.CompletedTask;},true));
         startActions.Children.Add(ActionButton("↓  DOWNLOAD QUEUE",DownloadQueue,true));editor.Children.Add(startActions);
         var folderRow=new Grid{ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=8};folderRow.Children.Add(destination);var browse=ActionButton("BROWSE",async()=>await Folder(destination));Grid.SetColumn(browse,1);folderRow.Children.Add(browse);editor.Children.Add(Field("BASE OUTPUT FOLDER",folderRow));
-        editor.Children.Add(new TextBlock{Text="Music and Other are subfolders of this base. Defaults to your yt-dlp folder.",Foreground=Muted,TextWrapping=TextWrapping.Wrap,FontSize=12});
+        editor.Children.Add(MutedText("Music and Other are subfolders of this base. Defaults to your yt-dlp folder.",wrap:true));
         editor.Children.Add(summary);
         editor.Children.Add(new ScrollViewer{Content=rows,MaxHeight=235,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled});
         var queueActions=new WrapPanel{ItemSpacing=8,LineSpacing=8};
@@ -80,15 +95,15 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         var liveActions=new WrapPanel{ItemSpacing=12,LineSpacing=8};liveActions.Children.Add(cancel);
         liveActions.Children.Add(ActionButton("OPEN OUTPUT FOLDER",()=>{var folder=selectedItem?.Output is {} path?Path.GetDirectoryName(path):YouTubeAudioService.NormalizePath(destination.Text??"");if(!Directory.Exists(folder))throw new DirectoryNotFoundException("Choose an existing output folder.");Process.Start(new ProcessStartInfo(folder!){UseShellExecute=true});return Task.CompletedTask;}));
         display.Children.Add(liveActions);columns.Children.Add(left);
-        tools.Children.Add(new TextBlock{Text="⚙  TOOLS & TROUBLESHOOTING",Foreground=Cyan,FontWeight=FontWeight.Bold,FontSize=15});
+        tools.Children.Add(AccentText("⚙  TOOLS & TROUBLESHOOTING",15,FontWeight.Bold));
         tools.Children.Add(Field("yt-dlp EXECUTABLE",executable));tools.Children.Add(ActionButton("SELECT yt-dlp.exe",async()=>
         {
             var files=await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions{Title="Choose your trusted yt-dlp executable",AllowMultiple=false});
             if(files.Count>0){executable.Text=files[0].TryGetLocalPath();standalone.IsChecked=false;}
         }));
         tools.Children.Add(Field("FFMPEG / FFPROBE FOLDER",ffmpeg));tools.Children.Add(ActionButton("SELECT FFMPEG FOLDER",async()=>await Folder(ffmpeg)));
-        tools.Children.Add(new TextBlock{Text="Leave blank for auto-detection.",Foreground=Muted,FontSize=11});tools.Children.Add(standalone);
-        tools.Children.Add(new TextBlock{Text="Pip / winget / unknown installation? Use its original package manager. Updates use the exact executable above.",Foreground=Muted,TextWrapping=TextWrapping.Wrap,FontSize=12});
+        tools.Children.Add(MutedText("Leave blank for auto-detection.",size:11));tools.Children.Add(standalone);
+        tools.Children.Add(MutedText("Pip / winget / unknown installation? Use its original package manager. Updates use the exact executable above.",wrap:true));
         tools.Children.Add(ActionButton("CHECK FOR UPDATES",()=>Run(token=>service.UpdateAsync(executable.Text??"",standalone.IsChecked==true,Log,token))));
         tools.Children.Add(ActionButton("CHECK DEPENDENCIES / VERSION",()=>Run(async token=>
         {
@@ -98,7 +113,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
             Log("ffprobe: "+(YouTubeAudioService.Find("ffprobe",ffmpeg.Text)??YouTubeAudioService.Find("ffprobe",adjacent)??"MISSING"));
             Log("Deno: "+(YouTubeAudioService.Find("deno",adjacent)??"Not detected; YouTube extraction may need Deno/EJS."));Log("EJS guidance: https://github.com/yt-dlp/yt-dlp/wiki/EJS");
         })));
-        tools.Children.Add(new TextBlock{Text="LOCAL ENGINE\nyt-dlp + FFmpeg\n\nOne job at a time. Existing MP3s stay protected. No automatic binary installation.",Foreground=Muted,TextWrapping=TextWrapping.Wrap,FontSize=12});
+        tools.Children.Add(MutedText("LOCAL ENGINE\nyt-dlp + FFmpeg\n\nOne job at a time. Existing MP3s stay protected. No automatic binary installation.",wrap:true));
         var right=Panel(tools);Grid.SetColumn(right,1);columns.Children.Add(right);
         var logPanel=new Expander{Header="≡  STATUS & LOG / DIAGNOSTICS",IsExpanded=false,HorizontalAlignment=HorizontalAlignment.Stretch,Content=diagnostics};var footerContent=new StackPanel{Spacing=8};footerContent.Children.Add(Panel(display));footerContent.Children.Add(logPanel);Grid.SetRow(footerContent,2);root.Children.Add(footerContent);Content=root;
         SizeChanged+=(_,_)=>{bool narrow=Bounds.Width<1000;columns.ColumnDefinitions=new ColumnDefinitions(narrow?"*":"*,360");Grid.SetColumn(right,narrow?0:1);Grid.SetRow(right,narrow?1:0);};
@@ -118,11 +133,26 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         cancel.Click+=(_,_)=>active?.Cancel();timer.Tick+=(_,_)=>Flush();
         Closing+=(_,e)=>{if(active is not null){e.Cancel=true;closing=true;active.Cancel();}};Closed+=(_,_)=>timer.Stop();
     }
-    private static Border Panel(Control content)=>new(){Padding=new Thickness(16),BoxShadow=BoxShadows.Parse("0 0 9 0 #1628CDED"),CornerRadius=new CornerRadius(3),BorderThickness=new Thickness(1),BorderBrush=Brush.Parse("#16748E"),Background=new LinearGradientBrush{StartPoint=new RelativePoint(0,0,RelativeUnit.Relative),EndPoint=new RelativePoint(1,1,RelativeUnit.Relative),GradientStops=new GradientStops{new(Color.Parse("#10283B"),0),new(Color.Parse("#071321"),1)}},Child=content};
-    private static Control Field(string label,Control control){var p=new StackPanel{Spacing=6};p.Children.Add(new TextBlock{Text=label,FontSize=11,Foreground=Muted,FontWeight=FontWeight.Bold});p.Children.Add(control);return p;}
+    // Bridge existing call sites to the shared kit; visual source of truth is Shared/UI.
+    private static Border Panel(Control content)=>BtxUiKit.CreatePanel(content,compact:true);
+    private static Control Field(string label,Control control)=>BtxUiKit.CreateField(label,control);
+    private static TextBlock MutedText(string text,double size=12,bool wrap=false)
+    {
+        var label=BtxUiKit.CreateText(text);
+        label.FontSize=size;
+        if(wrap)label.TextWrapping=TextWrapping.Wrap;
+        return label;
+    }
+    private static TextBlock AccentText(string text,double size,FontWeight weight)
+    {
+        var label=BtxUiKit.CreateText(text,BtxUiKit.TextKind.Accent);
+        label.FontSize=size;label.FontWeight=weight;
+        return label;
+    }
     private Button ActionButton(string title,Func<Task> action,bool primary=false)
     {
-        var button=new Button{Content=title,Foreground=primary?Cyan:Brushes.White,Background=Brush.Parse(primary?"#0C4058":"#10283A"),BorderBrush=Brush.Parse(primary?"#2ED6FA":"#20506A"),BorderThickness=new Thickness(1),Padding=new Thickness(12,9),HorizontalContentAlignment=HorizontalAlignment.Center};
+        var button=BtxUiKit.CreateButton(title,primary?BtxUiKit.ButtonKind.Primary:BtxUiKit.ButtonKind.Secondary);
+        button.Padding=new Thickness(12,9); // Preserve original downloader button proportions.
         button.Click+=async(_,_)=>{try{await action();}catch(Exception ex){status.Text=ex.Message;}};return button;
     }
     private void AddLinks()
@@ -137,8 +167,8 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         foreach(var item in queue)
         {
             var row=new Grid{ColumnDefinitions=new ColumnDefinitions("*,95,Auto"),ColumnSpacing=8};
-            var info=new StackPanel{Spacing=3};info.Children.Add(new TextBlock{Text=item.Url,TextTrimming=TextTrimming.CharacterEllipsis,FontSize=11});var state=new TextBlock{Text=item.State,Foreground=Muted,FontSize=11,TextWrapping=TextWrapping.Wrap};info.Children.Add(state);rowStates[item]=state;row.Children.Add(info);
-            var category=new ComboBox{ItemsSource=new[]{"Music","Other"},SelectedIndex=(int)item.Category,IsEnabled=item.State!="Complete"};category.SelectionChanged+=(_,_)=>{if(category.SelectedIndex>=0)item.Category=(AudioCategory)category.SelectedIndex;};Grid.SetColumn(category,1);row.Children.Add(category);
+            var info=new StackPanel{Spacing=3};info.Children.Add(new TextBlock{Text=item.Url,TextTrimming=TextTrimming.CharacterEllipsis,FontSize=11});var state=MutedText(item.State,size:11,wrap:true);info.Children.Add(state);rowStates[item]=state;row.Children.Add(info);
+            var category=new ComboBox{ItemsSource=new[]{"Music","Other"},SelectedIndex=(int)item.Category,IsEnabled=item.State!="Complete"};BtxUiKit.ApplyInputStyle(category,compact:true);category.SelectionChanged+=(_,_)=>{if(category.SelectedIndex>=0)item.Category=(AudioCategory)category.SelectedIndex;};Grid.SetColumn(category,1);row.Children.Add(category);
             var remove=ActionButton("×",()=>{queue.Remove(item);RebuildRows();return Task.CompletedTask;});Grid.SetColumn(remove,2);row.Children.Add(remove);rows.Children.Add(row);
         }
         UpdateSummary();

@@ -259,3 +259,14 @@ Explicitly authorised extension beyond original single-link scope: paste one or 
 Native UI restyled with dark gradient/cyan framed panels, compact input controls, input/tools columns, narrow-window stacking, real percentage or indeterminate progress, persistent progress/cancel controls, timestamps and collapsible logs. This is a first pass inspired by the reference rather than an exact reproduction of rendered artwork. No shader dependency, artificial waveform/speed/ETA or background animation/polling added. Download/update concurrency remains guarded and window close cancels owned processes.
 
 Validation: existing service fake-process tests passed; added queue tests cover multiline parse, per-link routing, failure continuation, completed-item skipping, retry, cancellation remainder and invalid URL batches. Headless Skia test constructs/shows the native window, adds two links via the actual Add button, verifies category controls, renders an inspected 1220×940 preview, checks compact layout and closes cleanly. Main project builds with 0 errors and existing advisory/legacy warnings. Windows multi-link/folder and interactive visual acceptance remain pending; only the prior single-link Windows download was user-confirmed.
+
+### 2026-11-02 — BTX UI Kit T4 presentation refactor
+
+Downloader's own download/queue service phases are unchanged. The native
+`YouTubeAudioDownloaderWindow` now references shared opt-in buttons,
+compact panels, inputs and text resources from `Shared/UI`.
+The goal is **same layout and familiar navy/cyan appearance** with one
+central source of truth for future design changes. No invocation,
+download, queue, status, cancellation, external executable or settings
+business logic was intentionally modified. Windows build/visual and real
+workflow verification still pending. See the BTX UI Kit T4 plan for details.
