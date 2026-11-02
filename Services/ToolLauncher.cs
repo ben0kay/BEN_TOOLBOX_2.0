@@ -9,13 +9,14 @@ namespace BEN_TOOLBOX_2_0.Services;
 // Explicit allowlist: no arbitrary commands or user-supplied script paths.
 public sealed record ToolDefinition(string Id, string Category, string Name, string Description, string RelativePath)
 {
-    public string Status => Id == "internet-observatory" ? "NATIVE AVALONIA / INTERNET DATA" : Id is "pixel-art-converter" or "seasonal-sprite-studio" ? "NATIVE AVALONIA  /  IMAGE PROCESSING" : Id is "content-inspector" or "sprite-inventory" ? "NATIVE AVALONIA  /  READ ONLY" : "WINDOWS POWERSHELL  /  LOCAL";
+    public string Status => Id == "storage-analyzer" ? "NATIVE AVALONIA / SA0 DESIGN PREVIEW" : Id == "internet-observatory" ? "NATIVE AVALONIA / INTERNET DATA" : Id is "pixel-art-converter" or "seasonal-sprite-studio" ? "NATIVE AVALONIA  /  IMAGE PROCESSING" : Id is "content-inspector" or "sprite-inventory" ? "NATIVE AVALONIA  /  READ ONLY" : "WINDOWS POWERSHELL  /  LOCAL";
 }
 
 public static class ToolCatalog
 {
     private static readonly ToolDefinition[] Tools =
     {
+        new("storage-analyzer","Files","BTX Storage Analyzer","Select a drive and preview a sci-fi storage dashboard; scanning arrives in SA1.",""),
         new("youtube-audio-downloader","Files","YouTube Audio Downloader","Download one YouTube video as MP3 using local yt-dlp, with manual updates.",""),
         new("sprite-splitter","Game","Sprite Splitter","Cut PNG sprite sheets into separate images.","GameDev_Toolbox/Tools/SpriteSplitter/SpriteSplitter.ps1"),
         new("seasonal-sprite-studio","Game","Seasonal Sprite Studio","Detect and paint foliage masks, protect bark, save mask projects and preview seasons.",""),
