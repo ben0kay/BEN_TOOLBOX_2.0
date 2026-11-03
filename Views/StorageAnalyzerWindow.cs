@@ -86,6 +86,7 @@ public sealed class StorageAnalyzerWindow : Window
     private readonly Button zoomFolder = BtxUiKit.CreateButton("ZOOM INTO SELECTED", BtxUiKit.ButtonKind.Primary);
     private StorageNode? focusDirectory;
     private StorageNode? selectedNode;
+    private IReadOnlyList<TreemapEntry> focusedTopEntries = Array.Empty<TreemapEntry>();
     private StorageScanResult? result;
     private CancellationTokenSource? activeScan;
     private bool previewActive;
@@ -236,6 +237,7 @@ public sealed class StorageAnalyzerWindow : Window
         {
             focusDirectory = null;
             selectedNode = null;
+            focusedTopEntries = Array.Empty<TreemapEntry>();
             treemap.ShowDirectory(null);
             breadcrumbs.Children.Clear(); // Drop old scan breadcrumb references.
             result = null;
@@ -368,6 +370,7 @@ public sealed class StorageAnalyzerWindow : Window
         result = null;
         focusDirectory = null;
         selectedNode = null;
+        focusedTopEntries = Array.Empty<TreemapEntry>();
         treemap.ShowDirectory(null);
         breadcrumbs.Children.Clear(); // Release previous scan hierarchy immediately.
         previewActive = false;
@@ -549,6 +552,10 @@ public sealed class StorageAnalyzerWindow : Window
 
         treemap.ShowDirectory(focusDirectory);
         treemap.SelectedNode = selectedNode;
+        // Compute top-15 only when changing folder. Tile selection should
+        // never repeat an O(number-of-children) traversal.
+        focusedTopEntries = TreemapLayout.CreateEntries(focusDirectory, 16)
+            .Where(x => x.Node is not null).Take(15).ToArray();
 
         var ancestors = new List<StorageNode>();
         for (var n = focusDirectory; n is not null; n = n.Parent)
@@ -598,13 +605,9 @@ public sealed class StorageAnalyzerWindow : Window
         if (focusDirectory is null)
             return;
 
-        // Reuse O(n log 16) top-k selection; never sort an entire huge folder
-        // or instantiate a control for every file in the snapshot.
-        var top = TreemapLayout.CreateEntries(focusDirectory, 16)
-            .Where(x => x.Node is not null)
-            .Take(15)
-            .ToArray();
-        if (top.Length == 0)
+        // The top-15 set is cached per displayed directory; a selection
+        // repaint only recreates these few buttons, never rescans children.
+        if (focusedTopEntries.Count == 0)
         {
             itemsContent.Children.Add(MutedText("No files with positive measured size here."));
             return;
@@ -615,7 +618,7 @@ public sealed class StorageAnalyzerWindow : Window
             Text = "LARGEST 15 ENTRIES  /  CLICK TO SELECT",
             Foreground = Cyan, FontSize = 11
         });
-        foreach (var item in top)
+        foreach (var item in focusedTopEntries)
         {
             var node = item.Node!;
             var button = BtxUiKit.CreateButton(
