@@ -2,7 +2,7 @@
 
 > Repository: BEN_TOOLBOX_2.0 · Category: **Files / File Toolbox**
 > Updated: 2026-11-02
-> Status: **SA0/SA1 CODED; SA2 INTERACTIVE TREEMAP CODED 2026-11-02, .NET BUILD / WINDOWS VISUAL AND FUNCTIONAL TESTS PENDING. SA3–SA4 NOT STARTED.**
+> Status: **SA0/SA1 CODED; SA2 FILE-LEVEL DENSITY PASS CODED 2026-11-03, .NET BUILD / WINDOWS FUNCTIONAL TESTS PENDING. SA3–SA4 NOT STARTED.**
 > Design direction: dark navy, aqua/cyan sci-fi panels, strong treemap, largest-item table, selected-item details, file-type breakdown, largest categories. Avoid decorative UI overwhelming actual files.
 
 ## Read first
@@ -124,6 +124,7 @@ Tasks:
 ## SA2 implementation notes — 2026-11-02
 
 - `Features/StorageAnalyzer/Treemap/TreemapLayout.cs` provides a **renderer-independent squarified treemap** (geometry and hit testing), proportional to the SA1 included logical bytes. Uses bounded O(n log k) top-k selection per displayed directory, with `k=96`. The remaining measurable bytes are consolidated in a truthful `Other (N items)` aggregate tile. Additional subpixel rectangles are combined on narrow viewports rather than rendering impossible-to-hit strips. A zero-size directory displays a friendly empty state.
+  - **Historical SA2 first pass:** this immediate-child 96-tile view is retained as a small-layout helper and for the bounded top-15 list, but was superseded for the *real treemap visual* by the 2026-11-03 density pass below.
 - `Features/StorageAnalyzer/Controls/StorageTreemapControl.cs` is a single custom-drawn Avalonia `Control` using cached geometry, deterministic tile colours, size labels when space permits, hover highlights and full-path tooltips. No child control per scanned file, no animation timer, no periodic rerender. Geometry recomputes on folder/viewport change; selection/hover repaints only the map.
 - `Views/StorageAnalyzerWindow.cs` now shows a **real** coloured treemap after SA1 scanning, with single-click selection, double-click folder drill-down, `ZOOM INTO SELECTED`, `UP ONE LEVEL`, clickable breadcrumb hierarchy (root plus last six when very deep), synchronized selected-file details (name, path, logical bytes, subtree counts, share of current folder) and 15 largest entries from the same focused directory. The short list is bounded and reuses top-k selection; full virtualized browse/sort/search remains SA3.
 - An aggregate `Other` tile cannot be individually selected or opened, because its data represents many independent files/folders. Zoom out, resize or use SA3 browser later to inspect its constituents. Zero-byte entries do not occupy treemap area.
@@ -133,3 +134,18 @@ Tasks:
 - **Outstanding:** Windows `dotnet build`, `dotnet run --project Tests/StorageAnalyzerScannerSmoke/StorageAnalyzerScannerSmoke.csproj`, and manual UI verification at 980px minimum width, common desktop sizes and 125–200% DPI. Confirm hover/click/double-click/breadcrumb behaviour, partial scans, large-folder responsiveness and contrast. These tests are *not claimed as run in this session*.
 
 **Next SA3:** efficient virtualized directory browser / search and sorting; file-type and category summaries; real file details and guarded Windows Explorer open/reveal/copy-path actions. No cleanup/delete until separately approved.
+
+## SA2-D — Full file-level WinDirStat-style density (2026-11-03)
+
+User tested the earlier SA2 treemap and requested an **all-files view by default**, with an optional customizable minimum size (e.g. 10 KiB / 10 MiB).
+
+- `Features/StorageAnalyzer/Treemap/FileTreemapLayout.cs`: background-safe, UI-independent *nested* squarified layout. Recursively partitions folder rectangles into individual files, using an iterative stack; every **included positive-length file** has its own geometric rectangle, **without the old 96-tile cap or an Other aggregate**. Preserves directory outlines and calculates included directory weights bottom-up, respecting threshold settings without mutating scanned totals/nodes.
+- Dense rasterization is performed on the worker into a BGRA byte array and integer pixel hit index. Files smaller than one pixel retain exact geometric records and contribute to the image's dense colour pattern but **cannot all be visually distinguished/clicked at screen resolution**; zooming into a folder expands their pixels. Zero-byte files have no area and are reported separately. Tile colour is stable by file extension.
+- `Features/StorageAnalyzer/Controls/StorageTreemapControl.cs`: single cached Avalonia `WriteableBitmap` created after a cancellable background layout task, with efficient per-pixel hit lookup; drawing and hover no longer iterate all files. Bitmap is regenerated only on focus-folder, viewport or threshold change; no animation timer or hundreds of thousands of Controls. Build cancellation and generation IDs prevent stale results from overwriting the latest map.
+- `Views/StorageAnalyzerWindow.cs`: adds the **MIN FILE SIZE ON MAP** dropdown (All files default, 1 KiB, 10 KiB, 100 KiB, 1 MiB, 10 MiB, 100 MiB, Custom). Custom accepts a non-negative decimal value and KiB/MiB/GiB unit, then Apply. A map-only filter rebuilds the bitmap from the already-scanned tree; **it does not re-scan, delete, alter or exclude any files from scanner totals**. The map summary reports shown files/bytes and hidden file count/bytes separately.
+- Single-click now picks an actual file, double-click enters its **containing folder**; top-15 immediate child folders and breadcrumb navigation are retained. All SA1 safety behaviour, manual scanning/cancellation and the explicitly synthetic preview remain unchanged.
+- Headless tests extend `Tests/StorageAnalyzerScannerSmoke` to assert all-file inclusion, nested folder boundaries, zero-byte handling, size thresholds (10 KiB, 1 MiB and above-largest), no mutated scan nodes, dense layout >96 files, cancellation and raster/hit buffer bounds.
+- **Known physical limitation:** on a finite-size canvas, 1 KiB among hundreds of gigabytes may have area far smaller than one pixel. Even though all eligible positive-size files have layout records, no screen can show them as distinct separately-clickable shapes simultaneously. Zoom into a subtree or set a minimum size to improve visual legibility. The custom size filter is *display only*. Compare to the earlier SA2 screenshot before approving aesthetics.
+- **Validation still pending:** `dotnet build` and `dotnet run --project Tests/StorageAnalyzerScannerSmoke/StorageAnalyzerScannerSmoke.csproj` in .NET 10, plus Windows test on modest and very large scans, hover/double click/drill-down, rapid filter changes, resize, zero-byte-only folder, cancellation and DPI scaling. No local Windows/Avalonia build was run in this session.
+
+The previous section records the *original* 96-child design for history; **SA2-D supersedes that rendering algorithm**, not SA1 storage scanning or the bounded largest-items list. SA3 remains file-browser/type-summary/Explorer integration.

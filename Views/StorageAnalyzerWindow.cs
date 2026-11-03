@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -76,6 +77,33 @@ public sealed class StorageAnalyzerWindow : Window
     private readonly StackPanel categoriesContent = new() { Spacing = 8 };
     private readonly StackPanel errorsContent = new() { Spacing = 6 };
     private readonly StorageTreemapControl treemap = new();
+    private readonly ComboBox minimumPreset = new()
+    {
+        ItemsSource = new[] { "All files", "1 KiB", "10 KiB", "100 KiB",
+            "1 MiB", "10 MiB", "100 MiB", "Custom…" },
+        SelectedIndex = 0, MinWidth = 120
+    };
+    private readonly TextBox customAmount = new()
+    {
+        Text = "10", Width = 75, Watermark = "Value", IsVisible = false
+    };
+    private readonly ComboBox customUnit = new()
+    {
+        ItemsSource = new[] { "KiB", "MiB", "GiB" },
+        SelectedIndex = 1, Width = 86, IsVisible = false
+    };
+    private readonly Button applyCustom = BtxUiKit.CreateButton("APPLY", BtxUiKit.ButtonKind.Secondary);
+    private readonly TextBlock mapStatistics = new()
+    {
+        Text = "No file-level map generated.", Foreground = Muted,
+        TextWrapping = TextWrapping.Wrap
+    };
+    private long appliedMinimumBytes;
+    private static readonly long[] MinimumPresets =
+    {
+        0, 1024, 10 * 1024, 100 * 1024,
+        1024 * 1024, 10 * 1024 * 1024, 100 * 1024 * 1024
+    };
     private readonly WrapPanel breadcrumbs = new() { ItemSpacing = 6, LineSpacing = 6 };
     private readonly TextBlock hoverDetails = new()
     {
@@ -116,6 +144,10 @@ public sealed class StorageAnalyzerWindow : Window
         BtxUiKit.ApplyInputStyle(excludedFolders);
         BtxUiKit.ApplyInputStyle(excludedExtensions);
         BtxUiKit.ApplyInputStyle(excludedPaths);
+        BtxUiKit.ApplyInputStyle(minimumPreset);
+        BtxUiKit.ApplyInputStyle(customAmount);
+        BtxUiKit.ApplyInputStyle(customUnit);
+        applyCustom.IsVisible = false;
         activityBar.Classes.Add("btx-progress");
         includeHidden.Classes.Add("btx-check");
         developerPreset.Classes.Add("btx-check");
@@ -212,6 +244,36 @@ public sealed class StorageAnalyzerWindow : Window
         });
         Content = new ScrollViewer { Content = page };
 
+        treemap.LayoutFailed += message =>
+        {
+            if (!closed && !previewActive && result is not null)
+                mapStatistics.Text = "Treemap could not be rendered: " + message;
+        };
+        treemap.LayoutReady += snapshot =>
+        {
+            if (closed || previewActive || result is null) return;
+            mapStatistics.Text =
+                $"Mapped {snapshot.VisibleFiles:N0} files · {FormatBytes(snapshot.VisibleBytes)} shown" +
+                (snapshot.MinimumFileBytes > 0
+                    ? $"  |  {snapshot.HiddenFiles:N0} below threshold ({FormatBytes(snapshot.HiddenBytes)}) hidden from map"
+                    : "") +
+                (snapshot.ZeroByteFiles > 0
+                    ? $"  |  {snapshot.ZeroByteFiles:N0} zero-byte files (no area)" : "") +
+                $"  |  all original scan totals unchanged.";
+        };
+        minimumPreset.SelectionChanged += (_, _) =>
+        {
+            bool custom = minimumPreset.SelectedIndex == MinimumPresets.Length;
+            customAmount.IsVisible = custom;
+            customUnit.IsVisible = custom;
+            applyCustom.IsVisible = custom;
+            if (!custom && minimumPreset.SelectedIndex >= 0)
+            {
+                appliedMinimumBytes = MinimumPresets[minimumPreset.SelectedIndex];
+                ApplyMinimumToMap();
+            }
+        };
+        applyCustom.Click += (_, _) => ApplyCustomMinimum();
         treemap.NodeSelected += SelectActualNode;
         treemap.DirectoryRequested += NavigateToFolder;
         treemap.HoverChanged += item =>
@@ -238,7 +300,8 @@ public sealed class StorageAnalyzerWindow : Window
             focusDirectory = null;
             selectedNode = null;
             focusedTopEntries = Array.Empty<TreemapEntry>();
-            treemap.ShowDirectory(null);
+            treemap.Clear();
+            mapStatistics.Text = "No file-level map generated.";
             breadcrumbs.Children.Clear(); // Drop old scan breadcrumb references.
             result = null;
             previewActive = false;
@@ -266,6 +329,7 @@ public sealed class StorageAnalyzerWindow : Window
             closed = true;
             scanGeneration++;
             activeScan?.Cancel();
+            treemap.Clear();
         };
 
         UpdateDriveDetails();
@@ -371,7 +435,8 @@ public sealed class StorageAnalyzerWindow : Window
         focusDirectory = null;
         selectedNode = null;
         focusedTopEntries = Array.Empty<TreemapEntry>();
-        treemap.ShowDirectory(null);
+        treemap.Clear();
+        mapStatistics.Text = "Scanning; file-level layout will build after completion.";
         breadcrumbs.Children.Clear(); // Release previous scan hierarchy immediately.
         previewActive = false;
         demo.Content = "SHOW DESIGN PREVIEW";
@@ -498,6 +563,20 @@ public sealed class StorageAnalyzerWindow : Window
             Foreground = Cyan, FontSize = 11, FontWeight = FontWeight.SemiBold
         });
 
+        var filter = new WrapPanel { ItemSpacing = 8, LineSpacing = 7 };
+        filter.Children.Add(new TextBlock
+        {
+            Text = "MIN FILE SIZE ON MAP",
+            Foreground = Cyan, VerticalAlignment = VerticalAlignment.Center,
+            FontSize = 11, FontWeight = FontWeight.SemiBold
+        });
+        filter.Children.Add(minimumPreset);
+        filter.Children.Add(customAmount);
+        filter.Children.Add(customUnit);
+        filter.Children.Add(applyCustom);
+        mapContent.Children.Add(filter);
+        mapContent.Children.Add(mapStatistics);
+
         var tools = new WrapPanel { ItemSpacing = 8, LineSpacing = 7 };
         tools.Children.Add(upFolder);
         tools.Children.Add(zoomFolder);
@@ -506,8 +585,9 @@ public sealed class StorageAnalyzerWindow : Window
         mapContent.Children.Add(treemap);
         mapContent.Children.Add(hoverDetails);
         mapContent.Children.Add(MutedText(
-            "Tile area = measured logical bytes. Single-click selects; double-click a folder to enter it. " +
-            "Grey Other tile combines very small entries. Use breadcrumbs or Up to return."));
+            "Every included positive-size file receives its own rectangle; smaller than a screen pixel may not be distinguishable until zoomed. " +
+            "Click a file to select; double-click it to enter its containing folder. Folder navigation is also available through the list and breadcrumbs. " +
+            "Minimum size changes only the map, not the scan."));
 
         RefreshActualNavigation();
 
@@ -523,6 +603,42 @@ public sealed class StorageAnalyzerWindow : Window
             errorsContent.Children.Add(MutedText(item));
         if (actual.InaccessibleEntries > actual.ErrorSamples.Count)
             errorsContent.Children.Add(MutedText("Additional errors were counted but not listed."));
+    }
+
+    private void ApplyMinimumToMap()
+    {
+        if (closed || previewActive || result is null || focusDirectory is null)
+            return;
+        mapStatistics.Text = "Applying minimum file size to map…";
+        treemap.ShowDirectory(focusDirectory, appliedMinimumBytes);
+    }
+
+    private void ApplyCustomMinimum()
+    {
+        if (!double.TryParse(customAmount.Text, NumberStyles.Float,
+                CultureInfo.CurrentCulture, out double value)
+            || !double.IsFinite(value) || value < 0)
+        {
+            mapStatistics.Text = "Enter a non-negative number for the custom minimum size.";
+            return;
+        }
+
+        int power = customUnit.SelectedIndex + 1;
+        if (power is < 1 or > 3)
+        {
+            mapStatistics.Text = "Select KiB, MiB or GiB.";
+            return;
+        }
+
+        double bytes = value * Math.Pow(1024, power);
+        if (!double.IsFinite(bytes) || bytes >= long.MaxValue)
+        {
+            mapStatistics.Text = "Custom size is too large.";
+            return;
+        }
+
+        appliedMinimumBytes = (long)Math.Ceiling(bytes);
+        ApplyMinimumToMap();
     }
 
     private void NavigateToFolder(StorageNode directory)
@@ -550,7 +666,8 @@ public sealed class StorageAnalyzerWindow : Window
         if (result is null || focusDirectory is null)
             return;
 
-        treemap.ShowDirectory(focusDirectory);
+        mapStatistics.Text = "Building file-level map…";
+        treemap.ShowDirectory(focusDirectory, appliedMinimumBytes);
         treemap.SelectedNode = selectedNode;
         // Compute top-15 only when changing folder. Tile selection should
         // never repeat an O(number-of-children) traversal.
@@ -575,7 +692,7 @@ public sealed class StorageAnalyzerWindow : Window
             foreach (var ancestor in ancestors)
                 AddCrumb(ancestor);
 
-        hoverDetails.Text = "Hover a tile for its measured size and path.";
+        hoverDetails.Text = "Hover over a file rectangle for its measured size and path.";
         RefreshLargestItems();
         RefreshSelectedDetails();
         RefreshNavigationButtons();
@@ -652,7 +769,7 @@ public sealed class StorageAnalyzerWindow : Window
             ? node.LogicalBytes * 100.0 / focus.LogicalBytes : 0;
         selectedContent.Children.Add(MutedText(
             $"{(node.IsDirectory ? "Folder" : "File")} · {FormatBytes(node.LogicalBytes)}\n" +
-            $"Share of displayed folder: {share:N2}%\n" +
+            $"Share of scanned folder: {share:N2}%\n" +
             $"Included files: {node.FileCount:N0}\n" +
             $"Included subdirectories: {node.SubdirectoryCount:N0}\n" +
             $"Path: {node.GetFullPath()}"));

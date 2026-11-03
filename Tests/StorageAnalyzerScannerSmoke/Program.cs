@@ -127,6 +127,91 @@ try
     Assert(TreemapLayout.HitTest(Array.Empty<TreemapTile>(), 1, 1) is null,
         "Empty hit test should not select anything");
 
+
+    // SA2 density pass: the real map no longer groups all but 96 children.
+    // Every included positive-length file has its own geometry.
+    var nested = new StorageNode("Projects", true, null);
+    var deep = new StorageNode("Source", true, nested);
+    nested.AddChild(deep);
+    var smallFile = new StorageNode("small.txt", false, deep)
+        { LogicalBytes = 1024, FileCount = 1 };
+    var mediumFile = new StorageNode("medium.png", false, deep)
+        { LogicalBytes = 256 * 1024, FileCount = 1 };
+    var largeFile = new StorageNode("large.mp4", false, nested)
+        { LogicalBytes = 10 * 1024 * 1024, FileCount = 1 };
+    var zeroFile = new StorageNode("empty.dat", false, nested)
+        { LogicalBytes = 0, FileCount = 1 };
+    deep.AddChild(smallFile);
+    deep.AddChild(mediumFile);
+    nested.AddChild(largeFile);
+    nested.AddChild(zeroFile);
+    long allBytes = smallFile.LogicalBytes + mediumFile.LogicalBytes + largeFile.LogicalBytes;
+    nested.LogicalBytes = allBytes;
+    deep.LogicalBytes = smallFile.LogicalBytes + mediumFile.LogicalBytes;
+
+    var completeMap = FileTreemapLayout.Build(nested, 800, 420, 0);
+    Assert(completeMap.VisibleFiles == 3 && completeMap.Files.Count == 3,
+        "All-file map must have a tile for every positive-length file");
+    Assert(completeMap.HiddenFiles == 0 && completeMap.ZeroByteFiles == 1,
+        "Zero-byte files cannot have geometric area, but must be reported");
+    Assert(completeMap.VisibleBytes == allBytes && completeMap.HiddenBytes == 0,
+        "All-file map must retain measured byte totals");
+    Assert(completeMap.Folders.Any(x => ReferenceEquals(x.Folder, deep)),
+        "The map must preserve nested folder boundaries");
+    Assert(completeMap.FileIndex.ContainsKey(smallFile)
+        && completeMap.FileIndex.ContainsKey(mediumFile)
+        && completeMap.FileIndex.ContainsKey(largeFile),
+        "Each included file must have its own retrievable rectangle");
+
+    var midFilter = FileTreemapLayout.Build(nested, 800, 420, 10 * 1024);
+    Assert(midFilter.VisibleFiles == 2 && midFilter.HiddenFiles == 1,
+        "The 10 KiB minimum should hide only the 1 KiB file");
+    Assert(midFilter.HiddenBytes == 1024
+        && midFilter.VisibleBytes == allBytes - 1024,
+        "Map-only filter byte totals incorrect");
+    Assert(nested.LogicalBytes == allBytes && nested.Children.Count == 3,
+        "Treemap filter MUST NOT mutate scanner nodes");
+
+    var largeFilter = FileTreemapLayout.Build(nested, 800, 420, 1024 * 1024);
+    Assert(largeFilter.VisibleFiles == 1
+        && ReferenceEquals(largeFilter.Files[0].File, largeFile),
+        "1 MiB minimum should display only the large file");
+
+    var emptyMap = FileTreemapLayout.Build(nested, 800, 420, 100L * 1024 * 1024);
+    Assert(emptyMap.VisibleFiles == 0 && emptyMap.Files.Count == 0,
+        "Filters larger than all files must yield an empty map");
+    Assert(emptyMap.HitTest(20, 20) is null, "Empty map should not have hit results");
+
+    var dense = new StorageNode("Dense", true, null);
+    for (int i = 0; i < 300; i++)
+    {
+        var child = new StorageNode("tiny-" + i + ".bin", false, dense)
+            { LogicalBytes = 1024, FileCount = 1 };
+        dense.AddChild(child);
+    }
+    dense.LogicalBytes = 300L * 1024;
+    var denseMap = FileTreemapLayout.Build(dense, 150, 65, 0);
+    Assert(denseMap.Files.Count == 300, "No 96-tile cap is allowed in All files mode");
+    Assert(denseMap.VisibleBytes == dense.LogicalBytes,
+        "Dense map must include every byte, even if rectangles share pixels");
+    Assert(denseMap.BgraPixels.Length == 150 * 65 * 4
+        && denseMap.PixelFileIndices.Length == 150 * 65,
+        "Raster buffer must match the requested viewport");
+    Assert(denseMap.HitTest(-1, 5) is null && denseMap.HitTest(150, 5) is null,
+        "Out-of-bounds hit testing must be safe");
+
+    using var cancelledTreemap = new CancellationTokenSource();
+    cancelledTreemap.Cancel();
+    try
+    {
+        FileTreemapLayout.Build(dense, 150, 65, 0, cancelledTreemap.Token);
+        throw new Exception("Cancelled layout should not continue");
+    }
+    catch (OperationCanceledException) { }
+
+    Console.WriteLine("PASS: file-level all-files layout, deep folders, custom size " +
+        "thresholds, zero-size files, dense rasterization and cancellation.");
+
     Console.WriteLine("PASS: SA2 proportional squarified layout, top-k bounds, Other totals, " +
         "portrait/landscape/tiny resizing, geometry and hit tests.");
 
