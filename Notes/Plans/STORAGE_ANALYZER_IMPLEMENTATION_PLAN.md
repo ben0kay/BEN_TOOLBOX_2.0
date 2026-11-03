@@ -2,7 +2,7 @@
 
 > Repository: BEN_TOOLBOX_2.0 · Category: **Files / File Toolbox**
 > Updated: 2026-11-02
-> Status: **SA0/SA1 CODED; SA2 FILE-LEVEL DENSITY PASS CODED 2026-11-03, .NET BUILD / WINDOWS FUNCTIONAL TESTS PENDING. SA3–SA4 NOT STARTED.**
+> Status: **SA0/SA1 CODED; SA2 FILE-LEVEL DENSITY + STRICT >1 KiB MAP FLOOR CODED 2026-11-03. BUILD/WINDOWS TESTS PENDING. SA3–SA4 NOT STARTED.**
 > Design direction: dark navy, aqua/cyan sci-fi panels, strong treemap, largest-item table, selected-item details, file-type breakdown, largest categories. Avoid decorative UI overwhelming actual files.
 
 ## Read first
@@ -149,3 +149,30 @@ User tested the earlier SA2 treemap and requested an **all-files view by default
 - **Validation still pending:** `dotnet build` and `dotnet run --project Tests/StorageAnalyzerScannerSmoke/StorageAnalyzerScannerSmoke.csproj` in .NET 10, plus Windows test on modest and very large scans, hover/double click/drill-down, rapid filter changes, resize, zero-byte-only folder, cancellation and DPI scaling. No local Windows/Avalonia build was run in this session.
 
 The previous section records the *original* 96-child design for history; **SA2-D supersedes that rendering algorithm**, not SA1 storage scanning or the bounded largest-items list. SA3 remains file-browser/type-summary/Explorer integration.
+
+## SA2-D follow-up — omit 0-byte and 1-KiB files from geometry (2026-11-03)
+
+User clarified: **do not draw 0-KiB or 1-KiB files as individual shapes**.
+The file-level treemap now enforces a permanent **strictly greater than 1 KiB**
+floor (`FileTreemapLayout.MinimumVisibleBytes = 1025`). This applies even
+when callers request a threshold of zero or enter a lower custom threshold:
+files sized 0–1024 bytes never get `FileTreemapTile`, a bitmap painted
+shape, or a file hit-test index. The scan node hierarchy, scanned file count,
+and scanned logical byte totals stay untouched.
+
+- The default dropdown now reads **Above 1 KiB**. Larger map-only filters
+  remain 10 KiB, 100 KiB, 1 MiB, 10 MiB, 100 MiB, and Custom.
+- The effective threshold for the custom input is
+  `max(1025, ceil(requested number of bytes))`.
+- The treemap summary reports hidden nonzero files and their hidden bytes;
+  zero-byte files are reported separately because they occupy no area.
+- Geometry and rasterization skip hidden tiny files before layout, reducing
+  visual clutter and expensive painting. Larger files still render
+  individually with no 96-tile cap.
+- Headless smoke tests cover exact sizes 0 B, 1 B, 1024 B and 1025 B,
+  custom thresholds below the hard floor, higher filters, unchanged scanner
+  totals, and 300 files of 2 KiB to guard against a regression to 96 tiles.
+- The prior paragraph referring to **all positive-length files** describes
+  the earlier SA2-D version and is superseded by this user-approved floor.
+- Windows `dotnet build`, scanner/geometry smoke tests, and visual review
+  are still pending; don't mark acceptance before running them.

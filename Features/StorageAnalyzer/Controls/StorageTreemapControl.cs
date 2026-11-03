@@ -17,9 +17,10 @@ using BEN_TOOLBOX_2_0.Features.StorageAnalyzer.Treemap;
 namespace BEN_TOOLBOX_2_0.Features.StorageAnalyzer.Controls;
 
 /// <summary>
-/// WinDirStat-like full-file treemap, rendered as ONE cached bitmap. All
-/// included positive-length files have geometry; tiny rectangles may share
-/// physical pixels until zoomed. No per-file Controls or redraw timers.
+/// WinDirStat-like file-level treemap rendered as ONE cached bitmap.
+/// Included files above 1 KiB have geometry; smaller files never get tiles.
+/// Subpixel rectangles may share screen pixels until zoomed; no per-file Controls
+/// or redraw timers.
 /// </summary>
 public sealed class StorageTreemapControl : Control
 {

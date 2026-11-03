@@ -150,18 +150,20 @@ try
     deep.LogicalBytes = smallFile.LogicalBytes + mediumFile.LogicalBytes;
 
     var completeMap = FileTreemapLayout.Build(nested, 800, 420, 0);
-    Assert(completeMap.VisibleFiles == 3 && completeMap.Files.Count == 3,
-        "All-file map must have a tile for every positive-length file");
-    Assert(completeMap.HiddenFiles == 0 && completeMap.ZeroByteFiles == 1,
-        "Zero-byte files cannot have geometric area, but must be reported");
-    Assert(completeMap.VisibleBytes == allBytes && completeMap.HiddenBytes == 0,
-        "All-file map must retain measured byte totals");
+    Assert(completeMap.VisibleFiles == 2 && completeMap.Files.Count == 2,
+        "Default map must omit the 1 KiB file, not just zero-byte files");
+    Assert(completeMap.HiddenFiles == 1 && completeMap.ZeroByteFiles == 1,
+        "1 KiB and zero-byte files must be counted separately");
+    Assert(completeMap.VisibleBytes == allBytes - 1024 && completeMap.HiddenBytes == 1024,
+        "Default map must subtract tiny files from geometry, not scan totals");
+    Assert(completeMap.MinimumFileBytes == FileTreemapLayout.MinimumVisibleBytes,
+        "Default minimum must enforce a strict >1 KiB display floor");
     Assert(completeMap.Folders.Any(x => ReferenceEquals(x.Folder, deep)),
         "The map must preserve nested folder boundaries");
-    Assert(completeMap.FileIndex.ContainsKey(smallFile)
+    Assert(!completeMap.FileIndex.ContainsKey(smallFile)
         && completeMap.FileIndex.ContainsKey(mediumFile)
         && completeMap.FileIndex.ContainsKey(largeFile),
-        "Each included file must have its own retrievable rectangle");
+        "1 KiB files must never have geometry or hit-test entries");
 
     var midFilter = FileTreemapLayout.Build(nested, 800, 420, 10 * 1024);
     Assert(midFilter.VisibleFiles == 2 && midFilter.HiddenFiles == 1,
@@ -185,13 +187,13 @@ try
     var dense = new StorageNode("Dense", true, null);
     for (int i = 0; i < 300; i++)
     {
-        var child = new StorageNode("tiny-" + i + ".bin", false, dense)
-            { LogicalBytes = 1024, FileCount = 1 };
+        var child = new StorageNode("file-" + i + ".bin", false, dense)
+            { LogicalBytes = 2048, FileCount = 1 };
         dense.AddChild(child);
     }
-    dense.LogicalBytes = 300L * 1024;
+    dense.LogicalBytes = 300L * 2048;
     var denseMap = FileTreemapLayout.Build(dense, 150, 65, 0);
-    Assert(denseMap.Files.Count == 300, "No 96-tile cap is allowed in All files mode");
+    Assert(denseMap.Files.Count == 300, "No 96-tile cap for files above 1 KiB");
     Assert(denseMap.VisibleBytes == dense.LogicalBytes,
         "Dense map must include every byte, even if rectangles share pixels");
     Assert(denseMap.BgraPixels.Length == 150 * 65 * 4
@@ -199,6 +201,38 @@ try
         "Raster buffer must match the requested viewport");
     Assert(denseMap.HitTest(-1, 5) is null && denseMap.HitTest(150, 5) is null,
         "Out-of-bounds hit testing must be safe");
+
+
+    // Exact edge cases: 0 bytes, 1 byte, 1,024 bytes -> no geometry.
+    // 1,025 bytes is the first permitted geometry, even at custom minimum 0.
+    var boundaries = new StorageNode("Boundaries", true, null);
+    foreach (var (name, size) in new[]
+    {
+        ("zero", 0L), ("one", 1L), ("exactly-1KiB", 1024L),
+        ("above-1KiB", 1025L), ("two-KiB", 2048L)
+    })
+    {
+        boundaries.AddChild(new StorageNode(name, false, boundaries)
+            { LogicalBytes = size, FileCount = 1 });
+    }
+    boundaries.LogicalBytes = 4098;
+    var boundaryMap = FileTreemapLayout.Build(boundaries, 160, 90, 0);
+    Assert(boundaryMap.VisibleFiles == 2 && boundaryMap.Files.Count == 2,
+        "Only files strictly larger than 1 KiB should have geometry");
+    Assert(boundaryMap.HiddenFiles == 2 && boundaryMap.HiddenBytes == 1025
+        && boundaryMap.ZeroByteFiles == 1,
+        "Tiny and zero-byte counters should remain accurate");
+    Assert(boundaryMap.VisibleBytes == 3073 && boundaries.LogicalBytes == 4098,
+        "The display floor must not change the original scanner totals");
+    Assert(boundaryMap.Files.All(x => x.File.LogicalBytes > 1024),
+        "No 0..1 KiB file may appear in geometry");
+    var belowFloorCustom = FileTreemapLayout.Build(boundaries, 160, 90, 1);
+    Assert(belowFloorCustom.VisibleFiles == 2
+        && belowFloorCustom.MinimumFileBytes == FileTreemapLayout.MinimumVisibleBytes,
+        "Custom thresholds below 1 KiB must not bypass the hard display floor");
+    var highFilter = FileTreemapLayout.Build(boundaries, 160, 90, 2048);
+    Assert(highFilter.VisibleFiles == 1 && highFilter.HiddenFiles == 3,
+        "Higher display thresholds must continue to work");
 
     using var cancelledTreemap = new CancellationTokenSource();
     cancelledTreemap.Cancel();
@@ -209,8 +243,8 @@ try
     }
     catch (OperationCanceledException) { }
 
-    Console.WriteLine("PASS: file-level all-files layout, deep folders, custom size " +
-        "thresholds, zero-size files, dense rasterization and cancellation.");
+    Console.WriteLine("PASS: file-level layout above 1 KiB, strict 0/1 KiB exclusions, " +
+        "custom and higher thresholds, dense rasterization and cancellation.");
 
     Console.WriteLine("PASS: SA2 proportional squarified layout, top-k bounds, Other totals, " +
         "portrait/landscape/tiny resizing, geometry and hit tests.");

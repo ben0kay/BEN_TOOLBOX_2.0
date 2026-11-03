@@ -11,8 +11,8 @@ public readonly record struct FileTreemapTile(StorageNode File, TreemapRect Rect
 public readonly record struct FolderTreemapTile(StorageNode Folder, TreemapRect Rect, int Depth);
 
 /// <summary>
-/// Immutable output of the background treemap build. Each positive-sized file
-/// meeting the user threshold has its own geometric rectangle (no 96-tile cap).
+/// Immutable output of the background treemap build. Each file exceeding
+/// 1 KiB and meeting the user threshold has its own rectangle (no 96-tile cap).
 /// Pixel indices reflect what can actually be distinguished at this zoom.
 /// </summary>
 public sealed record FileTreemapSnapshot(
@@ -35,10 +35,16 @@ public sealed record FileTreemapSnapshot(
 /// <summary>
 /// File-level, folder-nested squarified treemap and software rasterizer.
 /// Build off the UI thread, then upload a single bitmap on the UI thread.
-/// Thresholds affect visualization ONLY; scanned StorageNode totals never change.
+/// A hard floor excludes files of 0..1024 bytes from the visualization.
+/// Higher user thresholds affect the map ONLY; scan totals never change.
 /// </summary>
 public static class FileTreemapLayout
 {
+    // 0-byte files have no area; 1-byte through 1-KiB files are omitted from
+    // geometry at every filter setting, including a custom minimum of zero.
+    // A 1,025-byte file is the smallest that can get a treemap rectangle.
+    public const long MinimumVisibleBytes = 1025;
+
     // Opaque BGRA palette; files with the same extension get the same colour.
     private static readonly uint[] Palette =
     {
@@ -60,6 +66,7 @@ public static class FileTreemapLayout
             throw new ArgumentOutOfRangeException(nameof(width), "Invalid treemap viewport.");
         if (minimumFileBytes < 0)
             throw new ArgumentOutOfRangeException(nameof(minimumFileBytes));
+        long effectiveMinimum = Math.Max(minimumFileBytes, MinimumVisibleBytes);
 
         cancellationToken.ThrowIfCancellationRequested();
         var folders = new List<StorageNode>();
@@ -82,7 +89,7 @@ public static class FileTreemapLayout
             }
             else if (node.LogicalBytes == 0)
                 zeroFiles++;
-            else if (node.LogicalBytes < minimumFileBytes)
+            else if (node.LogicalBytes < effectiveMinimum)
             {
                 hiddenFiles++;
                 hiddenBytes += node.LogicalBytes;
@@ -100,7 +107,7 @@ public static class FileTreemapLayout
             foreach (var child in dir.Children)
                 sum += child.IsDirectory
                     ? visibleDirectoryBytes[child]
-                    : child.LogicalBytes >= minimumFileBytes ? child.LogicalBytes : 0;
+                    : child.LogicalBytes >= effectiveMinimum ? child.LogicalBytes : 0;
             visibleDirectoryBytes[dir] = sum;
         }
 
@@ -129,7 +136,7 @@ public static class FileTreemapLayout
                 foreach (var child in folder.Children)
                 {
                     long weight = child.IsDirectory ? visibleDirectoryBytes[child]
-                        : child.LogicalBytes >= minimumFileBytes ? child.LogicalBytes : 0;
+                        : child.LogicalBytes >= effectiveMinimum ? child.LogicalBytes : 0;
                     if (weight > 0)
                         entries.Add(new TreemapEntry(child, child.Name, weight));
                 }
@@ -168,7 +175,7 @@ public static class FileTreemapLayout
 
         return new FileTreemapSnapshot(width, height, pixels, hits,
             fileTiles, folderTiles, fileIndex, visibleBytes, hiddenBytes,
-            visibleFiles, hiddenFiles, zeroFiles, minimumFileBytes);
+            visibleFiles, hiddenFiles, zeroFiles, effectiveMinimum);
     }
 
     private static void FillBackground(byte[] pixels, uint bgra)

@@ -79,7 +79,7 @@ public sealed class StorageAnalyzerWindow : Window
     private readonly StorageTreemapControl treemap = new();
     private readonly ComboBox minimumPreset = new()
     {
-        ItemsSource = new[] { "All files", "1 KiB", "10 KiB", "100 KiB",
+        ItemsSource = new[] { "Above 1 KiB", "10 KiB", "100 KiB",
             "1 MiB", "10 MiB", "100 MiB", "Custom…" },
         SelectedIndex = 0, MinWidth = 120
     };
@@ -98,10 +98,10 @@ public sealed class StorageAnalyzerWindow : Window
         Text = "No file-level map generated.", Foreground = Muted,
         TextWrapping = TextWrapping.Wrap
     };
-    private long appliedMinimumBytes;
+    private long appliedMinimumBytes = FileTreemapLayout.MinimumVisibleBytes;
     private static readonly long[] MinimumPresets =
     {
-        0, 1024, 10 * 1024, 100 * 1024,
+        FileTreemapLayout.MinimumVisibleBytes, 10 * 1024, 100 * 1024,
         1024 * 1024, 10 * 1024 * 1024, 100 * 1024 * 1024
     };
     private readonly WrapPanel breadcrumbs = new() { ItemSpacing = 6, LineSpacing = 6 };
@@ -255,7 +255,7 @@ public sealed class StorageAnalyzerWindow : Window
             mapStatistics.Text =
                 $"Mapped {snapshot.VisibleFiles:N0} files · {FormatBytes(snapshot.VisibleBytes)} shown" +
                 (snapshot.MinimumFileBytes > 0
-                    ? $"  |  {snapshot.HiddenFiles:N0} below threshold ({FormatBytes(snapshot.HiddenBytes)}) hidden from map"
+                    ? $"  |  {snapshot.HiddenFiles:N0} below minimum ({FormatBytes(snapshot.HiddenBytes)}) hidden from map"
                     : "") +
                 (snapshot.ZeroByteFiles > 0
                     ? $"  |  {snapshot.ZeroByteFiles:N0} zero-byte files (no area)" : "") +
@@ -585,9 +585,9 @@ public sealed class StorageAnalyzerWindow : Window
         mapContent.Children.Add(treemap);
         mapContent.Children.Add(hoverDetails);
         mapContent.Children.Add(MutedText(
-            "Every included positive-size file receives its own rectangle; smaller than a screen pixel may not be distinguishable until zoomed. " +
-            "Click a file to select; double-click it to enter its containing folder. Folder navigation is also available through the list and breadcrumbs. " +
-            "Minimum size changes only the map, not the scan."));
+            "Files of 1 KiB or less never create rectangles (zero-byte files have no area). " +
+            "Every larger included file has its own geometry; subpixel files may be indistinguishable until zoomed. " +
+            "Click a file to select; double-click to enter its folder. Filters change only the map, not the scan."));
 
         RefreshActualNavigation();
 
@@ -637,7 +637,9 @@ public sealed class StorageAnalyzerWindow : Window
             return;
         }
 
-        appliedMinimumBytes = (long)Math.Ceiling(bytes);
+        // Enforce the same >1 KiB floor for custom minimums, including 0.
+        appliedMinimumBytes = Math.Max(FileTreemapLayout.MinimumVisibleBytes,
+            (long)Math.Ceiling(bytes));
         ApplyMinimumToMap();
     }
 
