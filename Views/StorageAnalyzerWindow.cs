@@ -12,12 +12,14 @@ using Avalonia.Threading;
 using BEN_TOOLBOX_2_0.Features.StorageAnalyzer.Models;
 using BEN_TOOLBOX_2_0.Features.StorageAnalyzer.Services;
 using BEN_TOOLBOX_2_0.Shared.UI;
+using BEN_TOOLBOX_2_0.Features.StorageAnalyzer.Controls;
+using BEN_TOOLBOX_2_0.Features.StorageAnalyzer.Treemap;
 
 namespace BEN_TOOLBOX_2_0.Views;
 
 /// <summary>
-/// SA1 manual metadata scanner. SA0 fictional design preview remains separate;
-/// real treemap geometry and Explorer actions are scheduled for SA2/SA3.
+/// SA2 interactive, read-only treemap over the SA1 scanner's retained hierarchy.
+/// Fictional preview and actual scan results are kept clearly separate.
 /// </summary>
 public sealed class StorageAnalyzerWindow : Window
 {
@@ -73,6 +75,17 @@ public sealed class StorageAnalyzerWindow : Window
     private readonly StackPanel typesContent = new() { Spacing = 8 };
     private readonly StackPanel categoriesContent = new() { Spacing = 8 };
     private readonly StackPanel errorsContent = new() { Spacing = 6 };
+    private readonly StorageTreemapControl treemap = new();
+    private readonly WrapPanel breadcrumbs = new() { ItemSpacing = 6, LineSpacing = 6 };
+    private readonly TextBlock hoverDetails = new()
+    {
+        Text = "Hover a tile for size and path. Click to select; double-click folders to zoom.",
+        Foreground = Muted, TextWrapping = TextWrapping.Wrap
+    };
+    private readonly Button upFolder = BtxUiKit.CreateButton("UP ONE LEVEL", BtxUiKit.ButtonKind.Secondary);
+    private readonly Button zoomFolder = BtxUiKit.CreateButton("ZOOM INTO SELECTED", BtxUiKit.ButtonKind.Primary);
+    private StorageNode? focusDirectory;
+    private StorageNode? selectedNode;
     private StorageScanResult? result;
     private CancellationTokenSource? activeScan;
     private bool previewActive;
@@ -109,7 +122,7 @@ public sealed class StorageAnalyzerWindow : Window
         var page = new StackPanel { Margin = new Thickness(22), Spacing = 16 };
         page.Children.Add(new TextBlock
         {
-            Text = "FILES  /  BTX STORAGE ANALYZER  /  SA1",
+            Text = "FILES  /  BTX STORAGE ANALYZER  /  SA2",
             Foreground = Cyan, FontSize = 12, LetterSpacing = 1.5
         });
         page.Children.Add(new TextBlock
@@ -118,7 +131,7 @@ public sealed class StorageAnalyzerWindow : Window
         });
         page.Children.Add(new TextBlock
         {
-            Text = "Scan filesystem metadata · Filter folders before scanning · Explore disk usage (treemap in SA2)",
+            Text = "Scan disk usage · Explore folders visually · Double-click a folder to drill down",
             Foreground = Muted, FontSize = 13, TextWrapping = TextWrapping.Wrap
         });
 
@@ -178,13 +191,13 @@ public sealed class StorageAnalyzerWindow : Window
         layout.Children.Add(left);
 
         var middle = new StackPanel { Spacing = 13 };
-        middle.Children.Add(Section("DISK USAGE TREEMAP  /  SA2", mapContent));
-        middle.Children.Add(Section("LARGEST ROOT ITEMS", itemsContent));
+        middle.Children.Add(Section("DISK USAGE TREEMAP", mapContent));
+        middle.Children.Add(Section("LARGEST ITEMS / CURRENT FOLDER", itemsContent));
         Grid.SetColumn(middle, 1);
         layout.Children.Add(middle);
 
         var right = new StackPanel { Spacing = 13 };
-        right.Children.Add(Section("SCAN DETAILS", selectedContent));
+        right.Children.Add(Section("SELECTED FILE / FOLDER", selectedContent));
         right.Children.Add(Section("FILE TYPE BREAKDOWN  /  SA3", typesContent));
         right.Children.Add(Section("LARGEST CATEGORIES  /  SA3", categoriesContent));
         Grid.SetColumn(right, 2);
@@ -193,13 +206,38 @@ public sealed class StorageAnalyzerWindow : Window
         page.Children.Add(layout);
         page.Children.Add(new TextBlock
         {
-            Text = "SA1: read-only filesystem metadata. Logical file sizes may differ from disk used space. Access-denied and excluded entries are not measured. No deletion, Explorer actions or automatic scans.",
+            Text = "SA2: read-only interactive treemap. Sizes are logical included file bytes, not allocated-on-disk space. Exclusions and inaccessible entries are omitted. No deletion, Explorer actions or automatic scans.",
             Foreground = Muted, TextWrapping = TextWrapping.Wrap, FontSize = 12
         });
         Content = new ScrollViewer { Content = page };
 
+        treemap.NodeSelected += SelectActualNode;
+        treemap.DirectoryRequested += NavigateToFolder;
+        treemap.HoverChanged += item =>
+        {
+            hoverDetails.Text = item is null
+                ? "Hover a tile for size and path. Click to select; double-click folders to zoom."
+                : item.IsAggregate
+                    ? $"{item.Label} · {FormatBytes(item.LogicalBytes)} · Grouped smaller entries"
+                    : $"{item.Label} · {FormatBytes(item.LogicalBytes)}";
+        };
+        upFolder.Click += (_, _) =>
+        {
+            if (focusDirectory?.Parent is { } parent)
+                NavigateToFolder(parent);
+        };
+        zoomFolder.Click += (_, _) =>
+        {
+            if (selectedNode is { IsDirectory: true } target)
+                NavigateToFolder(target);
+        };
+
         drivePicker.SelectionChanged += (_, _) =>
         {
+            focusDirectory = null;
+            selectedNode = null;
+            treemap.ShowDirectory(null);
+            breadcrumbs.Children.Clear(); // Drop old scan breadcrumb references.
             result = null;
             previewActive = false;
             demo.Content = "SHOW DESIGN PREVIEW";
@@ -328,6 +366,10 @@ public sealed class StorageAnalyzerWindow : Window
         var cts = new CancellationTokenSource();
         activeScan = cts;
         result = null;
+        focusDirectory = null;
+        selectedNode = null;
+        treemap.ShowDirectory(null);
+        breadcrumbs.Children.Clear(); // Release previous scan hierarchy immediately.
         previewActive = false;
         demo.Content = "SHOW DESIGN PREVIEW";
         Render();
@@ -422,7 +464,7 @@ public sealed class StorageAnalyzerWindow : Window
             return;
         }
 
-        mapContent.Children.Add(Empty("Real treemap visualization is coming in SA2. Select a drive and click Scan to collect actual file sizes.", 315));
+        mapContent.Children.Add(Empty("Scan a selected drive to display proportional, interactive folder rectangles.", 315));
         itemsContent.Children.Add(Empty("Largest root folders and files will appear after an actual scan.", 190));
         selectedContent.Children.Add(MutedText("No scan results. Selecting a drive only reads volume capacity metadata."));
         typesContent.Children.Add(Empty("Classification is planned for SA3.", 125));
@@ -433,46 +475,186 @@ public sealed class StorageAnalyzerWindow : Window
 
     private void RenderActual(StorageScanResult actual)
     {
-        string outcome = actual.Cancelled ? "PARTIAL / CANCELLED" : "REAL SCAN DATA";
-        mapContent.Children.Add(new TextBlock
+        var root = actual.Roots.FirstOrDefault();
+        if (root is null)
         {
-            Text = outcome, Foreground = Cyan, FontSize = 12, FontWeight = FontWeight.Bold
-        });
-        mapContent.Children.Add(Empty(
-            $"Measured {FormatBytes(actual.LogicalBytes)} across {actual.Files:N0} files.\nThe interactive proportional treemap is the next phase (SA2).\nScan results are retained in a hierarchical file model.", 240));
-
-        var firstRoot = actual.Roots.FirstOrDefault();
-        if (firstRoot is not null)
-        {
-            itemsContent.Children.Add(new TextBlock
-            {
-                Text = "ROOT ENTRIES  /  LARGEST FIRST (MAX 15)", Foreground = Cyan, FontSize = 11
-            });
-            foreach (var node in firstRoot.Children.OrderByDescending(x => x.LogicalBytes).Take(15))
-            {
-                string mark = node.IsDirectory ? "▣" : "□";
-                itemsContent.Children.Add(new TextBlock
-                {
-                    Text = $"{mark}  {node.Name}  —  {FormatBytes(node.LogicalBytes)}",
-                    TextWrapping = TextWrapping.Wrap,
-                    Foreground = Brush.Parse("#DFEFFF"), FontSize = 12
-                });
-            }
-            if (firstRoot.Children.Count == 0)
-                itemsContent.Children.Add(MutedText("No readable, included items were found at the root."));
-            selectedContent.Children.Add(MutedText(
-                $"Root: {firstRoot.Name}\nIncluded logical size: {FormatBytes(firstRoot.LogicalBytes)}\nDiscovered files: {actual.Files:N0}\nDiscovered folders (including root): {actual.Directories:N0}\nElapsed: {actual.Elapsed.TotalSeconds:N1}s\nAllocated-on-disk usage is not measured in SA1."));
+            mapContent.Children.Add(MutedText("No filesystem root returned."));
+            return;
         }
 
-        typesContent.Children.Add(MutedText("Real type breakdown is scheduled for SA3."));
-        categoriesContent.Children.Add(MutedText("Real categorized summaries and Explorer actions are scheduled for SA3."));
+        // Persist drill-down across demo toggles, but always initialize a new
+        // scan at its root (StartScanAsync resets focus and selection).
+        focusDirectory ??= root;
+        selectedNode ??= focusDirectory;
 
+        mapContent.Children.Add(new TextBlock
+        {
+            Text = actual.Cancelled
+                ? "PARTIAL RESULTS  /  CANCELLED SCAN"
+                : "REAL MEASURED DATA  /  CLICK TO SELECT",
+            Foreground = Cyan, FontSize = 11, FontWeight = FontWeight.SemiBold
+        });
+
+        var tools = new WrapPanel { ItemSpacing = 8, LineSpacing = 7 };
+        tools.Children.Add(upFolder);
+        tools.Children.Add(zoomFolder);
+        mapContent.Children.Add(tools);
+        mapContent.Children.Add(breadcrumbs);
+        mapContent.Children.Add(treemap);
+        mapContent.Children.Add(hoverDetails);
+        mapContent.Children.Add(MutedText(
+            "Tile area = measured logical bytes. Single-click selects; double-click a folder to enter it. " +
+            "Grey Other tile combines very small entries. Use breadcrumbs or Up to return."));
+
+        RefreshActualNavigation();
+
+        typesContent.Children.Add(MutedText(
+            "File extension and type breakdown is scheduled for SA3."));
+        categoriesContent.Children.Add(MutedText(
+            "Classification, sorting/searching and Windows Explorer actions are scheduled for SA3."));
         errorsContent.Children.Add(MutedText(
-            $"{actual.InaccessibleEntries:N0} inaccessible entries · {actual.FilteredEntries:N0} filtered · {actual.ReparseEntries:N0} reparse entries skipped.\nFiltered or inaccessible bytes are not included in the measured total."));
+            $"{actual.InaccessibleEntries:N0} inaccessible · {actual.FilteredEntries:N0} filtered · " +
+            $"{actual.ReparseEntries:N0} reparse entries skipped.\n" +
+            "Filtered or inaccessible bytes are not included in treemap totals."));
         foreach (var item in actual.ErrorSamples.Take(8))
             errorsContent.Children.Add(MutedText(item));
         if (actual.InaccessibleEntries > actual.ErrorSamples.Count)
             errorsContent.Children.Add(MutedText("Additional errors were counted but not listed."));
+    }
+
+    private void NavigateToFolder(StorageNode directory)
+    {
+        if (result is null || previewActive || !directory.IsDirectory)
+            return;
+        focusDirectory = directory;
+        selectedNode = directory;
+        RefreshActualNavigation();
+    }
+
+    private void SelectActualNode(StorageNode node)
+    {
+        if (result is null || previewActive || focusDirectory is null)
+            return;
+        selectedNode = node;
+        treemap.SelectedNode = node;
+        RefreshLargestItems();
+        RefreshSelectedDetails();
+        RefreshNavigationButtons();
+    }
+
+    private void RefreshActualNavigation()
+    {
+        if (result is null || focusDirectory is null)
+            return;
+
+        treemap.ShowDirectory(focusDirectory);
+        treemap.SelectedNode = selectedNode;
+
+        var ancestors = new List<StorageNode>();
+        for (var n = focusDirectory; n is not null; n = n.Parent)
+            ancestors.Add(n);
+        ancestors.Reverse();
+
+        breadcrumbs.Children.Clear();
+        // Keep deep paths readable: always show the root and last six levels.
+        if (ancestors.Count > 7)
+        {
+            AddCrumb(ancestors[0]);
+            breadcrumbs.Children.Add(MutedText("…"));
+            foreach (var ancestor in ancestors.Skip(ancestors.Count - 6))
+                AddCrumb(ancestor);
+        }
+        else
+            foreach (var ancestor in ancestors)
+                AddCrumb(ancestor);
+
+        hoverDetails.Text = "Hover a tile for its measured size and path.";
+        RefreshLargestItems();
+        RefreshSelectedDetails();
+        RefreshNavigationButtons();
+    }
+
+    private void AddCrumb(StorageNode node)
+    {
+        var captured = node;
+        var button = BtxUiKit.CreateButton(ShortPath(node.Name),
+            ReferenceEquals(node, focusDirectory)
+                ? BtxUiKit.ButtonKind.Primary : BtxUiKit.ButtonKind.Quiet);
+        button.Padding = new Thickness(9, 5);
+        button.Click += (_, _) => NavigateToFolder(captured);
+        breadcrumbs.Children.Add(button);
+    }
+
+    private void RefreshNavigationButtons()
+    {
+        upFolder.IsEnabled = focusDirectory?.Parent is not null;
+        zoomFolder.IsEnabled = selectedNode is { IsDirectory: true }
+            && !ReferenceEquals(selectedNode, focusDirectory);
+    }
+
+    private void RefreshLargestItems()
+    {
+        itemsContent.Children.Clear();
+        if (focusDirectory is null)
+            return;
+
+        // Reuse O(n log 16) top-k selection; never sort an entire huge folder
+        // or instantiate a control for every file in the snapshot.
+        var top = TreemapLayout.CreateEntries(focusDirectory, 16)
+            .Where(x => x.Node is not null)
+            .Take(15)
+            .ToArray();
+        if (top.Length == 0)
+        {
+            itemsContent.Children.Add(MutedText("No files with positive measured size here."));
+            return;
+        }
+
+        itemsContent.Children.Add(new TextBlock
+        {
+            Text = "LARGEST 15 ENTRIES  /  CLICK TO SELECT",
+            Foreground = Cyan, FontSize = 11
+        });
+        foreach (var item in top)
+        {
+            var node = item.Node!;
+            var button = BtxUiKit.CreateButton(
+                $"{(node.IsDirectory ? "▣" : "□")}  {node.Name}  ·  {FormatBytes(node.LogicalBytes)}",
+                ReferenceEquals(node, selectedNode)
+                    ? BtxUiKit.ButtonKind.Primary : BtxUiKit.ButtonKind.Quiet);
+            button.HorizontalContentAlignment = HorizontalAlignment.Left;
+            button.Click += (_, _) => SelectActualNode(node);
+            itemsContent.Children.Add(button);
+        }
+    }
+
+    private void RefreshSelectedDetails()
+    {
+        selectedContent.Children.Clear();
+        if (selectedNode is not { } node || focusDirectory is not { } focus)
+        {
+            selectedContent.Children.Add(MutedText("Select a tile or a listed item."));
+            return;
+        }
+
+        selectedContent.Children.Add(new TextBlock
+        {
+            Text = node.Name,
+            Foreground = Cyan,
+            FontSize = 17,
+            FontWeight = FontWeight.SemiBold,
+            TextWrapping = TextWrapping.Wrap
+        });
+        double share = focus.LogicalBytes > 0
+            ? node.LogicalBytes * 100.0 / focus.LogicalBytes : 0;
+        selectedContent.Children.Add(MutedText(
+            $"{(node.IsDirectory ? "Folder" : "File")} · {FormatBytes(node.LogicalBytes)}\n" +
+            $"Share of displayed folder: {share:N2}%\n" +
+            $"Included files: {node.FileCount:N0}\n" +
+            $"Included subdirectories: {node.SubdirectoryCount:N0}\n" +
+            $"Path: {node.GetFullPath()}"));
+        selectedContent.Children.Add(MutedText(
+            "Included, readable logical size only. SA3 will add Explorer/copy-path actions."));
     }
 
     private void RenderDemo()

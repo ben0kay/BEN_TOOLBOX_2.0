@@ -2,7 +2,7 @@
 
 > Repository: BEN_TOOLBOX_2.0 · Category: **Files / File Toolbox**
 > Updated: 2026-11-02
-> Status: **SA0 CODED. SA1 BACKGROUND METADATA SCANNER + UI CODED 2026-11-02; .NET BUILD, WINDOWS VISUAL AND FUNCTIONAL TESTS PENDING. SA2–SA4 NOT STARTED.**
+> Status: **SA0/SA1 CODED; SA2 INTERACTIVE TREEMAP CODED 2026-11-02, .NET BUILD / WINDOWS VISUAL AND FUNCTIONAL TESTS PENDING. SA3–SA4 NOT STARTED.**
 > Design direction: dark navy, aqua/cyan sci-fi panels, strong treemap, largest-item table, selected-item details, file-type breakdown, largest categories. Avoid decorative UI overwhelming actual files.
 
 ## Read first
@@ -28,7 +28,7 @@
 | --- | --- | --- |
 | SA0 | Native Files tool, blank dashboard, manual drive choice, five result regions, opt-in fictional design preview, disabled scanner action | **Coded, committed; Windows build/visual test pending** |
 | SA1 | Real, cancellable, read-only metadata scanner for one selected drive, pre-scan exclusions, visible progress/errors | **Coded and committed; build/test/Windows verification pending** |
-| SA2 | Efficient real treemap geometry and hit-testing, zoom/drill-down, tooltips and synchronized selection | Not started |
+| SA2 | Efficient real treemap geometry and hit-testing, zoom/drill-down, tooltips and synchronized selection | **Code implemented and pushed; build, headless tests and Windows visual review pending** |
 | SA3 | Largest-items browser, selected details, actual file-type/category summaries, Explorer reveal/open/copy path and guarded targeted rescan | Not started |
 | SA4 | Measure and optimize performance, cached snapshots, optional faster NTFS/MFT engine, multi-root UI/scanning | Not started |
 
@@ -120,3 +120,15 @@ Tasks:
 5. Verify SA0 demo remains fictional and Explorer/actions remain absent; other Toolbox windows unchanged.
 
 **Next:** SA2 squarified treemap rendering over the retained `StorageNode` hierarchy, hit-testing, breadcrumbs and zoom. Avoid creating one Avalonia control per file. No NTFS/MFT engine has been added.
+
+## SA2 implementation notes — 2026-11-02
+
+- `Features/StorageAnalyzer/Treemap/TreemapLayout.cs` provides a **renderer-independent squarified treemap** (geometry and hit testing), proportional to the SA1 included logical bytes. Uses bounded O(n log k) top-k selection per displayed directory, with `k=96`. The remaining measurable bytes are consolidated in a truthful `Other (N items)` aggregate tile. Additional subpixel rectangles are combined on narrow viewports rather than rendering impossible-to-hit strips. A zero-size directory displays a friendly empty state.
+- `Features/StorageAnalyzer/Controls/StorageTreemapControl.cs` is a single custom-drawn Avalonia `Control` using cached geometry, deterministic tile colours, size labels when space permits, hover highlights and full-path tooltips. No child control per scanned file, no animation timer, no periodic rerender. Geometry recomputes on folder/viewport change; selection/hover repaints only the map.
+- `Views/StorageAnalyzerWindow.cs` now shows a **real** coloured treemap after SA1 scanning, with single-click selection, double-click folder drill-down, `ZOOM INTO SELECTED`, `UP ONE LEVEL`, clickable breadcrumb hierarchy (root plus last six when very deep), synchronized selected-file details (name, path, logical bytes, subtree counts, share of current folder) and 15 largest entries from the same focused directory. The short list is bounded and reuses top-k selection; full virtualized browse/sort/search remains SA3.
+- An aggregate `Other` tile cannot be individually selected or opened, because its data represents many independent files/folders. Zoom out, resize or use SA3 browser later to inspect its constituents. Zero-byte entries do not occupy treemap area.
+- The SA0 fictional demo remains separately labelled and cannot open real folders or call Explorer; scanning remains manual; reparse/exclusion rules and read-only metadata behaviour from SA1 are unchanged. Partial cancelled results are labelled, and the treemap can visualize their known sizes without claiming full coverage.
+- The existing headless scanner test project now also compiles `TreemapLayout.cs` and checks bounded selection, exact aggregate bytes, proportional area coverage, no overlaps, mouse hit testing, landscape/portrait/tiny viewports and empty cases.
+- **Outstanding:** Windows `dotnet build`, `dotnet run --project Tests/StorageAnalyzerScannerSmoke/StorageAnalyzerScannerSmoke.csproj`, and manual UI verification at 980px minimum width, common desktop sizes and 125–200% DPI. Confirm hover/click/double-click/breadcrumb behaviour, partial scans, large-folder responsiveness and contrast. These tests are *not claimed as run in this session*.
+
+**Next SA3:** efficient virtualized directory browser / search and sorting; file-type and category summaries; real file details and guarded Windows Explorer open/reveal/copy-path actions. No cleanup/delete until separately approved.

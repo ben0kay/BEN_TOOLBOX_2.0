@@ -10,5 +10,6 @@
     <Compile Include="../../Features/StorageAnalyzer/Models/StorageScanModels.cs" Link="StorageScanModels.cs" />
     <Compile Include="../../Features/StorageAnalyzer/Services/ScanExclusionMatcher.cs" Link="ScanExclusionMatcher.cs" />
     <Compile Include="../../Features/StorageAnalyzer/Services/StorageScanService.cs" Link="StorageScanService.cs" />
+    <Compile Include="../../Features/StorageAnalyzer/Treemap/TreemapLayout.cs" Link="TreemapLayout.cs" />
   </ItemGroup>
 </Project>
