@@ -2,7 +2,7 @@
 
 > Repository: BEN_TOOLBOX_2.0 · Category: **Files / File Toolbox**
 > Updated: 2026-11-02
-> Status: **SA0/SA1 CODED; SA2 FILE-LEVEL DENSITY + STRICT >1 KiB MAP FLOOR CODED 2026-11-03. BUILD/WINDOWS TESTS PENDING. SA3–SA4 NOT STARTED.**
+> Status: **SA0–SA2 CODED; SA3-A FILE BROWSER / GLOBAL LARGEST FILES CODED 2026-11-04. WINDOWS BUILD/REGRESSION TESTS PENDING. SA3-B/C AND SA4 NOT STARTED.**
 > Design direction: dark navy, aqua/cyan sci-fi panels, strong treemap, largest-item table, selected-item details, file-type breakdown, largest categories. Avoid decorative UI overwhelming actual files.
 
 ## Read first
@@ -29,7 +29,7 @@
 | SA0 | Native Files tool, blank dashboard, manual drive choice, five result regions, opt-in fictional design preview, disabled scanner action | **Coded, committed; Windows build/visual test pending** |
 | SA1 | Real, cancellable, read-only metadata scanner for one selected drive, pre-scan exclusions, visible progress/errors | **Coded and committed; build/test/Windows verification pending** |
 | SA2 | Efficient real treemap geometry and hit-testing, zoom/drill-down, tooltips and synchronized selection | **Code implemented and pushed; build, headless tests and Windows visual review pending** |
-| SA3 | Largest-items browser, selected details, actual file-type/category summaries, Explorer reveal/open/copy path and guarded targeted rescan | Not started |
+| SA3 | SA3-A: folder browser, file sorting/search and drive-wide top-file view; SA3-B/C: breakdowns and Explorer actions | **SA3-A coded; build/Windows acceptance pending. SA3-B/C not started** |
 | SA4 | Measure and optimize performance, cached snapshots, optional faster NTFS/MFT engine, multi-root UI/scanning | Not started |
 
 ## SA0 — current first pass
@@ -176,3 +176,15 @@ and scanned logical byte totals stay untouched.
   the earlier SA2-D version and is superseded by this user-approved floor.
 - Windows `dotnet build`, scanner/geometry smoke tests, and visual review
   are still pending; don't mark acceptance before running them.
+
+## SA3-A — Directory browser and drive-wide largest-file ranking (2026-11-04)
+
+- Added `Features/StorageAnalyzer/Services/StorageBrowserIndex.cs` as a **read-only, Avalonia-independent** index over SA1's retained `StorageNode` tree. No disk I/O, file content reads, deletions or new filesystem traversal. Directory entries can be sorted by name, logical size and extension; directories are grouped first in folder mode. Case-insensitive name substring filtering is applied on request, not per keystroke.
+- Global **Largest files / whole scan** is intentionally a *top 2,500 file* ranking using a min-heap, O(N log 2500) time and O(2500 + folder depth) extra references. It traverses the existing snapshot once on demand, without sorting or storing all scanned files in a second global index. Subsequent name/size/extension sorting and filtering affect only those top-ranked 2,500 files. This bound is displayed explicitly in UI. Larger top-N limits can be benchmarked during SA4.
+- Added `Features/StorageAnalyzer/Controls/StorageBrowserPanel.cs` using a **page of at most 80 ListBox rows**. ListBoxes show compact `DIR/FILE | size | name` text, with next/previous buttons, filter/apply/clear, sorting and ascending/descending toggle; background Task.Run handles sorting and global indexing with generation/cancellation protection. No file-system scan runs when switching views or sorting.
+- In `Views/StorageAnalyzerWindow.cs`, a `FILE BROWSER / SA3-A` section sits below the original current-folder top-15 list. The browser is only attached when **real scan data** exist. Clicking a file updates the selected-item pane and treemap; choosing a drive-wide file navigates the treemap into its containing folder so it is visible. Double-click or **GO TO SELECTED FOLDER** navigates; existing Up/breadcrumbs stay available.
+- File browser includes zero-byte and 0–1024 byte entries because the user's **strict >1 KiB rule applies to treemap shapes only**, not scanner truth or the file list. Scan totals, map size filter, layout algorithm, exclusion behavior, cancellation and synthetic preview stay unchanged. The preview cannot browse real paths.
+- Headless smoke project now compiles `StorageBrowserIndex.cs`; tests assert name/size sorts, case-insensitive filters, folder-first order, 80-row pagination, global top-file ranking, subset re-sorting, tiny/zero-byte inclusion, no scan-node mutation and cancellation.
+- This is SA3-**A** only. SA3-B will cover file-type/category aggregations; SA3-C will cover guarded Explorer reveal/open, clipboard/copy path, and further synchronized interaction. **No Explorer invocation, deletion or cleanup implemented here.**
+
+**Validation pending:** Windows `dotnet build`, `dotnet run --project Tests/StorageAnalyzerScannerSmoke/StorageAnalyzerScannerSmoke.csproj`, and interactive checks on a fresh scan: directory navigation, sorting in both directions, name filter/apply/clear, 80-row pagination, top-2,500 ranking, selection sync after choosing a file from another branch, tiny/zero-byte browser listing with no tiny rectangles, preview isolation, reset/new scan, and close during indexing.

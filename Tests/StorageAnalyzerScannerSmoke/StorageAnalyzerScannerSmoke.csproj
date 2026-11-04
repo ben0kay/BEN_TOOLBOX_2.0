@@ -10,6 +10,7 @@
     <Compile Include="../../Features/StorageAnalyzer/Models/StorageScanModels.cs" Link="StorageScanModels.cs" />
     <Compile Include="../../Features/StorageAnalyzer/Services/ScanExclusionMatcher.cs" Link="ScanExclusionMatcher.cs" />
     <Compile Include="../../Features/StorageAnalyzer/Services/StorageScanService.cs" Link="StorageScanService.cs" />
+    <Compile Include="../../Features/StorageAnalyzer/Services/StorageBrowserIndex.cs" Link="StorageBrowserIndex.cs" />
     <Compile Include="../../Features/StorageAnalyzer/Treemap/TreemapLayout.cs" Link="TreemapLayout.cs" />
     <Compile Include="../../Features/StorageAnalyzer/Treemap/FileTreemapLayout.cs" Link="FileTreemapLayout.cs" />
   </ItemGroup>

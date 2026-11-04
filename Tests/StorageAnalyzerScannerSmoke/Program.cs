@@ -249,6 +249,91 @@ try
     Console.WriteLine("PASS: SA2 proportional squarified layout, top-k bounds, Other totals, " +
         "portrait/landscape/tiny resizing, geometry and hit tests.");
 
+
+    // SA3-A: browser works solely from retained scan data. Sorting and
+    // pagination never open files or change the treemap display threshold.
+    var browserRoot = new StorageNode("browse-root", true, null);
+    var browserDir = new StorageNode("Images", true, browserRoot);
+    browserRoot.AddChild(browserDir);
+    var browserEmpty = new StorageNode("empty.dat", false, browserRoot)
+        { LogicalBytes = 0, FileCount = 1 };
+    var browserTiny = new StorageNode("tiny.txt", false, browserRoot)
+        { LogicalBytes = 512, FileCount = 1 };
+    var browserZip = new StorageNode("archive.ZIP", false, browserRoot)
+        { LogicalBytes = 4096, FileCount = 1 };
+    var browserVideo = new StorageNode("video.mp4", false, browserDir)
+        { LogicalBytes = 200000, FileCount = 1 };
+    browserRoot.AddChild(browserEmpty);
+    browserRoot.AddChild(browserTiny);
+    browserRoot.AddChild(browserZip);
+    browserDir.AddChild(browserVideo);
+    browserRoot.LogicalBytes = browserTiny.LogicalBytes
+        + browserZip.LogicalBytes + browserVideo.LogicalBytes;
+    browserDir.LogicalBytes = browserVideo.LogicalBytes;
+
+    var byName = StorageBrowserIndex.ListDirectory(browserRoot,
+        StorageBrowserIndex.SortKey.Name, descending: false, search: "");
+    Assert(byName.Length == 4 && ReferenceEquals(byName[0], browserDir),
+        "Directory browser should show folders first");
+    Assert(ReferenceEquals(byName[1], browserZip)
+        && ReferenceEquals(byName[2], browserEmpty)
+        && ReferenceEquals(byName[3], browserTiny),
+        "Case-insensitive alphabetical sorting failed");
+    var bySize = StorageBrowserIndex.ListDirectory(browserRoot,
+        StorageBrowserIndex.SortKey.Size, descending: true, search: null);
+    Assert(ReferenceEquals(bySize[0], browserDir)
+        && ReferenceEquals(bySize[1], browserZip)
+        && ReferenceEquals(bySize[3], browserEmpty),
+        "Size-descending browser should keep folders first and include zero-byte files");
+    var filtered = StorageBrowserIndex.ListDirectory(browserRoot,
+        StorageBrowserIndex.SortKey.Name, descending: false, search: "ZIP");
+    Assert(filtered.Length == 1 && ReferenceEquals(filtered[0], browserZip),
+        "Case-insensitive name filtering should preserve the matching file");
+
+    var siblings = new StorageNode("many-files", true, null);
+    for (int i = 0; i < 185; i++)
+        siblings.AddChild(new StorageNode($"item-{i:D3}.bin", false, siblings)
+            { LogicalBytes = i + 1, FileCount = 1 });
+    var many = StorageBrowserIndex.ListDirectory(siblings,
+        StorageBrowserIndex.SortKey.Name, descending: false, search: null);
+    Assert(StorageBrowserIndex.Page(many, 0).Length == 80
+        && StorageBrowserIndex.Page(many, 1).Length == 80
+        && StorageBrowserIndex.Page(many, 2).Length == 25
+        && StorageBrowserIndex.Page(many, 3).Length == 0,
+        "Directory pagination must bound visible rows to 80");
+
+    var largest = StorageBrowserIndex.LargestFiles(new[] { browserRoot }, limit: 3);
+    Assert(largest.Length == 3
+        && ReferenceEquals(largest[0], browserVideo)
+        && ReferenceEquals(largest[1], browserZip)
+        && ReferenceEquals(largest[2], browserTiny),
+        "Drive-wide largest-file ranking must ignore folder subtotal nodes");
+    var sortedLargest = StorageBrowserIndex.SortLargest(largest,
+        StorageBrowserIndex.SortKey.Name, descending: false, search: null);
+    Assert(ReferenceEquals(sortedLargest[0], browserZip)
+        && ReferenceEquals(sortedLargest[2], browserVideo),
+        "Largest-list sorting should apply within the ranked top-N");
+    var rankedFiltered = StorageBrowserIndex.SortLargest(largest,
+        StorageBrowserIndex.SortKey.Name, descending: false, search: "video");
+    Assert(rankedFiltered.Length == 1
+        && ReferenceEquals(rankedFiltered[0], browserVideo),
+        "Largest-files search failed");
+    Assert(browserRoot.LogicalBytes == 204608
+        && browserRoot.Children.Count == 4,
+        "Browser indexing must not mutate scan nodes or metadata totals");
+
+    using var cancelBrowser = new CancellationTokenSource();
+    cancelBrowser.Cancel();
+    try
+    {
+        StorageBrowserIndex.LargestFiles(new[] { browserRoot }, 3, cancelBrowser.Token);
+        throw new Exception("Cancelled global-file indexing should throw");
+    }
+    catch (OperationCanceledException) { }
+
+    Console.WriteLine("PASS: SA3-A directory sorting, name filtering, 80-row paging, " +
+        "global top files, zero/small files, snapshot immutability and cancellation.");
+
     Console.WriteLine("PASS: metadata counts, root aggregation, path exclusions, " +
         "directory filters, extensions, cancellation and root overlap protection.");
 }

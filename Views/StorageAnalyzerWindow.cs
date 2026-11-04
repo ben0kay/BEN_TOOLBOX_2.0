@@ -72,6 +72,8 @@ public sealed class StorageAnalyzerWindow : Window
     };
     private readonly StackPanel mapContent = new() { Spacing = 9 };
     private readonly StackPanel itemsContent = new() { Spacing = 5 };
+    private readonly StackPanel browserContent = new() { Spacing = 7 };
+    private readonly StorageBrowserPanel browser = new();
     private readonly StackPanel selectedContent = new() { Spacing = 8 };
     private readonly StackPanel typesContent = new() { Spacing = 8 };
     private readonly StackPanel categoriesContent = new() { Spacing = 8 };
@@ -155,7 +157,7 @@ public sealed class StorageAnalyzerWindow : Window
         var page = new StackPanel { Margin = new Thickness(22), Spacing = 16 };
         page.Children.Add(new TextBlock
         {
-            Text = "FILES  /  BTX STORAGE ANALYZER  /  SA2",
+            Text = "FILES  /  BTX STORAGE ANALYZER  /  SA3-A",
             Foreground = Cyan, FontSize = 12, LetterSpacing = 1.5
         });
         page.Children.Add(new TextBlock
@@ -164,7 +166,7 @@ public sealed class StorageAnalyzerWindow : Window
         });
         page.Children.Add(new TextBlock
         {
-            Text = "Scan disk usage · Explore folders visually · Double-click a folder to drill down",
+            Text = "Scan disk usage · Explore files visually · Browse and sort actual scan results",
             Foreground = Muted, FontSize = 13, TextWrapping = TextWrapping.Wrap
         });
 
@@ -226,6 +228,7 @@ public sealed class StorageAnalyzerWindow : Window
         var middle = new StackPanel { Spacing = 13 };
         middle.Children.Add(Section("DISK USAGE TREEMAP", mapContent));
         middle.Children.Add(Section("LARGEST ITEMS / CURRENT FOLDER", itemsContent));
+        middle.Children.Add(Section("FILE BROWSER  /  SA3-A", browserContent));
         Grid.SetColumn(middle, 1);
         layout.Children.Add(middle);
 
@@ -239,7 +242,7 @@ public sealed class StorageAnalyzerWindow : Window
         page.Children.Add(layout);
         page.Children.Add(new TextBlock
         {
-            Text = "SA2: read-only interactive treemap. Sizes are logical included file bytes, not allocated-on-disk space. Exclusions and inaccessible entries are omitted. No deletion, Explorer actions or automatic scans.",
+            Text = "SA3-A: read-only file browser and treemap. Lists include small/zero-byte scanned files even if hidden on the map. Sizes are logical bytes, not disk allocation; inaccessible/excluded entries are omitted. No deletion, Explorer actions or automatic scans.",
             Foreground = Muted, TextWrapping = TextWrapping.Wrap, FontSize = 12
         });
         Content = new ScrollViewer { Content = page };
@@ -274,6 +277,23 @@ public sealed class StorageAnalyzerWindow : Window
             }
         };
         applyCustom.Click += (_, _) => ApplyCustomMinimum();
+        browser.NodeSelected += node =>
+        {
+            if (result is null || previewActive) return;
+            // Global largest files may live well below the current map focus.
+            // Show the actual containing folder so the file can be highlighted.
+            if (node.Parent is { } parent && !ReferenceEquals(parent, focusDirectory))
+                NavigateToFolder(parent);
+            SelectActualNode(node);
+        };
+        browser.NavigateRequested += node =>
+        {
+            if (result is null || previewActive) return;
+            var destination = node.IsDirectory ? node : node.Parent;
+            if (destination is null) return;
+            NavigateToFolder(destination);
+            if (!node.IsDirectory) SelectActualNode(node);
+        };
         treemap.NodeSelected += SelectActualNode;
         treemap.DirectoryRequested += NavigateToFolder;
         treemap.HoverChanged += item =>
@@ -330,6 +350,7 @@ public sealed class StorageAnalyzerWindow : Window
             scanGeneration++;
             activeScan?.Cancel();
             treemap.Clear();
+            browser.Close();
         };
 
         UpdateDriveDetails();
@@ -508,6 +529,7 @@ public sealed class StorageAnalyzerWindow : Window
     {
         mapContent.Children.Clear();
         itemsContent.Children.Clear();
+        browserContent.Children.Clear();
         selectedContent.Children.Clear();
         typesContent.Children.Clear();
         categoriesContent.Children.Clear();
@@ -515,6 +537,8 @@ public sealed class StorageAnalyzerWindow : Window
 
         if (previewActive)
         {
+            browserContent.Children.Add(MutedText(
+                "Fictional design preview: real file browsing is disabled."));
             RenderDemo();
             state.Text = "DEMO DATA  /  NOT SCANNED";
             scanActivity.Text = "Design preview only. The numbers and names below are fictional.";
@@ -532,6 +556,9 @@ public sealed class StorageAnalyzerWindow : Window
             return;
         }
 
+        browser.SetSnapshot(null);
+        browserContent.Children.Add(Empty(
+            "Scan a selected drive to browse real files and sort the largest entries.", 180));
         mapContent.Children.Add(Empty("Scan a selected drive to display proportional, interactive folder rectangles.", 315));
         itemsContent.Children.Add(Empty("Largest root folders and files will appear after an actual scan.", 190));
         selectedContent.Children.Add(MutedText("No scan results. Selecting a drive only reads volume capacity metadata."));
@@ -554,6 +581,8 @@ public sealed class StorageAnalyzerWindow : Window
         // scan at its root (StartScanAsync resets focus and selection).
         focusDirectory ??= root;
         selectedNode ??= focusDirectory;
+        browserContent.Children.Add(browser);
+        browser.SetSnapshot(actual);
 
         mapContent.Children.Add(new TextBlock
         {
@@ -658,6 +687,7 @@ public sealed class StorageAnalyzerWindow : Window
             return;
         selectedNode = node;
         treemap.SelectedNode = node;
+        browser.SetSelection(node);
         RefreshLargestItems();
         RefreshSelectedDetails();
         RefreshNavigationButtons();
@@ -671,6 +701,8 @@ public sealed class StorageAnalyzerWindow : Window
         mapStatistics.Text = "Building file-level map…";
         treemap.ShowDirectory(focusDirectory, appliedMinimumBytes);
         treemap.SelectedNode = selectedNode;
+        browser.SetFolder(focusDirectory);
+        browser.SetSelection(selectedNode);
         // Compute top-15 only when changing folder. Tile selection should
         // never repeat an O(number-of-children) traversal.
         focusedTopEntries = TreemapLayout.CreateEntries(focusDirectory, 16)

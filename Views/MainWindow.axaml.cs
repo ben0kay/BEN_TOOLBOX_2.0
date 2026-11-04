@@ -40,8 +40,8 @@ public partial class MainWindow : Window
             if (tool.Id == "storage-analyzer")
             {
                 new StorageAnalyzerWindow().Show(this);
-                InfoTitle.Text = "BTX STORAGE ANALYZER / SA0";
-                InfoDescription.Text = "Blank storage dashboard opened. Drive scanning is not implemented yet; design preview is optional.";
+                InfoTitle.Text = "BTX STORAGE ANALYZER / SA3-A";
+                InfoDescription.Text = "Read-only analyzer opened. Choose a drive and press Scan; treemap and file browser appear when scanning completes.";
                 return;
             }
             if (tool.Id == "internet-observatory")
