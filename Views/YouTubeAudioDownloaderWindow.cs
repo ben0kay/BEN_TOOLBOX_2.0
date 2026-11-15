@@ -35,9 +35,10 @@ public sealed class YouTubeAudioDownloaderWindow : Window
     private readonly TextBox diagnostics=new(){IsReadOnly=true,AcceptsReturn=true,TextWrapping=TextWrapping.Wrap,Height=125,FontFamily=new FontFamily("Consolas"),FontSize=11};
     private readonly ProgressBar progress=new(){Minimum=0,Maximum=100,Height=12};
     private readonly Button cancel=new(){Content="■  CANCEL QUEUE",IsEnabled=false};
-    private readonly StackPanel editor=new(){Spacing=12}, tools=new(){Spacing=12}, rows=new(){Spacing=6};
+    private readonly StackPanel editor=new(){Spacing=12}, tools=new(){Spacing=12}, rows=new(){Spacing=6}, resultRows=new(){Spacing=9};
     private readonly List<AudioQueueItem> queue=new();
     private readonly Dictionary<AudioQueueItem,TextBlock> rowStates=new();
+    private readonly Dictionary<AudioQueueItem,(TextBlock Name,TextBlock State,TextBlock Detail)> resultViews=new();
     private readonly ConcurrentQueue<string> messages=new();
     private readonly DispatcherTimer timer=new(){Interval=TimeSpan.FromMilliseconds(150)};
     private sealed record UiProgress(AudioQueueItem Item, AudioStatus Status);
@@ -94,7 +95,10 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         progressHeading.Children.Add(status);Grid.SetColumn(percent,1);progressHeading.Children.Add(percent);display.Children.Add(progressHeading);display.Children.Add(current);display.Children.Add(progress);
         var liveActions=new WrapPanel{ItemSpacing=12,LineSpacing=8};liveActions.Children.Add(cancel);
         liveActions.Children.Add(ActionButton("OPEN OUTPUT FOLDER",()=>{var folder=selectedItem?.Output is {} path?Path.GetDirectoryName(path):YouTubeAudioService.NormalizePath(destination.Text??"");if(!Directory.Exists(folder))throw new DirectoryNotFoundException("Choose an existing output folder.");Process.Start(new ProcessStartInfo(folder!){UseShellExecute=true});return Task.CompletedTask;}));
-        display.Children.Add(liveActions);columns.Children.Add(left);
+        display.Children.Add(liveActions);
+        // Keep the READY panel's height/padding unchanged; only constrain it to the left column.
+        var liveStatusPanel=Panel(display);liveStatusPanel.Name="AudioLiveStatusPanel";
+        left.Children.Add(liveStatusPanel);columns.Children.Add(left);
         tools.Children.Add(AccentText("⚙  TOOLS & TROUBLESHOOTING",15,FontWeight.Bold));
         tools.Children.Add(Field("yt-dlp EXECUTABLE",executable));tools.Children.Add(ActionButton("SELECT yt-dlp.exe",async()=>
         {
@@ -114,8 +118,21 @@ public sealed class YouTubeAudioDownloaderWindow : Window
             Log("Deno: "+(YouTubeAudioService.Find("deno",adjacent)??"Not detected; YouTube extraction may need Deno/EJS."));Log("EJS guidance: https://github.com/yt-dlp/yt-dlp/wiki/EJS");
         })));
         tools.Children.Add(MutedText("LOCAL ENGINE\nyt-dlp + FFmpeg\n\nOne job at a time. Existing MP3s stay protected. No automatic binary installation.",wrap:true));
-        var right=Panel(tools);Grid.SetColumn(right,1);columns.Children.Add(right);
-        var logPanel=new Expander{Header="≡  STATUS & LOG / DIAGNOSTICS",IsExpanded=false,HorizontalAlignment=HorizontalAlignment.Stretch,Content=diagnostics};var footerContent=new StackPanel{Spacing=8};footerContent.Children.Add(Panel(display));footerContent.Children.Add(logPanel);Grid.SetRow(footerContent,2);root.Children.Add(footerContent);Content=root;
+        var queueStatus=new StackPanel{Spacing=10};
+        queueStatus.Children.Add(AccentText("≡  QUEUE STATUS",15,FontWeight.Bold));
+        queueStatus.Children.Add(MutedText("Per-link results · completed, skipped, failed or waiting",size:11,wrap:true));
+        queueStatus.Children.Add(new ScrollViewer
+        {
+            Content=resultRows,MinHeight=125,MaxHeight=235,
+            VerticalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
+        });
+        var queueStatusPanel=Panel(queueStatus);queueStatusPanel.Name="AudioQueueStatusPanel";
+        var right=new StackPanel{Spacing=14};
+        right.Children.Add(Panel(tools));right.Children.Add(queueStatusPanel);
+        Grid.SetColumn(right,1);columns.Children.Add(right);
+        var logPanel=new Expander{Header="≡  STATUS & LOG / DIAGNOSTICS",IsExpanded=false,HorizontalAlignment=HorizontalAlignment.Stretch,Content=diagnostics};
+        Grid.SetRow(logPanel,2);root.Children.Add(logPanel);Content=root;
         SizeChanged+=(_,_)=>{bool narrow=Bounds.Width<1000;columns.ColumnDefinitions=new ColumnDefinitions(narrow?"*":"*,360");Grid.SetColumn(right,narrow?0:1);Grid.SetRow(right,narrow?1:0);};
         Opened+=async(_,_)=>
         {
@@ -163,16 +180,38 @@ public sealed class YouTubeAudioDownloaderWindow : Window
     }
     private void RebuildRows()
     {
-        rows.Children.Clear();rowStates.Clear();
+        rows.Children.Clear();rowStates.Clear();resultRows.Children.Clear();resultViews.Clear();
         foreach(var item in queue)
         {
             var row=new Grid{ColumnDefinitions=new ColumnDefinitions("*,95,Auto"),ColumnSpacing=8};
             var info=new StackPanel{Spacing=3};info.Children.Add(new TextBlock{Text=item.Url,TextTrimming=TextTrimming.CharacterEllipsis,FontSize=11});var state=MutedText(item.State,size:11,wrap:true);info.Children.Add(state);rowStates[item]=state;row.Children.Add(info);
             var category=new ComboBox{ItemsSource=new[]{"Music","Other"},SelectedIndex=(int)item.Category,IsEnabled=item.State is not ("Complete" or "Skipped")};BtxUiKit.ApplyInputStyle(category,compact:true);category.SelectionChanged+=(_,_)=>{if(category.SelectedIndex>=0)item.Category=(AudioCategory)category.SelectedIndex;};Grid.SetColumn(category,1);row.Children.Add(category);
             var remove=ActionButton("×",()=>{queue.Remove(item);RebuildRows();return Task.CompletedTask;});Grid.SetColumn(remove,2);row.Children.Add(remove);rows.Children.Add(row);
+            var result=new StackPanel{Spacing=3};
+            var resultHeading=new Grid{ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=8};
+            var name=MutedText(item.Title??item.Url,size:12);name.TextTrimming=TextTrimming.CharacterEllipsis;
+            ToolTip.SetTip(name,item.Url);
+            resultHeading.Children.Add(name);
+            var resultState=AccentText(ShortState(item.State),11,FontWeight.SemiBold);
+            Grid.SetColumn(resultState,1);resultHeading.Children.Add(resultState);result.Children.Add(resultHeading);
+            var detail=MutedText(ResultDetail(item),size:11);detail.TextTrimming=TextTrimming.CharacterEllipsis;
+            ToolTip.SetTip(detail,item.Url);result.Children.Add(detail);resultRows.Children.Add(result);
+            resultViews[item]=(name,resultState,detail);
         }
+        if(queue.Count==0)resultRows.Children.Add(MutedText("No links queued yet.",wrap:true));
         UpdateSummary();
     }
+    private static string ShortState(string state)=>state.StartsWith("Resolving",StringComparison.Ordinal)?"Resolving":
+        state.StartsWith("Downloading",StringComparison.Ordinal)?"Downloading":
+        state.StartsWith("Converting",StringComparison.Ordinal)?"Converting":state;
+    private static string ResultDetail(AudioQueueItem item)=>item.State switch
+    {
+        "Skipped" => "Already downloaded",
+        "Failed" => item.Error??"Download failed",
+        "Cancelled" => "Cancelled — can retry",
+        "Complete" => item.Output is {} path?Path.GetFileName(path):"Saved",
+        _ => item.Url
+    };
     private void UpdateSummary()=>summary.Text=$"{queue.Count} ITEMS  /  {queue.Count(x=>x.State=="Complete")} COMPLETE  /  {queue.Count(x=>x.State=="Skipped")} SKIPPED  /  {queue.Count(x=>x.State=="Failed")} FAILED";
     private async Task DownloadQueue()
     {
@@ -204,7 +243,16 @@ public sealed class YouTubeAudioDownloaderWindow : Window
             if(selectedItem.State is not ("Complete" or "Skipped" or "Failed" or "Cancelled"))selectedItem.State=value.State;
             status.Text=value.State;current.Text=value.Output??selectedItem?.Url??"Local operation";progress.IsIndeterminate=value.Percent is null;progress.Value=value.Percent??0;percent.Text=value.Percent is {} n?$"{n:0}%":"—";
         }
-        foreach(var item in queue)if(rowStates.TryGetValue(item,out var state))state.Text=item.State+(item.Error is null?"":" · "+item.Error);
+        foreach(var item in queue)
+        {
+            if(rowStates.TryGetValue(item,out var state))state.Text=item.State+(item.Error is null?"":" · "+item.Error);
+            if(resultViews.TryGetValue(item,out var result))
+            {
+                result.Name.Text=item.Title??item.Url;
+                result.State.Text=ShortState(item.State);
+                result.Detail.Text=ResultDetail(item);
+            }
+        }
         UpdateSummary();
     }
     private async Task Run(Func<CancellationToken,Task> operation)

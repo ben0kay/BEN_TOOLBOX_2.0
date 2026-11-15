@@ -19,8 +19,14 @@ var input=window.GetVisualDescendants().OfType<TextBox>().Single(t=>t.AcceptsRet
 input.Text="https://youtu.be/one\nhttps://soundcloud.com/artist/two";
 Button("+  ADD TO QUEUE").RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));Dispatcher.UIThread.RunJobs();
 if(input.Text!=""||window.GetVisualDescendants().OfType<ComboBox>().Count()!=3)throw new Exception("Multi-link queue rows missing");
+var readyPanel=window.GetVisualDescendants().OfType<Border>().Single(b=>b.Name=="AudioLiveStatusPanel");
+var queuePanel=window.GetVisualDescendants().OfType<Border>().Single(b=>b.Name=="AudioQueueStatusPanel");
+if(readyPanel.Parent is not StackPanel || queuePanel.Parent is not StackPanel || ReferenceEquals(readyPanel.Parent,queuePanel.Parent))
+    throw new Exception("Ready and queue panels must occupy separate layout columns");
+if(window.GetVisualDescendants().OfType<TextBlock>().Count(t=>t.Text?.Contains("soundcloud.com/artist/two")==true)<1)
+    throw new Exception("Right queue status entries missing");
 using(var bitmap=new RenderTargetBitmap(new PixelSize(1220,940))) { bitmap.Render(window);bitmap.Save("/tmp/youtube-queue-preview.png"); }
 window.Width=700;window.Height=650;Dispatcher.UIThread.RunJobs();
 var tools=Button("CHECK FOR UPDATES");if(tools.Bounds.Width<=0)throw new Exception("Compact controls collapsed");
 window.Close();Dispatcher.UIThread.RunJobs();
-Console.WriteLine("PASS: renamed Audio Downloader catalog, native window, updater, mixed YouTube/SoundCloud links, Music/Other, multiline queue, compact layout and close.");
+Console.WriteLine("PASS: Audio Downloader, left-column READY panel, right-column scrollable queue status, mixed links, compact layout and clean close.");

@@ -14,6 +14,7 @@ public sealed class AudioQueueItem
     public AudioCategory Category { get; set; }
     public string State { get; internal set; } = "Waiting";
     public string? Output { get; internal set; }
+    public string? Title { get; internal set; }
     public string? Error { get; internal set; }
     public AudioQueueItem(string url, AudioCategory category) { Url=YouTubeAudioService.ValidateUrl(url); Category=category; }
 }
@@ -50,7 +51,12 @@ public static class YouTubeAudioQueue
             try
             {
                 var folder=Destination(root,item.Category);
-                item.Output=await download(item,folder,s=>changed(item,s),token);
+                item.Output=await download(item,folder,s=>
+                {
+                    if(s.State.StartsWith("Resolving — ",StringComparison.Ordinal))
+                        item.Title=s.State.Substring("Resolving — ".Length);
+                    changed(item,s);
+                },token);
                 if(item.Output is null)
                 {
                     item.State="Skipped";
