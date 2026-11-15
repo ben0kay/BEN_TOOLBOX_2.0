@@ -35,7 +35,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
     private readonly TextBox diagnostics=new(){IsReadOnly=true,AcceptsReturn=true,TextWrapping=TextWrapping.Wrap,Height=125,FontFamily=new FontFamily("Consolas"),FontSize=11};
     private readonly ProgressBar progress=new(){Minimum=0,Maximum=100,Height=12};
     private readonly Button cancel=new(){Content="■  CANCEL QUEUE",IsEnabled=false};
-    private readonly StackPanel editor=new(){Spacing=12}, tools=new(){Spacing=12}, rows=new(){Spacing=6}, resultRows=new(){Spacing=9};
+    private readonly StackPanel editor=new(){Spacing=12}, tools=new(){Spacing=8}, rows=new(){Spacing=6}, resultRows=new(){Spacing=9};
     private readonly List<AudioQueueItem> queue=new();
     private readonly Dictionary<AudioQueueItem,TextBlock> rowStates=new();
     private readonly Dictionary<AudioQueueItem,(TextBlock Name,TextBlock State,TextBlock Detail)> resultViews=new();
@@ -90,34 +90,57 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         var queueActions=new WrapPanel{ItemSpacing=8,LineSpacing=8};
         queueActions.Children.Add(ActionButton("CLEAR FINISHED",()=>{queue.RemoveAll(x=>x.State is "Complete" or "Skipped");RebuildRows();return Task.CompletedTask;}));
         editor.Children.Add(queueActions);
-        var left=new StackPanel{Spacing=14};left.Children.Add(Panel(editor));
+        var editorPanel=Panel(editor);editorPanel.Name="AudioEditorPanel";columns.Children.Add(editorPanel);
         var display=new StackPanel{Spacing=12};var progressHeading=new Grid{ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=10};
         progressHeading.Children.Add(status);Grid.SetColumn(percent,1);progressHeading.Children.Add(percent);display.Children.Add(progressHeading);display.Children.Add(current);display.Children.Add(progress);
         var liveActions=new WrapPanel{ItemSpacing=12,LineSpacing=8};liveActions.Children.Add(cancel);
         liveActions.Children.Add(ActionButton("OPEN OUTPUT FOLDER",()=>{var folder=selectedItem?.Output is {} path?Path.GetDirectoryName(path):YouTubeAudioService.NormalizePath(destination.Text??"");if(!Directory.Exists(folder))throw new DirectoryNotFoundException("Choose an existing output folder.");Process.Start(new ProcessStartInfo(folder!){UseShellExecute=true});return Task.CompletedTask;}));
         display.Children.Add(liveActions);
-        // Keep the READY panel's height/padding unchanged; only constrain it to the left column.
+        // Desktop rows: setup/tools above; READY and Queue Status on the same row.
+        // This preserves the original READY dimensions and ensures reliable horizontal alignment.
         var liveStatusPanel=Panel(display);liveStatusPanel.Name="AudioLiveStatusPanel";
-        left.Children.Add(liveStatusPanel);columns.Children.Add(left);
+        Grid.SetRow(liveStatusPanel,1);columns.Children.Add(liveStatusPanel);
         tools.Children.Add(AccentText("⚙  TOOLS & TROUBLESHOOTING",15,FontWeight.Bold));
-        tools.Children.Add(Field("yt-dlp EXECUTABLE",executable));tools.Children.Add(ActionButton("SELECT yt-dlp.exe",async()=>
+
+        // Keep file/folder selectors visible while removing separate full-width browse rows.
+        var ytDlpRow=new Grid{ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=8};
+        ytDlpRow.Children.Add(executable);
+        var selectYtDlp=ActionButton("BROWSE",async()=>
         {
             var files=await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions{Title="Choose your trusted yt-dlp executable",AllowMultiple=false});
             if(files.Count>0){executable.Text=files[0].TryGetLocalPath();standalone.IsChecked=false;}
-        }));
-        tools.Children.Add(Field("FFMPEG / FFPROBE FOLDER",ffmpeg));tools.Children.Add(ActionButton("SELECT FFMPEG FOLDER",async()=>await Folder(ffmpeg)));
-        tools.Children.Add(MutedText("Leave blank for auto-detection.",size:11));tools.Children.Add(standalone);
-        tools.Children.Add(MutedText("Pip / winget / unknown installation? Use its original package manager. Updates use the exact executable above.",wrap:true));
-        tools.Children.Add(ActionButton("CHECK FOR UPDATES",()=>Run(token=>service.UpdateAsync(executable.Text??"",standalone.IsChecked==true,Log,token))));
-        tools.Children.Add(ActionButton("CHECK DEPENDENCIES / VERSION",()=>Run(async token=>
+        });
+        selectYtDlp.Padding=new Thickness(8,7);
+        ToolTip.SetTip(selectYtDlp,"Select yt-dlp.exe");
+        Grid.SetColumn(selectYtDlp,1);ytDlpRow.Children.Add(selectYtDlp);
+        tools.Children.Add(Field("yt-dlp EXECUTABLE",ytDlpRow));
+
+        var ffmpegRow=new Grid{ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=8};
+        ffmpegRow.Children.Add(ffmpeg);
+        var selectFfmpeg=ActionButton("BROWSE",async()=>await Folder(ffmpeg));
+        selectFfmpeg.Padding=new Thickness(8,7);
+        ToolTip.SetTip(selectFfmpeg,"Select FFmpeg / ffprobe folder");
+        Grid.SetColumn(selectFfmpeg,1);ffmpegRow.Children.Add(selectFfmpeg);
+        tools.Children.Add(Field("FFMPEG / FFPROBE FOLDER (blank = auto)",ffmpegRow));
+
+        tools.Children.Add(standalone);
+        tools.Children.Add(MutedText("Pip / winget installs: update through their package manager. Manual -U is for standalone releases.",size:11,wrap:true));
+
+        var checkActions=new WrapPanel{ItemSpacing=6,LineSpacing=6};
+        var checkUpdates=ActionButton("CHECK FOR UPDATES",()=>Run(token=>service.UpdateAsync(executable.Text??"",standalone.IsChecked==true,Log,token)));
+        checkUpdates.Padding=new Thickness(8,7);checkActions.Children.Add(checkUpdates);
+        var checkVersion=ActionButton("CHECK TOOLS / VERSION",()=>Run(async token=>
         {
             Log("Executable: "+executable.Text);Log("yt-dlp version: "+await service.VersionAsync(executable.Text??"",token));
             var adjacent=Path.GetDirectoryName(executable.Text??"");
             Log("FFmpeg: "+(YouTubeAudioService.Find("ffmpeg",ffmpeg.Text)??YouTubeAudioService.Find("ffmpeg",adjacent)??"MISSING"));
             Log("ffprobe: "+(YouTubeAudioService.Find("ffprobe",ffmpeg.Text)??YouTubeAudioService.Find("ffprobe",adjacent)??"MISSING"));
             Log("Deno: "+(YouTubeAudioService.Find("deno",adjacent)??"Not detected; YouTube extraction may need Deno/EJS."));Log("EJS guidance: https://github.com/yt-dlp/yt-dlp/wiki/EJS");
-        })));
-        tools.Children.Add(MutedText("LOCAL ENGINE\nyt-dlp + FFmpeg\n\nOne job at a time. Existing MP3s stay protected. No automatic binary installation.",wrap:true));
+        }));
+        checkVersion.Padding=new Thickness(8,7);
+        ToolTip.SetTip(checkVersion,"Check yt-dlp version, FFmpeg, ffprobe and Deno dependencies");
+        checkActions.Children.Add(checkVersion);tools.Children.Add(checkActions);
+        tools.Children.Add(MutedText("LOCAL ENGINE · yt-dlp + FFmpeg\nOne job at a time · Existing MP3s protected · No automatic binary installation.",size:11,wrap:true));
         var queueStatus=new StackPanel{Spacing=10};
         queueStatus.Children.Add(AccentText("≡  QUEUE STATUS",15,FontWeight.Bold));
         queueStatus.Children.Add(MutedText("Per-link results · completed, skipped, failed or waiting",size:11,wrap:true));
@@ -128,12 +151,19 @@ public sealed class YouTubeAudioDownloaderWindow : Window
             HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
         });
         var queueStatusPanel=Panel(queueStatus);queueStatusPanel.Name="AudioQueueStatusPanel";
-        var right=new StackPanel{Spacing=14};
-        right.Children.Add(Panel(tools));right.Children.Add(queueStatusPanel);
-        Grid.SetColumn(right,1);columns.Children.Add(right);
+        var toolsPanel=Panel(tools);toolsPanel.Name="AudioToolsPanel";
+        Grid.SetColumn(toolsPanel,1);columns.Children.Add(toolsPanel);
+        Grid.SetRow(queueStatusPanel,1);Grid.SetColumn(queueStatusPanel,1);columns.Children.Add(queueStatusPanel);
         var logPanel=new Expander{Header="≡  STATUS & LOG / DIAGNOSTICS",IsExpanded=false,HorizontalAlignment=HorizontalAlignment.Stretch,Content=diagnostics};
         Grid.SetRow(logPanel,2);root.Children.Add(logPanel);Content=root;
-        SizeChanged+=(_,_)=>{bool narrow=Bounds.Width<1000;columns.ColumnDefinitions=new ColumnDefinitions(narrow?"*":"*,360");Grid.SetColumn(right,narrow?0:1);Grid.SetRow(right,narrow?1:0);};
+        SizeChanged+=(_,_)=>
+        {
+            bool narrow=Bounds.Width<1000;
+            columns.ColumnDefinitions=new ColumnDefinitions(narrow?"*":"*,360");
+            columns.RowDefinitions=new RowDefinitions(narrow?"Auto,Auto,Auto,Auto":"Auto,Auto");
+            Grid.SetColumn(toolsPanel,narrow?0:1);Grid.SetRow(toolsPanel,narrow?2:0);
+            Grid.SetColumn(queueStatusPanel,narrow?0:1);Grid.SetRow(queueStatusPanel,narrow?3:1);
+        };
         Opened+=async(_,_)=>
         {
             editor.IsEnabled=tools.IsEnabled=false;var saved=await YouTubeAudioSettingsStore.LoadAsync();
