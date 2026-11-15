@@ -87,7 +87,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         editor.Children.Add(summary);
         editor.Children.Add(new ScrollViewer{Content=rows,MaxHeight=235,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled});
         var queueActions=new WrapPanel{ItemSpacing=8,LineSpacing=8};
-        queueActions.Children.Add(ActionButton("CLEAR FINISHED",()=>{queue.RemoveAll(x=>x.State=="Complete");RebuildRows();return Task.CompletedTask;}));
+        queueActions.Children.Add(ActionButton("CLEAR FINISHED",()=>{queue.RemoveAll(x=>x.State is "Complete" or "Skipped");RebuildRows();return Task.CompletedTask;}));
         editor.Children.Add(queueActions);
         var left=new StackPanel{Spacing=14};left.Children.Add(Panel(editor));
         var display=new StackPanel{Spacing=12};var progressHeading=new Grid{ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=10};
@@ -168,16 +168,16 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         {
             var row=new Grid{ColumnDefinitions=new ColumnDefinitions("*,95,Auto"),ColumnSpacing=8};
             var info=new StackPanel{Spacing=3};info.Children.Add(new TextBlock{Text=item.Url,TextTrimming=TextTrimming.CharacterEllipsis,FontSize=11});var state=MutedText(item.State,size:11,wrap:true);info.Children.Add(state);rowStates[item]=state;row.Children.Add(info);
-            var category=new ComboBox{ItemsSource=new[]{"Music","Other"},SelectedIndex=(int)item.Category,IsEnabled=item.State!="Complete"};BtxUiKit.ApplyInputStyle(category,compact:true);category.SelectionChanged+=(_,_)=>{if(category.SelectedIndex>=0)item.Category=(AudioCategory)category.SelectedIndex;};Grid.SetColumn(category,1);row.Children.Add(category);
+            var category=new ComboBox{ItemsSource=new[]{"Music","Other"},SelectedIndex=(int)item.Category,IsEnabled=item.State is not ("Complete" or "Skipped")};BtxUiKit.ApplyInputStyle(category,compact:true);category.SelectionChanged+=(_,_)=>{if(category.SelectedIndex>=0)item.Category=(AudioCategory)category.SelectedIndex;};Grid.SetColumn(category,1);row.Children.Add(category);
             var remove=ActionButton("×",()=>{queue.Remove(item);RebuildRows();return Task.CompletedTask;});Grid.SetColumn(remove,2);row.Children.Add(remove);rows.Children.Add(row);
         }
         UpdateSummary();
     }
-    private void UpdateSummary()=>summary.Text=$"{queue.Count} ITEMS  /  {queue.Count(x=>x.State=="Complete")} COMPLETE  /  {queue.Count(x=>x.State=="Failed")} FAILED";
+    private void UpdateSummary()=>summary.Text=$"{queue.Count} ITEMS  /  {queue.Count(x=>x.State=="Complete")} COMPLETE  /  {queue.Count(x=>x.State=="Skipped")} SKIPPED  /  {queue.Count(x=>x.State=="Failed")} FAILED";
     private async Task DownloadQueue()
     {
         if(!string.IsNullOrWhiteSpace(url.Text))AddLinks();
-        if(!queue.Any(x=>x.State!="Complete"))throw new InvalidOperationException("Add links to the queue first.");
+        if(!queue.Any(x=>x.State is not ("Complete" or "Skipped")))throw new InvalidOperationException("Add new links to the queue first.");
         await Run(async token=>
         {
             var options=new YouTubeAudioOptions(executable.Text??"",ffmpeg.Text??"",destination.Text??"",new[]{"0","2","192K","128K"}[quality.SelectedIndex]);
@@ -186,9 +186,9 @@ public sealed class YouTubeAudioDownloaderWindow : Window
                 {
                     // UI state is updated once per timer tick; only the latest progress is retained.
                     Interlocked.Exchange(ref latest,new UiProgress(item,s));
-                    if(s.State=="Complete"||s.State=="Cancelled"||s.State.StartsWith("Failed"))Log(item.Category+" · "+s.State+(s.Output is null?"":" · "+s.Output));
+                    if(s.State=="Complete"||s.State=="Cancelled"||s.State.StartsWith("Failed")||s.State.StartsWith("Skipped"))Log(item.Category+" · "+s.State+(s.Output is null?"":" · "+s.Output));
                 },token);
-            Flush();UpdateSummary();status.Text=$"QUEUE FINISHED · {queue.Count(x=>x.State=="Complete")} complete / {queue.Count(x=>x.State=="Failed")} failed";
+            Flush();UpdateSummary();status.Text=$"QUEUE FINISHED · {queue.Count(x=>x.State=="Complete")} complete / {queue.Count(x=>x.State=="Skipped")} skipped / {queue.Count(x=>x.State=="Failed")} failed";
         });
     }
     private async Task Folder(TextBox box){var folders=await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions{AllowMultiple=false});if(folders.Count>0)box.Text=folders[0].TryGetLocalPath();}
@@ -201,7 +201,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         if(update is not null)
         {
             var value=update.Status;selectedItem=update.Item;
-            if(selectedItem.State is not ("Complete" or "Failed" or "Cancelled"))selectedItem.State=value.State;
+            if(selectedItem.State is not ("Complete" or "Skipped" or "Failed" or "Cancelled"))selectedItem.State=value.State;
             status.Text=value.State;current.Text=value.Output??selectedItem?.Url??"Local operation";progress.IsIndeterminate=value.Percent is null;progress.Value=value.Percent??0;percent.Text=value.Percent is {} n?$"{n:0}%":"—";
         }
         foreach(var item in queue)if(rowStates.TryGetValue(item,out var state))state.Text=item.State+(item.Error is null?"":" · "+item.Error);

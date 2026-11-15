@@ -53,14 +53,23 @@ public sealed class YouTubeAudioService
         if(!youtube && !soundcloud) throw new ArgumentException("Use a single YouTube video or SoundCloud track link, not a channel, profile or playlist.");
         return uri.AbsoluteUri;
     }
-    public static List<string> DownloadArguments(string url, string stage, string ffmpeg, string quality)
+    public static List<string> DownloadArguments(string url, string stage, string ffmpeg, string quality, string? output = null)
     {
         if(!new[]{"0","2","192K","128K"}.Contains(quality)) throw new ArgumentException("Unsupported MP3 quality.");
-        return new(){"--ignore-config","--no-playlist","--no-overwrites","-f","bestaudio/best","-x","--audio-format","mp3","--audio-quality",quality,
-            "--newline","--progress","--progress-template","download:BTX_PROGRESS:%(progress._percent_str)s","--print","after_move:BTX_FILE:%(filepath)j",
-            "--print","before_dl:BTX_TITLE:%(title)s","--no-simulate","--windows-filenames","--ffmpeg-location",ffmpeg,"--paths",stage,"-o","%(title).150B [%(id)s].%(ext)s","--",ValidateUrl(url)};
+        // The final home folder must be visible to yt-dlp for its native existing-MP3 check.
+        // Keep in-progress media in a unique per-job temp folder; track completed IDs by site.
+        output ??= stage;
+        var archive=Path.Combine(output,".btx-audio-download-archive.txt");
+        return new(){"--ignore-config","--no-playlist","--no-overwrites","--no-post-overwrites",
+            "--download-archive",archive,"-f","bestaudio/best","-x","--audio-format","mp3","--audio-quality",quality,
+            "--newline","--progress","--progress-template","download:BTX_PROGRESS:%(progress._percent_str)s",
+            "--print","after_move:BTX_FILE:%(filepath)j","--print","before_dl:BTX_TITLE:%(title)s",
+            "--no-simulate","--windows-filenames","--ffmpeg-location",ffmpeg,
+            "--paths","home:"+output,"--paths","temp:"+stage,
+            "-o","%(title).150B [%(id)s].%(ext)s","--",ValidateUrl(url)};
     }
-    public async Task<string> DownloadAsync(YouTubeAudioOptions options,string url,Action<AudioStatus> status,Action<string> log,CancellationToken token)
+    // Null means yt-dlp itself skipped a completed media ID or an MP3 already in the destination.
+    public async Task<string?> DownloadAsync(YouTubeAudioOptions options,string url,Action<AudioStatus> status,Action<string> log,CancellationToken token)
     {
         if(!await gate.WaitAsync(0,token)) throw new InvalidOperationException("An operation is already running.");
         string? stage=null;
@@ -74,10 +83,12 @@ public sealed class YouTubeAudioService
             var ffmpeg=Find("ffmpeg",options.FfmpegFolder)??Find("ffmpeg",adjacent);
             var probe=Find("ffprobe",ffmpeg is null?null:Path.GetDirectoryName(ffmpeg));
             if(ffmpeg is null||probe is null) throw new FileNotFoundException("FFmpeg and ffprobe are required. Select their bin folder in Tools.");
-            // Private per-job staging prevents yt-dlp from touching any existing user output.
-            stage=Path.Combine(output,".youtube-audio-"+Guid.NewGuid().ToString("N")); Directory.CreateDirectory(stage);
-            string? reported=null; status(new("Resolving"));
-            await RunAsync(options.Executable,DownloadArguments(url,stage,Path.GetDirectoryName(ffmpeg)!,options.Quality),line=>
+            // yt-dlp sees the real destination for native duplicate detection, while temporary
+            // downloads stay isolated so failed/cancelled jobs cannot overwrite existing MP3s.
+            stage=Path.Combine(output,".youtube-audio-"+Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(stage);
+            string? reported=null;bool skipped=false;status(new("Resolving"));
+            await RunAsync(options.Executable,DownloadArguments(url,stage,Path.GetDirectoryName(ffmpeg)!,options.Quality,output),line=>
             {
                 if(line.StartsWith("BTX_PROGRESS:"))
                 {
@@ -86,21 +97,29 @@ public sealed class YouTubeAudioService
                 }
                 else if(line.StartsWith("BTX_FILE:")) reported=JsonSerializer.Deserialize<string>(line.Substring(9));
                 else if(line.StartsWith("BTX_TITLE:")) { log("Title: "+line.Substring(10)); status(new("Resolving — "+line.Substring(10))); }
-                else { log(Redact(line)); if(line.Contains("[ExtractAudio]")) status(new("Converting")); }
+                else
+                {
+                    if(line.StartsWith("[download]",StringComparison.Ordinal) &&
+                        (line.Contains("has already been recorded in the archive",StringComparison.Ordinal) ||
+                         line.Contains("has already been downloaded",StringComparison.Ordinal)))
+                        skipped=true;
+                    log(Redact(line));
+                    if(line.Contains("[ExtractAudio]")) status(new("Converting"));
+                }
             },token);
             token.ThrowIfCancellationRequested();
+            if(skipped)
+            {
+                log("Skipped: yt-dlp found this media in its archive or an MP3 already at the destination.");
+                return null;
+            }
             if(reported is null) throw new IOException("yt-dlp did not report a completed output file.");
             var final=Path.GetFullPath(reported);
-            if(!string.Equals(Path.GetDirectoryName(final),Path.GetFullPath(stage),OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal) ||
+            if(!string.Equals(Path.GetDirectoryName(final),output,OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal) ||
                 !string.Equals(Path.GetExtension(final),".mp3",StringComparison.OrdinalIgnoreCase) || !File.Exists(final) || new FileInfo(final).Length==0)
-                throw new IOException("yt-dlp output was missing or outside the job folder.");
-            string target=Path.Combine(output,Path.GetFileName(final));
-            for(int i=1;;i++)
-            {
-                try { File.Move(final,target,false); break; }
-                catch(IOException) when(File.Exists(target)) { target=Path.Combine(output,Path.GetFileNameWithoutExtension(final)+$" ({i})"+".mp3"); }
-            }
-            status(new("Complete",100,target)); return target;
+                throw new IOException("yt-dlp output was missing or outside the selected destination.");
+            status(new("Complete",100,final));
+            return final;
         }
         finally
         {

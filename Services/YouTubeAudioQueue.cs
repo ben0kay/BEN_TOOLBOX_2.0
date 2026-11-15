@@ -39,19 +39,28 @@ public static class YouTubeAudioQueue
         Directory.CreateDirectory(path);return path;
     }
     public static async Task RunAsync(IReadOnlyList<AudioQueueItem> items,string root,
-        Func<AudioQueueItem,string,Action<AudioStatus>,CancellationToken,Task<string>> download,
+        Func<AudioQueueItem,string,Action<AudioStatus>,CancellationToken,Task<string?>> download,
         Action<AudioQueueItem,AudioStatus> changed,CancellationToken token)
     {
         foreach(var item in items)
         {
             token.ThrowIfCancellationRequested();
-            if(item.State=="Complete")continue;
+            if(item.State is "Complete" or "Skipped")continue;
             item.Output=null;item.Error=null;item.State="Resolving";changed(item,new("Resolving"));
             try
             {
                 var folder=Destination(root,item.Category);
                 item.Output=await download(item,folder,s=>changed(item,s),token);
-                item.State="Complete";changed(item,new("Complete",100,item.Output));
+                if(item.Output is null)
+                {
+                    item.State="Skipped";
+                    changed(item,new("Skipped — already downloaded"));
+                }
+                else
+                {
+                    item.State="Complete";
+                    changed(item,new("Complete",100,item.Output));
+                }
             }
             catch(OperationCanceledException) when(token.IsCancellationRequested)
             {item.State="Cancelled";changed(item,new("Cancelled"));throw;}
