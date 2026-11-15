@@ -60,7 +60,7 @@ public sealed class YouTubeAudioService
         // Keep in-progress media in a unique per-job temp folder; track completed IDs by site.
         output ??= stage;
         var archive=Path.Combine(output,".btx-audio-download-archive.txt");
-        return new(){"--ignore-config","--no-playlist","--no-overwrites","--no-post-overwrites",
+        return new(){"--ignore-config","--no-quiet","--no-playlist","--no-overwrites","--no-post-overwrites",
             "--download-archive",archive,"-f","bestaudio/best","-x","--audio-format","mp3","--audio-quality",quality,
             "--newline","--progress","--progress-template","download:BTX_PROGRESS:%(progress._percent_str)s",
             "--print","after_move:BTX_FILE:%(filepath)j","--print","before_dl:BTX_TITLE:%(title)s",

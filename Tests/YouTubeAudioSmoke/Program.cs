@@ -54,7 +54,7 @@ else:
     with open(file,'xb') as output: output.write(b'fake MP3 fixture')
     print('BTX_PROGRESS: 55.0%')
     print('[ExtractAudio] Converting')
-with open(archive,'a') as output: output.write(identity+'\\n')
+with open(archive,'a') as output: output.write(identity+'\n')
 print('BTX_FILE:'+json.dumps(file))
 """;
     File.WriteAllText(exe,script);File.SetUnixFileMode(exe,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);
