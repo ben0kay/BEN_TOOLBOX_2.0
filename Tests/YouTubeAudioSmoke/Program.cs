@@ -7,14 +7,17 @@ Check(YouTubeAudioService.NormalizePath(" \"D:\\folder name\\yt-dlp.exe\" ")=="D
 foreach(var valid in new[]{"https://youtu.be/abc","https://www.youtube.com/watch?v=abc&list=xyz",
     "https://soundcloud.com/example-artist/example-track","https://www.soundcloud.com/artist_1/song-2026?si=share",
     "https://m.soundcloud.com/artist/track","https://soundcloud.com/artist/track/s-privatecode",
-    "https://on.soundcloud.com/AbC123"})
+    "https://on.soundcloud.com/AbC123","https://youtube.com/playlist?list=PL123",
+    "https://soundcloud.com/artist/sets/playlist"})
     Check(YouTubeAudioService.ValidateUrl(valid)==new Uri(valid).AbsoluteUri,"Valid media URL rejected: "+valid);
-foreach(var invalid in new[]{"http://youtube.com/watch?v=a","https://youtube.com.evil.test/watch?v=a","https://youtube.com/playlist?list=x","--exec=oops","https://user@youtube.com/watch?v=a",
+foreach(var invalid in new[]{"http://youtube.com/watch?v=a","https://youtube.com.evil.test/watch?v=a","https://youtube.com/playlist?list=","--exec=oops","https://user@youtube.com/watch?v=a",
     "http://soundcloud.com/artist/track","https://soundcloud.com.evil.test/artist/track","https://user@soundcloud.com/artist/track",
-    "https://soundcloud.com/artist","https://soundcloud.com/artist/sets/playlist","https://soundcloud.com/artist/tracks",
+    "https://soundcloud.com/artist","https://soundcloud.com/artist/sets","https://soundcloud.com/artist/tracks",
     "https://soundcloud.com/artist/likes","https://soundcloud.com/stations/track","https://soundcloud.com/artist/track/albums",
     "https://on.soundcloud.com/","https://not-on.soundcloud.com/abc"})
     await Fails<ArgumentException>(()=>Task.FromResult(YouTubeAudioService.ValidateUrl(invalid)));
+await Fails<ArgumentException>(()=>Task.FromResult(YouTubeAudioService.DownloadArguments(
+    "https://youtube.com/playlist?list=PL123","/stage","/ffmpeg","0")));
 var argsList=YouTubeAudioService.DownloadArguments("https://www.youtube.com/watch?v=abc&list=xyz","/stage path","/ffmpeg","0","/output path");
 Check(argsList[^1].Contains("&list=xyz")&&argsList[^2]=="--"&&argsList.Contains("--ignore-config")&&argsList.Contains("--no-playlist") &&
     argsList.Contains("--download-archive")&&argsList.Contains("--no-post-overwrites")&&
@@ -36,6 +39,24 @@ open(os.path.join(base,'argv.json'),'w').write(json.dumps(args))
 if '--version' in args: print('2026.test');sys.exit(0)
 if '-U' in args: print('Already up to date');sys.exit(0)
 url=args[-1]
+if '--flat-playlist' in args:
+    assert '--yes-playlist' in args and '--simulate' in args and '--lazy-playlist' in args
+    limit=int(args[args.index('--playlist-items')+1].split(':')[1])
+    if 'slow' in url: time.sleep(30)
+    if 'private' in url: print('Playlist is private',file=sys.stderr);sys.exit(2)
+    if 'empty' in url: sys.exit(0)
+    if 'oversize' in url:
+        entries=[{'id':str(i)} for i in range(101)]
+    elif 'soundcloud' in url:
+        entries=[{'url':'https://soundcloud.com/artist/track','title':'SoundCloud Song'},
+                 {'url':'https://api-v2.soundcloud.com/tracks/42'}]
+    else:
+        entries=[{'id':'abc','title':'YouTube Song'},
+                 {'id':'abc','title':'YouTube Song'},
+                 {'id':'fail'}, {'availability':'private','title':'Private video'}]
+    for entry in entries[:limit]: print(json.dumps(entry))
+    sys.exit(0)
+assert '--no-playlist' in args
 if 'fail' in url: print('extractor failure',file=sys.stderr);sys.exit(2)
 if 'slow' in url: time.sleep(30)
 if 'badoutput' in url: print('BTX_FILE:'+json.dumps('/tmp/outside.mp3'));sys.exit(0)
@@ -44,6 +65,7 @@ stage=next(p[5:] for p in args if p.startswith('temp:'))
 archive=args[args.index('--download-archive')+1]
 identity='soundcloud 123' if 'soundcloud.com' in url else 'youtube abc'
 media_id='sc' if 'soundcloud.com' in url else 'yt'
+if '/tracks/42' in url: identity,media_id='soundcloud 42','sc42'
 if os.path.isfile(archive) and identity in open(archive).read().splitlines():
     print('[download] '+identity+': has already been recorded in the archive')
     sys.exit(0)
@@ -83,6 +105,36 @@ print('BTX_FILE:'+json.dumps(file))
         await Fails<InvalidOperationException>(()=>service.UpdateAsync(exe,true,_=>{},default));
         stop.Cancel();await Fails<OperationCanceledException>(()=>slow);
     }
+    var playlistQueue=YouTubeAudioQueue.Parse(
+        "https://youtube.com/playlist?list=PL123\nhttps://youtu.be/abc\nhttps://soundcloud.com/artist/sets/playlist",AudioCategory.Music).ToList();
+    playlistQueue[2].Category=AudioCategory.Other;
+    async Task RunPlaylists(List<AudioQueueItem> items,YouTubeAudioService engine,CancellationToken token=default)
+    {
+        await YouTubeAudioQueue.RunAsync(items,root,
+            (item,folder,changed,ct)=>engine.DownloadAsync(options with{OutputFolder=folder},item.Url,changed,_=>{},ct),
+            (_,_)=>{},token,(playlist,slots,ct)=>engine.ExpandPlaylistAsync(exe,playlist,slots,_=>{},ct));
+    }
+    await RunPlaylists(playlistQueue,service);
+    Check(playlistQueue.Select(item=>item.State).SequenceEqual(new[]{"Complete","Skipped","Failed","Failed","Skipped","Complete","Complete"}),
+        "Mixed queue order, duplicate, failed and unavailable track results");
+    Check(playlistQueue[0].Title=="YouTube Song"&&playlistQueue[5].Title=="SoundCloud Song"&&
+        playlistQueue[6].Category==AudioCategory.Other&&playlistQueue[6].Url=="https://api-v2.soundcloud.com/tracks/42","Expanded metadata and categories");
+    var restarted=YouTubeAudioQueue.Parse("https://www.youtube.com/watch?v=abc&list=PL123",AudioCategory.Music).ToList();
+    await RunPlaylists(restarted,new YouTubeAudioService());
+    Check(restarted[0].State=="Skipped","Archive did not skip an expanded track across service instances");
+    var full=YouTubeAudioQueue.Parse("https://youtube.com/playlist?list=oversize\nhttps://youtu.be/abc",AudioCategory.Music).ToList();
+    await RunPlaylists(full,service);
+    Check(full.Count==2&&full[0].Error?.Contains("100 tracks")==true&&full[1].State=="Skipped","Over-limit playlist was partially inserted");
+    foreach(var id in new[]{"private","empty"})
+    {
+        var missing=YouTubeAudioQueue.Parse("https://youtube.com/playlist?list="+id,AudioCategory.Music).ToList();
+        await RunPlaylists(missing,service);
+        Check(missing.Count==1&&missing[0].State=="Failed","Unavailable playlist did not fail");
+    }
+    var cancelled=YouTubeAudioQueue.Parse("https://youtube.com/playlist?list=slow\nhttps://youtu.be/abc",AudioCategory.Music).ToList();
+    using(var cancelExpansion=new CancellationTokenSource(250))
+        await Fails<OperationCanceledException>(()=>RunPlaylists(cancelled,service,cancelExpansion.Token));
+    Check(cancelled.Count==2&&cancelled[0].State=="Cancelled"&&cancelled[1].State=="Waiting","Expansion cancellation changed remaining entries");
     var oldPath=Environment.GetEnvironmentVariable("PATH");
     try
     {
@@ -106,15 +158,16 @@ print('BTX_FILE:'+json.dumps(file))
     },(_,_)=>{},default);
     Check(queue[0].State=="Complete"&&queue[1].State=="Failed"&&queue[2].State=="Skipped","Queue did not mark SoundCloud duplicate as skipped");
     Check(destinations[0]==Path.Combine(root,"Music")&&destinations[1]==Path.Combine(root,"Other"),"Per-link routing");
-    await YouTubeAudioQueue.RunAsync(queue,root,(_,_,_,_)=>{calls++;return Task.FromResult("retry.mp3");},(_,_)=>{},default);
+    await YouTubeAudioQueue.RunAsync(queue,root,(_,_,_,_)=>{calls++;return Task.FromResult<string?>("retry.mp3");},(_,_)=>{},default);
     Check(calls==4,"Queue retried completed/skipped items");
     using(var stopQueue=new CancellationTokenSource())
     {
         var waiting=YouTubeAudioQueue.Parse("https://youtu.be/one\nhttps://youtu.be/two",AudioCategory.Other);
-        await Fails<OperationCanceledException>(()=>YouTubeAudioQueue.RunAsync(waiting,root,(_,_,_,ct)=>{stopQueue.Cancel();ct.ThrowIfCancellationRequested();return Task.FromResult("");},(_,_)=>{},stopQueue.Token));
+        await Fails<OperationCanceledException>(()=>YouTubeAudioQueue.RunAsync(waiting,root,(_,_,_,ct)=>{stopQueue.Cancel();ct.ThrowIfCancellationRequested();return Task.FromResult<string?>("");},(_,_)=>{},stopQueue.Token));
         Check(waiting[0].State=="Cancelled"&&waiting[1].State=="Waiting","Queue cancellation continued into remaining items");
     }
     await Fails<ArgumentException>(()=>Task.FromResult(YouTubeAudioQueue.Parse("https://youtu.be/one\nbad link",AudioCategory.Other)));
+    Console.WriteLine("PASS: playlist expansion, mixed queues, restart duplicates, failures, overflow and cancellation.");
     Console.WriteLine("PASS: per-category queue, native duplicate skip, continue on failure, skip complete/skipped on retry and cancel remainder.");
     Console.WriteLine("PASS: YouTube/SoundCloud URL, archive/argv safety, existing file skip, progress, staged output, failure, cancellation and updater guard.");
 }

@@ -20,7 +20,7 @@ namespace BEN_TOOLBOX_2_0.Views;
 public sealed class YouTubeAudioDownloaderWindow : Window
 {
     private readonly YouTubeAudioService service=new();
-    private readonly TextBox url=new(){PlaceholderText="Paste YouTube or SoundCloud links — one URL per line",AcceptsReturn=true,MinHeight=76,MaxHeight=140,TextWrapping=TextWrapping.Wrap};
+    private readonly TextBox url=new(){PlaceholderText="Paste YouTube or SoundCloud track or playlist links — one per line",AcceptsReturn=true,MinHeight=76,MaxHeight=140,TextWrapping=TextWrapping.Wrap};
     private readonly TextBox executable=new(){Text=OperatingSystem.IsWindows()?@"D:\Ben Data\Music\MANUAL DOWNLOADS\YTDLP\yt-dlp.exe":YouTubeAudioService.Find("yt-dlp")??""};
     private readonly TextBox destination=new(){Text=OperatingSystem.IsWindows()?@"D:\Ben Data\Music\MANUAL DOWNLOADS\YTDLP":Environment.GetFolderPath(Environment.SpecialFolder.MyMusic)};
     private readonly TextBox ffmpeg=new(){Text=Path.GetDirectoryName(YouTubeAudioService.Find("ffmpeg")??"")??""};
@@ -30,7 +30,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
     private readonly CheckBox standalone=new(){Content=new TextBlock{Text="Official standalone release binary — enable manual -U update",TextWrapping=TextWrapping.Wrap}};
     private readonly TextBlock status=new(){Text="READY · Add links to begin",TextWrapping=TextWrapping.Wrap,FontSize=18};
     private readonly TextBlock percent=new(){Text="—",FontSize=30,FontWeight=FontWeight.Bold};
-    private readonly TextBlock summary=new(){Text="0 ITEMS · SEQUENTIAL DOWNLOADS",FontSize=12};
+    private readonly TextBlock summary=new(){Text="0 ITEMS · SEQUENTIAL DOWNLOADS",FontSize=12,TextWrapping=TextWrapping.Wrap};
     private readonly TextBlock current=new(){Text="Your queue is ready. Completed files will appear in Music or Other.",TextWrapping=TextWrapping.Wrap};
     private readonly TextBox diagnostics=new(){IsReadOnly=true,AcceptsReturn=true,TextWrapping=TextWrapping.Wrap,Height=125,FontFamily=new FontFamily("Consolas"),FontSize=11};
     private readonly ProgressBar progress=new(){Minimum=0,Maximum=100,Height=12};
@@ -143,7 +143,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         tools.Children.Add(MutedText("LOCAL ENGINE · yt-dlp + FFmpeg\nOne job at a time · Existing MP3s protected · No automatic binary installation.",size:11,wrap:true));
         var queueStatus=new StackPanel{Spacing=10};
         queueStatus.Children.Add(AccentText("≡  QUEUE STATUS",15,FontWeight.Bold));
-        queueStatus.Children.Add(MutedText("Per-link results · completed, skipped, failed or waiting",size:11,wrap:true));
+        queueStatus.Children.Add(MutedText("Track results and playlist expansion",size:11,wrap:true));
         queueStatus.Children.Add(new ScrollViewer
         {
             Content=resultRows,MinHeight=125,MaxHeight=235,
@@ -205,7 +205,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
     private void AddLinks()
     {
         var added=YouTubeAudioQueue.Parse(url.Text??"",music.IsChecked==true?AudioCategory.Music:AudioCategory.Other);
-        if(queue.Count+added.Length>YouTubeAudioQueue.MaximumItems)throw new InvalidOperationException("The queue holds up to 100 links. Clear finished items first.");
+        if(queue.Count+added.Length>YouTubeAudioQueue.MaximumItems)throw new InvalidOperationException("The queue holds up to 100 tracks or pending playlist links. Clear finished items first.");
         queue.AddRange(added);url.Text="";RebuildRows();status.Text=$"READY · {added.Length} links added";
     }
     private void RebuildRows()
@@ -215,7 +215,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         {
             var row=new Grid{ColumnDefinitions=new ColumnDefinitions("*,95,Auto"),ColumnSpacing=8};
             var info=new StackPanel{Spacing=3};info.Children.Add(new TextBlock{Text=item.Url,TextTrimming=TextTrimming.CharacterEllipsis,FontSize=11});var state=MutedText(item.State,size:11,wrap:true);info.Children.Add(state);rowStates[item]=state;row.Children.Add(info);
-            var category=new ComboBox{ItemsSource=new[]{"Music","Other"},SelectedIndex=(int)item.Category,IsEnabled=item.State is not ("Complete" or "Skipped")};BtxUiKit.ApplyInputStyle(category,compact:true);category.SelectionChanged+=(_,_)=>{if(category.SelectedIndex>=0)item.Category=(AudioCategory)category.SelectedIndex;};Grid.SetColumn(category,1);row.Children.Add(category);
+            var category=new ComboBox{ItemsSource=new[]{"Music","Other"},SelectedIndex=(int)item.Category,IsEnabled=!item.IsUnavailable && item.State is not ("Complete" or "Skipped")};BtxUiKit.ApplyInputStyle(category,compact:true);category.SelectionChanged+=(_,_)=>{if(category.SelectedIndex>=0)item.Category=(AudioCategory)category.SelectedIndex;};Grid.SetColumn(category,1);row.Children.Add(category);
             var remove=ActionButton("×",()=>{queue.Remove(item);RebuildRows();return Task.CompletedTask;});Grid.SetColumn(remove,2);row.Children.Add(remove);rows.Children.Add(row);
             var result=new StackPanel{Spacing=3};
             var resultHeading=new Grid{ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=8};
@@ -225,7 +225,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
             var resultState=AccentText(ShortState(item.State),11,FontWeight.SemiBold);
             Grid.SetColumn(resultState,1);resultHeading.Children.Add(resultState);result.Children.Add(resultHeading);
             var detail=MutedText(ResultDetail(item),size:11);detail.TextTrimming=TextTrimming.CharacterEllipsis;
-            ToolTip.SetTip(detail,item.Url);result.Children.Add(detail);resultRows.Children.Add(result);
+            ToolTip.SetTip(detail,item.Error??item.Url);result.Children.Add(detail);resultRows.Children.Add(result);
             resultViews[item]=(name,resultState,detail);
         }
         if(queue.Count==0)resultRows.Children.Add(MutedText("No links queued yet.",wrap:true));
@@ -240,24 +240,31 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         "Failed" => item.Error??"Download failed",
         "Cancelled" => "Cancelled — can retry",
         "Complete" => item.Output is {} path?Path.GetFileName(path):"Saved",
+        "Resolving" when item.IsPlaylist => "Expanding playlist",
         _ => item.Url
     };
-    private void UpdateSummary()=>summary.Text=$"{queue.Count} ITEMS  /  {queue.Count(x=>x.State=="Complete")} COMPLETE  /  {queue.Count(x=>x.State=="Skipped")} SKIPPED  /  {queue.Count(x=>x.State=="Failed")} FAILED";
+    private void UpdateSummary()
+    {
+        int complete=queue.Count(x=>x.State=="Complete");
+        int skipped=queue.Count(x=>x.State=="Skipped");
+        int failed=queue.Count(x=>x.State=="Failed");
+        summary.Text=$"{queue.Count} ITEMS  /  {complete} COMPLETE  /  {skipped} SKIPPED  /  {failed} FAILED  /  {queue.Count-complete-skipped-failed} REMAINING";
+    }
     private async Task DownloadQueue()
     {
         if(!string.IsNullOrWhiteSpace(url.Text))AddLinks();
-        if(!queue.Any(x=>x.State is not ("Complete" or "Skipped")))throw new InvalidOperationException("Add new links to the queue first.");
+        if(!queue.Any(x=>!x.IsUnavailable && x.State is not ("Complete" or "Skipped")))throw new InvalidOperationException("Add new links to the queue first.");
         await Run(async token=>
         {
             var options=new YouTubeAudioOptions(executable.Text??"",ffmpeg.Text??"",destination.Text??"",new[]{"0","2","192K","128K"}[quality.SelectedIndex]);
-            await YouTubeAudioQueue.RunAsync(queue.ToArray(),options.OutputFolder,(item,folder,changed,ct)=>service.DownloadAsync(options with{OutputFolder=folder},item.Url,changed,Log,ct),
+            await YouTubeAudioQueue.RunAsync(queue,options.OutputFolder,(item,folder,changed,ct)=>service.DownloadAsync(options with{OutputFolder=folder},item.Url,changed,Log,ct),
                 (item,s)=>
                 {
                     // UI state is updated once per timer tick; only the latest progress is retained.
                     Interlocked.Exchange(ref latest,new UiProgress(item,s));
                     if(s.State=="Complete"||s.State=="Cancelled"||s.State.StartsWith("Failed")||s.State.StartsWith("Skipped"))Log(item.Category+" · "+s.State+(s.Output is null?"":" · "+s.Output));
-                },token);
-            Flush();UpdateSummary();status.Text=$"QUEUE FINISHED · {queue.Count(x=>x.State=="Complete")} complete / {queue.Count(x=>x.State=="Skipped")} skipped / {queue.Count(x=>x.State=="Failed")} failed";
+                },token,(playlist,slots,ct)=>service.ExpandPlaylistAsync(options.Executable,playlist,slots,Log,ct),RebuildRows);
+            Flush();status.Text=$"QUEUE FINISHED · {queue.Count(x=>x.State=="Complete")} complete / {queue.Count(x=>x.State=="Skipped")} skipped / {queue.Count(x=>x.State=="Failed")} failed";
         });
     }
     private async Task Folder(TextBox box){var folders=await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions{AllowMultiple=false});if(folders.Count>0)box.Text=folders[0].TryGetLocalPath();}
@@ -270,7 +277,6 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         if(update is not null)
         {
             var value=update.Status;selectedItem=update.Item;
-            if(selectedItem.State is not ("Complete" or "Skipped" or "Failed" or "Cancelled"))selectedItem.State=value.State;
             status.Text=value.State;current.Text=value.Output??selectedItem?.Url??"Local operation";progress.IsIndeterminate=value.Percent is null;progress.Value=value.Percent??0;percent.Text=value.Percent is {} n?$"{n:0}%":"—";
         }
         foreach(var item in queue)
@@ -281,6 +287,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
                 result.Name.Text=item.Title??item.Url;
                 result.State.Text=ShortState(item.State);
                 result.Detail.Text=ResultDetail(item);
+                ToolTip.SetTip(result.Detail,item.Error??item.Url);
             }
         }
         UpdateSummary();

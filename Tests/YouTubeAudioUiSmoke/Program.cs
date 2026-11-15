@@ -8,9 +8,19 @@ using Avalonia.Media.Imaging;
 using BEN_TOOLBOX_2_0;
 using BEN_TOOLBOX_2_0.Views;
 using BEN_TOOLBOX_2_0.Services;
-AppBuilder.Configure<App>().UseHeadless(new AvaloniaHeadlessPlatformOptions{UseHeadlessDrawing=false}).UseSkia().SetupWithoutStarting();
+AppBuilder.Configure<App>().UseHeadless(new AvaloniaHeadlessPlatformOptions{UseHeadlessDrawing=false}).UseSkia().WithInterFont().SetupWithoutStarting();
 var tool=ToolCatalog.ByCategory("Files").SingleOrDefault(t=>t.Id=="youtube-audio-downloader");
 if(tool is null || tool.Name!="Audio Downloader" || !tool.Description.Contains("SoundCloud") || !tool.Status.StartsWith("NATIVE AVALONIA"))throw new Exception("Audio Downloader catalog label/status missing");
+void PumpUntil(Func<bool> done)
+{
+    var timeout=System.Diagnostics.Stopwatch.StartNew();
+    while(!done())
+    {
+        if(timeout.Elapsed>TimeSpan.FromSeconds(10))throw new Exception("Timed out waiting for queue UI");
+        Dispatcher.UIThread.RunJobs();
+        Thread.Sleep(10);
+    }
+}
 var window=new YouTubeAudioDownloaderWindow();window.Show();Dispatcher.UIThread.RunJobs();
 Button Button(string label)=>window.GetVisualDescendants().OfType<Button>().Single(b=>Equals(b.Content,label));
 _ = Button("CHECK FOR UPDATES");
@@ -39,4 +49,56 @@ var tools=Button("CHECK FOR UPDATES");if(tools.Bounds.Width<=0)throw new Excepti
 if(Grid.GetRow(toolsPanel)!=2 || Grid.GetRow(queuePanel)!=3 || Grid.GetColumn(queuePanel)!=0)
     throw new Exception("Narrow layout must stack setup, READY, Tools and Queue Status");
 window.Close();Dispatcher.UIThread.RunJobs();
+if(!OperatingSystem.IsWindows())
+{
+    var fixture=Path.Combine(Path.GetTempPath(),"btx-audio-ui-"+Guid.NewGuid().ToString("N"));
+    var previousData=Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+    Directory.CreateDirectory(fixture);
+    try
+    {
+        Environment.SetEnvironmentVariable("XDG_DATA_HOME",fixture);
+        if(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)!=fixture)
+            throw new Exception("Could not isolate audio test preferences");
+        var exe=Path.Combine(fixture,"yt-dlp");
+        File.WriteAllText(exe,"""
+#!/usr/bin/env python3
+import json, os, sys
+args=sys.argv[1:]
+if '--flat-playlist' in args:
+    print(json.dumps({'id':'abc','title':'Playlist fixture song'}))
+    sys.exit(0)
+home=next(p[5:] for p in args if p.startswith('home:'))
+if 'soundcloud.com' in args[-1]:
+    print('[download] has already been recorded in the archive')
+    sys.exit(0)
+if 'fail' in args[-1]: sys.exit(2)
+file=os.path.join(home,'Fixture.mp3')
+with open(file,'xb') as output: output.write(b'fixture')
+print('BTX_FILE:'+json.dumps(file))
+""");
+        File.SetUnixFileMode(exe,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);
+        File.WriteAllText(Path.Combine(fixture,"ffmpeg"),"");
+        File.WriteAllText(Path.Combine(fixture,"ffprobe"),"");
+        YouTubeAudioSettingsStore.SaveAsync(new(exe,fixture,fixture,0,true)).GetAwaiter().GetResult();
+        window=new YouTubeAudioDownloaderWindow();
+        window.Show();
+        PumpUntil(()=>Button("↓  DOWNLOAD QUEUE").IsEffectivelyEnabled);
+        input=window.GetVisualDescendants().OfType<TextBox>().Single(t=>t.AcceptsReturn&&!t.IsReadOnly);
+        input.Text="https://youtube.com/playlist?list=PL123\nhttps://soundcloud.com/artist/two\nhttps://youtu.be/fail";
+        Button("↓  DOWNLOAD QUEUE").RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        queuePanel=window.GetVisualDescendants().OfType<Border>().Single(b=>b.Name=="AudioQueueStatusPanel");
+        bool QueueShows(string text)=>queuePanel.GetVisualDescendants().OfType<TextBlock>().Any(t=>t.Text==text);
+        PumpUntil(()=>Button("↓  DOWNLOAD QUEUE").IsEffectivelyEnabled);
+        if(!QueueShows("Playlist fixture song")||!QueueShows("Complete")||!QueueShows("Skipped")||!QueueShows("Failed")||
+           !window.GetVisualDescendants().OfType<TextBlock>().Any(t=>t.Text?.Contains("1 COMPLETE  /  1 SKIPPED  /  1 FAILED  /  0 REMAINING")==true))
+            throw new Exception("Expanded queue titles, states or summary were not rendered");
+        window.Close();
+        Dispatcher.UIThread.RunJobs();
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("XDG_DATA_HOME",previousData);
+        Directory.Delete(fixture,true);
+    }
+}
 Console.WriteLine("PASS: Audio Downloader compact tools, co-aligned READY/Queue Status, compact browse rows, dependencies, stacked narrow layout and clean close.");
