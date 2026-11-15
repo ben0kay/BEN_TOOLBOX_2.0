@@ -103,8 +103,8 @@ public partial class MainWindow : Window
             if (tool.Id == "youtube-audio-downloader")
             {
                 new YouTubeAudioDownloaderWindow().Show(this);
-                InfoTitle.Text = "YOUTUBE AUDIO DOWNLOADER";
-                InfoDescription.Text = "Single-video MP3 downloads and manual yt-dlp updates.";
+                InfoTitle.Text = "AUDIO DOWNLOADER";
+                InfoDescription.Text = "YouTube and SoundCloud MP3 downloads with a local yt-dlp queue.";
                 return;
             }
             if (tool.Id == "seasonal-sprite-studio")

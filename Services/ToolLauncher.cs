@@ -9,7 +9,7 @@ namespace BEN_TOOLBOX_2_0.Services;
 // Explicit allowlist: no arbitrary commands or user-supplied script paths.
 public sealed record ToolDefinition(string Id, string Category, string Name, string Description, string RelativePath)
 {
-    public string Status => Id == "storage-analyzer" ? "NATIVE AVALONIA / SA3-A BROWSER" : Id == "internet-observatory" ? "NATIVE AVALONIA / INTERNET DATA" : Id is "pixel-art-converter" or "seasonal-sprite-studio" ? "NATIVE AVALONIA  /  IMAGE PROCESSING" : Id is "content-inspector" or "sprite-inventory" ? "NATIVE AVALONIA  /  READ ONLY" : "WINDOWS POWERSHELL  /  LOCAL";
+    public string Status => Id == "storage-analyzer" ? "NATIVE AVALONIA / SA3-A BROWSER" : Id == "youtube-audio-downloader" ? "NATIVE AVALONIA / LOCAL MEDIA" : Id == "internet-observatory" ? "NATIVE AVALONIA / INTERNET DATA" : Id is "pixel-art-converter" or "seasonal-sprite-studio" ? "NATIVE AVALONIA  /  IMAGE PROCESSING" : Id is "content-inspector" or "sprite-inventory" ? "NATIVE AVALONIA  /  READ ONLY" : "WINDOWS POWERSHELL  /  LOCAL";
 }
 
 public static class ToolCatalog
@@ -17,7 +17,7 @@ public static class ToolCatalog
     private static readonly ToolDefinition[] Tools =
     {
         new("storage-analyzer","Files","BTX Storage Analyzer","Scan a selected drive, inspect the file treemap and browse largest files.",""),
-        new("youtube-audio-downloader","Files","YouTube Audio Downloader","Download one YouTube video as MP3 using local yt-dlp, with manual updates.",""),
+        new("youtube-audio-downloader","Files","Audio Downloader","Download individual YouTube videos or SoundCloud tracks as MP3 using local yt-dlp.",""),
         new("sprite-splitter","Game","Sprite Splitter","Cut PNG sprite sheets into separate images.","GameDev_Toolbox/Tools/SpriteSplitter/SpriteSplitter.ps1"),
         new("seasonal-sprite-studio","Game","Seasonal Sprite Studio","Detect and paint foliage masks, protect bark, save mask projects and preview seasons.",""),
         new("pixel-art-converter","Game","Pixel Art Converter","Pixelate PNGs, edit palettes, export or send converted images to Sprite Batch.",""),

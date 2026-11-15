@@ -20,7 +20,7 @@ namespace BEN_TOOLBOX_2_0.Views;
 public sealed class YouTubeAudioDownloaderWindow : Window
 {
     private readonly YouTubeAudioService service=new();
-    private readonly TextBox url=new(){PlaceholderText="Paste video links here — one URL per line",AcceptsReturn=true,MinHeight=76,MaxHeight=140,TextWrapping=TextWrapping.Wrap};
+    private readonly TextBox url=new(){PlaceholderText="Paste YouTube or SoundCloud links — one URL per line",AcceptsReturn=true,MinHeight=76,MaxHeight=140,TextWrapping=TextWrapping.Wrap};
     private readonly TextBox executable=new(){Text=OperatingSystem.IsWindows()?@"D:\Ben Data\Music\MANUAL DOWNLOADS\YTDLP\yt-dlp.exe":YouTubeAudioService.Find("yt-dlp")??""};
     private readonly TextBox destination=new(){Text=OperatingSystem.IsWindows()?@"D:\Ben Data\Music\MANUAL DOWNLOADS\YTDLP":Environment.GetFolderPath(Environment.SpecialFolder.MyMusic)};
     private readonly TextBox ffmpeg=new(){Text=Path.GetDirectoryName(YouTubeAudioService.Find("ffmpeg")??"")??""};
@@ -72,10 +72,10 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         mainTitle.FontSize=28;mainTitle.FontWeight=FontWeight.Bold;heading.Children.Add(mainTitle);
         var kicker=BtxUiKit.CreateText("BEN TOOLBOX  /  LOCAL AUDIO OPERATIONS");
         kicker.FontSize=11;heading.Children.Add(kicker);
-        heading.Children.Add(BtxUiKit.CreateText("YouTube → MP3 · Categorised queue · Native desktop"));
+        heading.Children.Add(BtxUiKit.CreateText("YouTube / SoundCloud → MP3 · Categorised queue · Native desktop"));
         Grid.SetColumn(heading,1);header.Children.Add(heading);root.Children.Add(Panel(header));
         var columns=new Grid{ColumnDefinitions=new ColumnDefinitions("*,360"),RowDefinitions=new RowDefinitions("Auto,Auto"),ColumnSpacing=14,RowSpacing=14};Grid.SetRow(columns,1);root.Children.Add(new ScrollViewer{Content=columns,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled});Grid.SetRow(root.Children[^1],1);
-        editor.Children.Add(Field("01  /  VIDEO LINKS",url));
+        editor.Children.Add(Field("01  /  AUDIO LINKS",url));
         var categories=new StackPanel{Orientation=Orientation.Horizontal,Spacing=24};categories.Children.Add(music);categories.Children.Add(other);
         var choices=new Grid{ColumnDefinitions=new ColumnDefinitions("*,*"),ColumnSpacing=16};choices.Children.Add(Field("02  /  DESTINATION CATEGORY",categories));var qualityField=Field("MP3 QUALITY",quality);Grid.SetColumn(qualityField,1);choices.Children.Add(qualityField);editor.Children.Add(choices);
         editor.Children.Add(MutedText("Each added link remembers its category. Change it in the queue before starting.",wrap:true));

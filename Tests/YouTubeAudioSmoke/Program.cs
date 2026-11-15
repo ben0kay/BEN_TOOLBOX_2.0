@@ -4,10 +4,21 @@ using System.Text.Json;
 void Check(bool condition,string message){if(!condition)throw new Exception(message);}
 async Task Fails<T>(Func<Task> action) where T:Exception {try{await action();}catch(T){return;}throw new Exception("Expected "+typeof(T).Name);}
 Check(YouTubeAudioService.NormalizePath(" \"D:\\folder name\\yt-dlp.exe\" ")=="D:\\folder name\\yt-dlp.exe","Quoted paths");
-foreach(var invalid in new[]{"http://youtube.com/watch?v=a","https://youtube.com.evil.test/watch?v=a","https://youtube.com/playlist?list=x","--exec=oops","https://user@youtube.com/watch?v=a"})
+foreach(var valid in new[]{"https://youtu.be/abc","https://www.youtube.com/watch?v=abc&list=xyz",
+    "https://soundcloud.com/example-artist/example-track","https://www.soundcloud.com/artist_1/song-2026?si=share",
+    "https://m.soundcloud.com/artist/track","https://soundcloud.com/artist/track/s-privatecode",
+    "https://on.soundcloud.com/AbC123"})
+    Check(YouTubeAudioService.ValidateUrl(valid)==new Uri(valid).AbsoluteUri,"Valid media URL rejected: "+valid);
+foreach(var invalid in new[]{"http://youtube.com/watch?v=a","https://youtube.com.evil.test/watch?v=a","https://youtube.com/playlist?list=x","--exec=oops","https://user@youtube.com/watch?v=a",
+    "http://soundcloud.com/artist/track","https://soundcloud.com.evil.test/artist/track","https://user@soundcloud.com/artist/track",
+    "https://soundcloud.com/artist","https://soundcloud.com/artist/sets/playlist","https://soundcloud.com/artist/tracks",
+    "https://soundcloud.com/artist/likes","https://soundcloud.com/stations/track","https://soundcloud.com/artist/track/albums",
+    "https://on.soundcloud.com/","https://not-on.soundcloud.com/abc"})
     await Fails<ArgumentException>(()=>Task.FromResult(YouTubeAudioService.ValidateUrl(invalid)));
 var argsList=YouTubeAudioService.DownloadArguments("https://www.youtube.com/watch?v=abc&list=xyz","/space path","/ffmpeg","0");
 Check(argsList[^1].Contains("&list=xyz")&&argsList[^2]=="--"&&argsList.Contains("--ignore-config")&&argsList.Contains("--no-playlist"),"Arguments unsafe");
+var soundCloudArgs=YouTubeAudioService.DownloadArguments("https://soundcloud.com/artist/track?si=code","/space path","/ffmpeg","0");
+Check(soundCloudArgs[^1].Contains("soundcloud.com/artist/track")&&soundCloudArgs[^2]=="--"&&soundCloudArgs.Contains("--no-playlist")&&soundCloudArgs.Contains("mp3"),"SoundCloud argument handling unsafe");
 Check(YouTubeAudioService.Redact("error https://youtube.com/watch?v=secret")=="error [URL redacted]","Redaction");
 if(OperatingSystem.IsWindows()){Console.WriteLine("PASS URL/argv checks; fake executable fixture currently requires Linux/python3.");return;}
 var root=Path.Combine(Path.GetTempPath(),"yt smoke "+Guid.NewGuid());Directory.CreateDirectory(root);
@@ -40,6 +51,8 @@ print('BTX_FILE:'+json.dumps(file))
     var result=await service.DownloadAsync(options,"https://youtu.be/abc",s=>states.Add(s),s=>log.Add(s),default);
     Check(result.EndsWith("(1).mp3")&&File.ReadAllText(Path.Combine(root,"Song [abc].mp3"))=="existing","Existing output overwritten");
     Check(states.Any(s=>s.Percent==55)&&states.Last().State=="Complete","Progress/completion");
+    var soundCloudResult=await service.DownloadAsync(options,"https://soundcloud.com/artist/track",s=>states.Add(s),s=>log.Add(s),default);
+    Check(soundCloudResult.EndsWith("(2).mp3")&&File.Exists(soundCloudResult),"SoundCloud service/MP3 pipeline failed");
     await Fails<IOException>(()=>service.DownloadAsync(options,"https://youtu.be/badoutput",_=>{},_=>{},default));
     await Fails<IOException>(()=>service.DownloadAsync(options,"https://youtu.be/fail",_=>{},_=>{},default));
     using(var cancel=new CancellationTokenSource(250))await Fails<OperationCanceledException>(()=>service.DownloadAsync(options,"https://youtu.be/slow",_=>{},_=>{},cancel.Token));
@@ -61,7 +74,7 @@ print('BTX_FILE:'+json.dumps(file))
     await service.UpdateAsync("\""+exe+"\"",true,s=>log.Add(s),default);
     Check(log.Any(s=>s.StartsWith("Before:"))&&log.Any(s=>s.StartsWith("After:")),"Update versions missing");
     await Fails<FileNotFoundException>(()=>service.VersionAsync(Path.Combine(root,"missing"),default));
-    var queue=YouTubeAudioQueue.Parse("https://youtu.be/one\nhttps://youtu.be/fail\nhttps://youtu.be/three",AudioCategory.Music);
+    var queue=YouTubeAudioQueue.Parse("https://youtu.be/one\nhttps://youtu.be/fail\nhttps://soundcloud.com/artist/three",AudioCategory.Music);
     queue[1].Category=AudioCategory.Other;
     var destinations=new List<string>();int calls=0;
     await YouTubeAudioQueue.RunAsync(queue,root,(item,folder,changed,ct)=>
@@ -82,6 +95,6 @@ print('BTX_FILE:'+json.dumps(file))
     }
     await Fails<ArgumentException>(()=>Task.FromResult(YouTubeAudioQueue.Parse("https://youtu.be/one\nbad link",AudioCategory.Other)));
     Console.WriteLine("PASS: multi-link parsing, per-item category, continue on failure, skip completed, retry and cancel remainder.");
-    Console.WriteLine("PASS: URL/argv safety, progress, staged output/collisions, failure, cancellation, updater guard and version refresh, missing executable.");
+    Console.WriteLine("PASS: YouTube/SoundCloud URL and argv safety, progress, staged output/collisions, failure, cancellation, updater guard and version refresh, missing executable.");
 }
 finally{Directory.Delete(root,true);}

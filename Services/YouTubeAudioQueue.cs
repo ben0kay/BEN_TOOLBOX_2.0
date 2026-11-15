@@ -23,7 +23,7 @@ public static class YouTubeAudioQueue
     public static AudioQueueItem[] Parse(string text,AudioCategory category)
     {
         var lines=text.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
-        if(lines.Length==0)throw new ArgumentException("Paste one or more video URLs, one per line.");
+        if(lines.Length==0)throw new ArgumentException("Paste one or more YouTube video or SoundCloud track links, one per line.");
         if(lines.Length>MaximumItems)throw new ArgumentException("Add at most 100 links at a time.");
         return lines.Select(line=>new AudioQueueItem(line,category)).ToArray();
     }

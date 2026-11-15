@@ -27,13 +27,30 @@ public sealed class YouTubeAudioService
     public static string ValidateUrl(string value)
     {
         if(!Uri.TryCreate(value.Trim(),UriKind.Absolute,out var uri) || uri.Scheme!="https" || !string.IsNullOrEmpty(uri.UserInfo) || !uri.IsDefaultPort)
-            throw new ArgumentException("Enter an HTTPS YouTube video URL.");
+            throw new ArgumentException("Enter an HTTPS YouTube video or SoundCloud track URL.");
         var host=uri.IdnHost.ToLowerInvariant();
-        bool valid=host=="youtu.be" ? uri.AbsolutePath.Trim('/').Length>0 :
+        bool youtube=host=="youtu.be" ? uri.AbsolutePath.Trim('/').Length>0 :
             new[]{"youtube.com","www.youtube.com","m.youtube.com","music.youtube.com"}.Contains(host) &&
             (uri.AbsolutePath=="/watch" && uri.Query.Split('&').Any(x=>x.TrimStart('?').StartsWith("v=",StringComparison.Ordinal) && x.Length>2) ||
              uri.AbsolutePath.StartsWith("/shorts/",StringComparison.Ordinal) || uri.AbsolutePath.StartsWith("/live/",StringComparison.Ordinal));
-        if(!valid) throw new ArgumentException("Use a single YouTube video link, not a channel or playlist.");
+
+        bool soundcloud=false;
+        if(new[]{"soundcloud.com","www.soundcloud.com","m.soundcloud.com"}.Contains(host))
+        {
+            // Only individual tracks, including optional private-track tokens; never a user, sets or feed page.
+            var segments=uri.AbsolutePath.Split('/',StringSplitOptions.RemoveEmptyEntries);
+            soundcloud=(segments.Length==2 || segments.Length==3 && segments[2].StartsWith("s-",StringComparison.OrdinalIgnoreCase)) &&
+                segments.All(segment=>segment.Length>0 && segment.All(c=>char.IsLetterOrDigit(c) || c=='-' || c=='_')) &&
+                !new[]{"tracks","albums","sets","reposts","likes","spotlight","comments","recommended"}.Contains(segments[1],StringComparer.OrdinalIgnoreCase) &&
+                !new[]{"stations","discover","search","stream","charts","tags","pages","you"}.Contains(segments[0],StringComparer.OrdinalIgnoreCase);
+        }
+        else if(host=="on.soundcloud.com")
+        {
+            // SoundCloud share links redirect to a track; yt-dlp handles the redirect when available.
+            var segments=uri.AbsolutePath.Split('/',StringSplitOptions.RemoveEmptyEntries);
+            soundcloud=segments.Length==1 && segments[0].All(c=>char.IsLetterOrDigit(c) || c=='-' || c=='_');
+        }
+        if(!youtube && !soundcloud) throw new ArgumentException("Use a single YouTube video or SoundCloud track link, not a channel, profile or playlist.");
         return uri.AbsoluteUri;
     }
     public static List<string> DownloadArguments(string url, string stage, string ffmpeg, string quality)
