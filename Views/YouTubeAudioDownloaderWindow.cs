@@ -35,10 +35,14 @@ public sealed class YouTubeAudioDownloaderWindow : Window
     private readonly TextBox diagnostics=new(){IsReadOnly=true,AcceptsReturn=true,TextWrapping=TextWrapping.Wrap,Height=125,FontFamily=new FontFamily("Consolas"),FontSize=11};
     private readonly ProgressBar progress=new(){Minimum=0,Maximum=100,Height=12};
     private readonly Button cancel=new(){Content="■  CANCEL QUEUE",IsEnabled=false};
-    private readonly StackPanel editor=new(){Spacing=12}, tools=new(){Spacing=8}, rows=new(){Spacing=6}, resultRows=new(){Spacing=9};
+    private readonly StackPanel setup=new(){Spacing=12}, tools=new(){Spacing=8}, rows=new(){Spacing=6};
+    private readonly WrapPanel queueActions=new(){ItemSpacing=8,LineSpacing=8};
+    private static readonly IBrush CompleteBrush=new SolidColorBrush(Color.Parse("#73E6AB"));
+    private static readonly IBrush FailedBrush=new SolidColorBrush(Color.Parse("#FF8695"));
+    private static readonly IBrush CancelledBrush=new SolidColorBrush(Color.Parse("#F8CC79"));
     private readonly List<AudioQueueItem> queue=new();
-    private readonly Dictionary<AudioQueueItem,TextBlock> rowStates=new();
-    private readonly Dictionary<AudioQueueItem,(TextBlock Name,TextBlock State,TextBlock Detail)> resultViews=new();
+    private readonly Dictionary<AudioQueueItem,QueueRow> queueRows=new();
+    private sealed record QueueRow(TextBlock Name,TextBlock State,TextBlock Detail,ComboBox Category,Button Remove);
     private readonly ConcurrentQueue<string> messages=new();
     private readonly DispatcherTimer timer=new(){Interval=TimeSpan.FromMilliseconds(150)};
     private sealed record UiProgress(AudioQueueItem Item, AudioStatus Status);
@@ -76,28 +80,32 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         heading.Children.Add(BtxUiKit.CreateText("YouTube / SoundCloud → MP3 · Categorised queue · Native desktop"));
         Grid.SetColumn(heading,1);header.Children.Add(heading);root.Children.Add(Panel(header));
         var columns=new Grid{ColumnDefinitions=new ColumnDefinitions("*,360"),RowDefinitions=new RowDefinitions("Auto,Auto"),ColumnSpacing=14,RowSpacing=14};Grid.SetRow(columns,1);root.Children.Add(new ScrollViewer{Content=columns,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled});Grid.SetRow(root.Children[^1],1);
-        editor.Children.Add(Field("01  /  AUDIO LINKS",url));
+        setup.Children.Add(Field("01  /  AUDIO LINKS",url));
         var categories=new StackPanel{Orientation=Orientation.Horizontal,Spacing=24};categories.Children.Add(music);categories.Children.Add(other);
-        var choices=new Grid{ColumnDefinitions=new ColumnDefinitions("*,*"),ColumnSpacing=16};choices.Children.Add(Field("02  /  DESTINATION CATEGORY",categories));var qualityField=Field("MP3 QUALITY",quality);Grid.SetColumn(qualityField,1);choices.Children.Add(qualityField);editor.Children.Add(choices);
-        editor.Children.Add(MutedText("Each added link remembers its category. Change it in the queue before starting.",wrap:true));
+        var choices=new Grid{ColumnDefinitions=new ColumnDefinitions("*,*"),ColumnSpacing=16};choices.Children.Add(Field("02  /  DESTINATION CATEGORY",categories));var qualityField=Field("MP3 QUALITY",quality);Grid.SetColumn(qualityField,1);choices.Children.Add(qualityField);setup.Children.Add(choices);
+        setup.Children.Add(MutedText("Each added link remembers its category. Change it in the queue before starting.",wrap:true));
         var startActions=new WrapPanel{ItemSpacing=10,LineSpacing=8};
         startActions.Children.Add(ActionButton("+  ADD TO QUEUE",()=>{AddLinks();return Task.CompletedTask;},true));
-        startActions.Children.Add(ActionButton("↓  DOWNLOAD QUEUE",DownloadQueue,true));editor.Children.Add(startActions);
-        var folderRow=new Grid{ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=8};folderRow.Children.Add(destination);var browse=ActionButton("BROWSE",async()=>await Folder(destination));Grid.SetColumn(browse,1);folderRow.Children.Add(browse);editor.Children.Add(Field("BASE OUTPUT FOLDER",folderRow));
-        editor.Children.Add(MutedText("Music and Other are subfolders of this base. Defaults to your yt-dlp folder.",wrap:true));
-        editor.Children.Add(summary);
-        editor.Children.Add(new ScrollViewer{Content=rows,MaxHeight=235,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled});
-        var queueActions=new WrapPanel{ItemSpacing=8,LineSpacing=8};
+        startActions.Children.Add(ActionButton("↓  DOWNLOAD QUEUE",DownloadQueue,true));setup.Children.Add(startActions);
+        var folderRow=new Grid{ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=8};folderRow.Children.Add(destination);var browse=ActionButton("BROWSE",async()=>await Folder(destination));Grid.SetColumn(browse,1);folderRow.Children.Add(browse);setup.Children.Add(Field("BASE OUTPUT FOLDER",folderRow));
+        setup.Children.Add(MutedText("Music and Other are subfolders of this base. Defaults to your yt-dlp folder.",wrap:true));
+        var queueScroll=new ScrollViewer
+        {
+            Name="AudioQueueScroll",
+            Content=rows,MaxHeight=235,AllowAutoHide=false,
+            VerticalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
+        };
         queueActions.Children.Add(ActionButton("CLEAR FINISHED",()=>{queue.RemoveAll(x=>x.State is "Complete" or "Skipped");RebuildRows();return Task.CompletedTask;}));
-        editor.Children.Add(queueActions);
+        var editor=new StackPanel{Spacing=12,Children={setup,summary,queueScroll,queueActions}};
         var editorPanel=Panel(editor);editorPanel.Name="AudioEditorPanel";columns.Children.Add(editorPanel);
+        RebuildRows();
         var display=new StackPanel{Spacing=12};var progressHeading=new Grid{ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=10};
         progressHeading.Children.Add(status);Grid.SetColumn(percent,1);progressHeading.Children.Add(percent);display.Children.Add(progressHeading);display.Children.Add(current);display.Children.Add(progress);
         var liveActions=new WrapPanel{ItemSpacing=12,LineSpacing=8};liveActions.Children.Add(cancel);
         liveActions.Children.Add(ActionButton("OPEN OUTPUT FOLDER",()=>{var folder=selectedItem?.Output is {} path?Path.GetDirectoryName(path):YouTubeAudioService.NormalizePath(destination.Text??"");if(!Directory.Exists(folder))throw new DirectoryNotFoundException("Choose an existing output folder.");Process.Start(new ProcessStartInfo(folder!){UseShellExecute=true});return Task.CompletedTask;}));
         display.Children.Add(liveActions);
-        // Desktop rows: setup/tools above; READY and Queue Status on the same row.
-        // This preserves the original READY dimensions and ensures reliable horizontal alignment.
+        // Keep READY aligned with the right-side placeholder on desktop.
         var liveStatusPanel=Panel(display);liveStatusPanel.Name="AudioLiveStatusPanel";
         Grid.SetRow(liveStatusPanel,1);columns.Children.Add(liveStatusPanel);
         tools.Children.Add(AccentText("⚙  TOOLS & TROUBLESHOOTING",15,FontWeight.Bold));
@@ -141,16 +149,8 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         ToolTip.SetTip(checkVersion,"Check yt-dlp version, FFmpeg, ffprobe and Deno dependencies");
         checkActions.Children.Add(checkVersion);tools.Children.Add(checkActions);
         tools.Children.Add(MutedText("LOCAL ENGINE · yt-dlp + FFmpeg\nOne job at a time · Existing MP3s protected · No automatic binary installation.",size:11,wrap:true));
-        var queueStatus=new StackPanel{Spacing=10};
-        queueStatus.Children.Add(AccentText("≡  QUEUE STATUS",15,FontWeight.Bold));
-        queueStatus.Children.Add(MutedText("Track results and playlist expansion",size:11,wrap:true));
-        queueStatus.Children.Add(new ScrollViewer
-        {
-            Content=resultRows,MinHeight=125,MaxHeight=235,
-            VerticalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled
-        });
-        var queueStatusPanel=Panel(queueStatus);queueStatusPanel.Name="AudioQueueStatusPanel";
+        var queueStatusPanel=Panel(new Border{MinHeight=125});
+        queueStatusPanel.Name="AudioQueueStatusPanel";
         var toolsPanel=Panel(tools);toolsPanel.Name="AudioToolsPanel";
         Grid.SetColumn(toolsPanel,1);columns.Children.Add(toolsPanel);
         Grid.SetRow(queueStatusPanel,1);Grid.SetColumn(queueStatusPanel,1);columns.Children.Add(queueStatusPanel);
@@ -166,7 +166,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         };
         Opened+=async(_,_)=>
         {
-            editor.IsEnabled=tools.IsEnabled=false;var saved=await YouTubeAudioSettingsStore.LoadAsync();
+            setup.IsEnabled=tools.IsEnabled=false;var saved=await YouTubeAudioSettingsStore.LoadAsync();
             if(saved is not null)
             {
                 if(!string.IsNullOrWhiteSpace(saved.Executable))executable.Text=YouTubeAudioService.NormalizePath(saved.Executable);
@@ -175,7 +175,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
                 destination.Text=saved.Categorized?saved.OutputFolder:Path.GetDirectoryName(executable.Text??"")??destination.Text;
                 music.IsChecked=saved.Category!=AudioCategory.Other;other.IsChecked=!music.IsChecked;
             }
-            editor.IsEnabled=tools.IsEnabled=true;
+            setup.IsEnabled=tools.IsEnabled=true;
         };
         cancel.Click+=(_,_)=>active?.Cancel();timer.Tick+=(_,_)=>Flush();
         Closing+=(_,e)=>{if(active is not null){e.Cancel=true;closing=true;active.Cancel();}};Closed+=(_,_)=>timer.Stop();
@@ -210,38 +210,65 @@ public sealed class YouTubeAudioDownloaderWindow : Window
     }
     private void RebuildRows()
     {
-        rows.Children.Clear();rowStates.Clear();resultRows.Children.Clear();resultViews.Clear();
+        rows.Children.Clear();queueRows.Clear();
         foreach(var item in queue)
         {
             var row=new Grid{ColumnDefinitions=new ColumnDefinitions("*,95,Auto"),ColumnSpacing=8};
-            var info=new StackPanel{Spacing=3};info.Children.Add(new TextBlock{Text=item.Url,TextTrimming=TextTrimming.CharacterEllipsis,FontSize=11});var state=MutedText(item.State,size:11,wrap:true);info.Children.Add(state);rowStates[item]=state;row.Children.Add(info);
-            var category=new ComboBox{ItemsSource=new[]{"Music","Other"},SelectedIndex=(int)item.Category,IsEnabled=!item.IsUnavailable && item.State is not ("Complete" or "Skipped")};BtxUiKit.ApplyInputStyle(category,compact:true);category.SelectionChanged+=(_,_)=>{if(category.SelectedIndex>=0)item.Category=(AudioCategory)category.SelectedIndex;};Grid.SetColumn(category,1);row.Children.Add(category);
-            var remove=ActionButton("×",()=>{queue.Remove(item);RebuildRows();return Task.CompletedTask;});Grid.SetColumn(remove,2);row.Children.Add(remove);rows.Children.Add(row);
-            var result=new StackPanel{Spacing=3};
-            var resultHeading=new Grid{ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=8};
-            var name=MutedText(item.Title??item.Url,size:12);name.TextTrimming=TextTrimming.CharacterEllipsis;
+            var info=new StackPanel{Spacing=3};
+            var heading=new Grid{ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=8};
+            var name=new TextBlock{FontSize=12,TextTrimming=TextTrimming.CharacterEllipsis};
             ToolTip.SetTip(name,item.Url);
-            resultHeading.Children.Add(name);
-            var resultState=AccentText(ShortState(item.State),11,FontWeight.SemiBold);
-            Grid.SetColumn(resultState,1);resultHeading.Children.Add(resultState);result.Children.Add(resultHeading);
-            var detail=MutedText(ResultDetail(item),size:11);detail.TextTrimming=TextTrimming.CharacterEllipsis;
-            ToolTip.SetTip(detail,item.Error??item.Url);result.Children.Add(detail);resultRows.Children.Add(result);
-            resultViews[item]=(name,resultState,detail);
+            heading.Children.Add(name);
+            var state=AccentText("",11,FontWeight.SemiBold);
+            Grid.SetColumn(state,1);heading.Children.Add(state);
+            info.Children.Add(heading);
+            var detail=MutedText("",size:11);
+            detail.TextTrimming=TextTrimming.CharacterEllipsis;
+            info.Children.Add(detail);row.Children.Add(info);
+
+            var category=new ComboBox{ItemsSource=new[]{"Music","Other"},SelectedIndex=(int)item.Category};
+            BtxUiKit.ApplyInputStyle(category,compact:true);
+            category.SelectionChanged+=(_,_)=>{if(category.SelectedIndex>=0)item.Category=(AudioCategory)category.SelectedIndex;};
+            Grid.SetColumn(category,1);row.Children.Add(category);
+            var remove=ActionButton("×",()=>{queue.Remove(item);RebuildRows();return Task.CompletedTask;});
+            Grid.SetColumn(remove,2);row.Children.Add(remove);
+            rows.Children.Add(row);
+            queueRows.Add(item,new(name,state,detail,category,remove));
         }
-        if(queue.Count==0)resultRows.Children.Add(MutedText("No links queued yet.",wrap:true));
+        if(queue.Count==0)rows.Children.Add(MutedText("No links queued yet.",wrap:true));
+        RefreshQueue();
+    }
+    private void RefreshQueue()
+    {
+        queueActions.IsEnabled=active is null;
+        foreach(var (item,row) in queueRows)
+        {
+            row.Name.Text=item.Title??item.Url;
+            var state=item.State;
+            row.State.Text=state;
+            if(state is "Complete" or "Failed" or "Cancelled")
+                row.State.Foreground=state=="Complete"?CompleteBrush:state=="Failed"?FailedBrush:CancelledBrush;
+            else
+                row.State.ClearValue(TextBlock.ForegroundProperty);
+            row.State.Classes.Set("btx-muted",state is "Waiting" or "Skipped");
+            row.State.Classes.Set("btx-accent",state is "Resolving" or "Downloading" or "Converting");
+            var detail=ResultDetail(item,state);
+            row.Detail.IsVisible=detail is not null;
+            row.Detail.Text=detail;
+            ToolTip.SetTip(row.Detail,item.Error??item.Url);
+            row.Category.IsEnabled=active is null && !item.IsUnavailable && state is not ("Complete" or "Skipped");
+            row.Remove.IsEnabled=active is null;
+        }
         UpdateSummary();
     }
-    private static string ShortState(string state)=>state.StartsWith("Resolving",StringComparison.Ordinal)?"Resolving":
-        state.StartsWith("Downloading",StringComparison.Ordinal)?"Downloading":
-        state.StartsWith("Converting",StringComparison.Ordinal)?"Converting":state;
-    private static string ResultDetail(AudioQueueItem item)=>item.State switch
+    private static string? ResultDetail(AudioQueueItem item,string state)=>state switch
     {
         "Skipped" => "Already downloaded",
         "Failed" => item.Error??"Download failed",
         "Cancelled" => "Cancelled — can retry",
         "Complete" => item.Output is {} path?Path.GetFileName(path):"Saved",
         "Resolving" when item.IsPlaylist => "Expanding playlist",
-        _ => item.Url
+        _ => string.IsNullOrWhiteSpace(item.Title)?null:item.Url
     };
     private void UpdateSummary()
     {
@@ -279,22 +306,11 @@ public sealed class YouTubeAudioDownloaderWindow : Window
             var value=update.Status;selectedItem=update.Item;
             status.Text=value.State;current.Text=value.Output??selectedItem?.Url??"Local operation";progress.IsIndeterminate=value.Percent is null;progress.Value=value.Percent??0;percent.Text=value.Percent is {} n?$"{n:0}%":"—";
         }
-        foreach(var item in queue)
-        {
-            if(rowStates.TryGetValue(item,out var state))state.Text=item.State+(item.Error is null?"":" · "+item.Error);
-            if(resultViews.TryGetValue(item,out var result))
-            {
-                result.Name.Text=item.Title??item.Url;
-                result.State.Text=ShortState(item.State);
-                result.Detail.Text=ResultDetail(item);
-                ToolTip.SetTip(result.Detail,item.Error??item.Url);
-            }
-        }
-        UpdateSummary();
+        RefreshQueue();
     }
     private async Task Run(Func<CancellationToken,Task> operation)
     {
-        if(active is not null)return;active=new();editor.IsEnabled=tools.IsEnabled=false;cancel.IsEnabled=true;progress.IsIndeterminate=true;percent.Text="—";status.Text="WORKING…";timer.Start();
+        if(active is not null)return;active=new();setup.IsEnabled=tools.IsEnabled=false;cancel.IsEnabled=true;progress.IsIndeterminate=true;percent.Text="—";status.Text="WORKING…";RefreshQueue();timer.Start();
         try
         {
             executable.Text=YouTubeAudioService.NormalizePath(executable.Text??"");
@@ -304,6 +320,6 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         }
         catch(OperationCanceledException){Flush();status.Text="CANCELLED · Remaining links stay queued. Download Queue retries unfinished items.";}
         catch(Exception ex){Flush();status.Text=ex.Message;}
-        finally{active.Dispose();active=null;timer.Stop();editor.IsEnabled=tools.IsEnabled=true;cancel.IsEnabled=false;progress.IsIndeterminate=false;RebuildRows();if(closing)Close();}
+        finally{active.Dispose();active=null;timer.Stop();setup.IsEnabled=tools.IsEnabled=true;cancel.IsEnabled=false;progress.IsIndeterminate=false;RefreshQueue();if(closing)Close();}
     }
 }

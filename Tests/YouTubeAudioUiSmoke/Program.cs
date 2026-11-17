@@ -4,6 +4,7 @@ using Avalonia.Headless;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using BEN_TOOLBOX_2_0;
 using BEN_TOOLBOX_2_0.Views;
@@ -41,8 +42,10 @@ if(readyPanel.Parent is not Grid parent || !ReferenceEquals(queuePanel.Parent,pa
 var browserButtons=window.GetVisualDescendants().OfType<Button>().Where(b=>Equals(b.Content,"BROWSE")).ToArray();
 if(browserButtons.Length<3 || !Equals(Button("CHECK TOOLS / VERSION").Content,"CHECK TOOLS / VERSION"))
     throw new Exception("Both compact dependency selectors and version check must remain accessible");
-if(window.GetVisualDescendants().OfType<TextBlock>().Count(t=>t.Text?.Contains("soundcloud.com/artist/two")==true)<1)
-    throw new Exception("Right queue status entries missing");
+ScrollViewer QueueScroll()=>window.GetVisualDescendants().OfType<ScrollViewer>().Single(view=>view.Name=="AudioQueueScroll");
+if(!QueueScroll().GetVisualDescendants().OfType<TextBlock>().Any(t=>t.Text=="https://soundcloud.com/artist/two") ||
+   queuePanel.GetVisualDescendants().OfType<TextBlock>().Any())
+    throw new Exception("Queue entries must appear in the main list and the placeholder must be blank");
 using(var bitmap=new RenderTargetBitmap(new PixelSize(1220,940))) { bitmap.Render(window);bitmap.Save("/tmp/youtube-queue-preview.png"); }
 window.Width=700;window.Height=650;Dispatcher.UIThread.RunJobs();
 var tools=Button("CHECK FOR UPDATES");if(tools.Bounds.Width<=0)throw new Exception("Compact controls collapsed");
@@ -62,7 +65,7 @@ if(!OperatingSystem.IsWindows())
         var exe=Path.Combine(fixture,"yt-dlp");
         File.WriteAllText(exe,"""
 #!/usr/bin/env python3
-import json, os, sys
+import json, os, sys, time
 args=sys.argv[1:]
 if '--flat-playlist' in args:
     print(json.dumps({'id':'abc','title':'Playlist fixture song'}))
@@ -72,6 +75,11 @@ if 'soundcloud.com' in args[-1]:
     print('[download] has already been recorded in the archive')
     sys.exit(0)
 if 'fail' in args[-1]: sys.exit(2)
+resume=os.path.join(os.path.dirname(__file__),'resume')
+deadline=time.monotonic()+15
+while not os.path.exists(resume):
+    if time.monotonic()>deadline: sys.exit(3)
+    time.sleep(.01)
 file=os.path.join(home,'Fixture.mp3')
 with open(file,'xb') as output: output.write(b'fixture')
 print('BTX_FILE:'+json.dumps(file))
@@ -79,19 +87,30 @@ print('BTX_FILE:'+json.dumps(file))
         File.SetUnixFileMode(exe,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);
         File.WriteAllText(Path.Combine(fixture,"ffmpeg"),"");
         File.WriteAllText(Path.Combine(fixture,"ffprobe"),"");
-        YouTubeAudioSettingsStore.SaveAsync(new(exe,fixture,fixture,0,true)).GetAwaiter().GetResult();
+        Task.Run(()=>YouTubeAudioSettingsStore.SaveAsync(new(exe,fixture,fixture,0,true))).GetAwaiter().GetResult();
         window=new YouTubeAudioDownloaderWindow();
         window.Show();
         PumpUntil(()=>Button("↓  DOWNLOAD QUEUE").IsEffectivelyEnabled);
         input=window.GetVisualDescendants().OfType<TextBox>().Single(t=>t.AcceptsReturn&&!t.IsReadOnly);
-        input.Text="https://youtube.com/playlist?list=PL123\nhttps://soundcloud.com/artist/two\nhttps://youtu.be/fail";
+        input.Text="https://youtube.com/playlist?list=PL123\nhttps://youtu.be/fail\n"+
+            string.Join("\n",Enumerable.Range(1,10).Select(i=>$"https://soundcloud.com/artist/track-{i}"));
         Button("↓  DOWNLOAD QUEUE").RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
-        queuePanel=window.GetVisualDescendants().OfType<Border>().Single(b=>b.Name=="AudioQueueStatusPanel");
-        bool QueueShows(string text)=>queuePanel.GetVisualDescendants().OfType<TextBlock>().Any(t=>t.Text==text);
+        var scroll=QueueScroll();
+        TextBlock? QueueLabel(string text)=>scroll.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t=>t.Text==text);
+        PumpUntil(()=>QueueLabel("Playlist fixture song") is not null&&scroll.Extent.Height>scroll.Viewport.Height);
+        if(!scroll.IsEffectivelyEnabled||Button("CLEAR FINISHED").IsEffectivelyEnabled||
+           scroll.GetVisualDescendants().OfType<ComboBox>().Any(box=>box.IsEffectivelyEnabled)||
+           scroll.GetVisualDescendants().OfType<Button>().Any(button=>Equals(button.Content,"×")&&button.IsEffectivelyEnabled))
+            throw new Exception("The active queue must allow scrolling while edits are disabled");
+        scroll.Offset=new Vector(0,scroll.Extent.Height-scroll.Viewport.Height);
+        if(scroll.Offset.Y<=0)throw new Exception("Could not scroll the active queue");
+        File.WriteAllText(Path.Combine(fixture,"resume"),"");
         PumpUntil(()=>Button("↓  DOWNLOAD QUEUE").IsEffectivelyEnabled);
-        if(!QueueShows("Playlist fixture song")||!QueueShows("Complete")||!QueueShows("Skipped")||!QueueShows("Failed")||
-           !window.GetVisualDescendants().OfType<TextBlock>().Any(t=>t.Text?.Contains("1 COMPLETE  /  1 SKIPPED  /  1 FAILED  /  0 REMAINING")==true))
-            throw new Exception("Expanded queue titles, states or summary were not rendered");
+        bool HasColor(string label,string color)=>QueueLabel(label)?.Foreground is ISolidColorBrush brush&&brush.Color==Color.Parse(color);
+        if(!HasColor("Complete","#73E6AB")||!HasColor("Failed","#FF8695")||QueueLabel("Skipped") is null||
+           !window.GetVisualDescendants().OfType<TextBlock>().Any(t=>t.Text?.Contains("1 COMPLETE  /  10 SKIPPED  /  1 FAILED  /  0 REMAINING")==true))
+            throw new Exception("Expanded queue states, colors or summary were not rendered");
+        if(scroll.Offset.Y<=0)throw new Exception("Finishing the queue reset its scroll position");
         window.Close();
         Dispatcher.UIThread.RunJobs();
     }
@@ -101,4 +120,4 @@ print('BTX_FILE:'+json.dumps(file))
         Directory.Delete(fixture,true);
     }
 }
-Console.WriteLine("PASS: Audio Downloader compact tools, co-aligned READY/Queue Status, compact browse rows, dependencies, stacked narrow layout and clean close.");
+Console.WriteLine("PASS: Audio Downloader unified queue, scrolling during downloads, status colors, compact tools and responsive panel layout.");
