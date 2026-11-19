@@ -270,3 +270,38 @@ central source of truth for future design changes. No invocation,
 download, queue, status, cancellation, external executable or settings
 business logic was intentionally modified. Windows build/visual and real
 workflow verification still pending. See the BTX UI Kit T4 plan for details.
+
+
+### 2026-11-19 — Queue titles and outcome icons
+
+Single YouTube/SoundCloud downloads now pass yt-dlp title metadata through a
+separate `AudioStatus.Title` field instead of extracting it from human-readable
+status messages. JSON-escaped titles are requested before download and after
+moving the final output; UTF-8 is explicit for the download and process streams.
+Playlist titles remain available before download. The queue uses a retrieved
+title as its name, retains full title/URL in the tooltip, and falls back to the
+link if metadata is missing. No separate metadata request is made on paste;
+standalone titles appear as yt-dlp resolves/downloads the track. Unavailable or
+malformed title metadata does not turn a successful download into a failure.
+
+Each row now reserves an outcome column immediately left of Music/Other:
+green `✓` for **Complete**, red `✗` for **Failed**. Waiting, active, skipped and
+cancelled rows have no outcome symbol; textual state/detail remains. Tooltips
+and automation names describe the symbols. Queue editing guards, scrolling,
+summary counts, categories, removal and duplicate/archive protections remain.
+This is a separate Audio Downloader follow-up, not another T5 tool migration.
+
+Validation results are recorded below; live provider and Windows visual/DPI
+checks remain required. Existing completed session rows cannot be backfilled
+without rerunning metadata extraction, and the queue remains session-only.
+
+
+Validation: .NET 10.0.404 Linux build passed (0 errors; existing package/API
+warnings remain). `Tests/YouTubeAudioSmoke` passed, including dedicated title
+metadata for both providers and successful completion with malformed/missing
+title metadata. `Tests/YouTubeAudioUiSmoke` passed, including standalone
+YouTube/SoundCloud Unicode/quoted titles emitted after file output, green checks
+for completed rows, a red cross for failure, blank indicators for skipped rows,
+icon/category column order, active queue scrolling and responsive layout.
+`git diff --check` passed. Provider output is simulated in these tests; real
+YouTube/SoundCloud extraction and Windows glyph/DPI appearance remain untested.

@@ -71,7 +71,7 @@ if '--flat-playlist' in args:
     print(json.dumps({'id':'abc','title':'Playlist fixture song'}))
     sys.exit(0)
 home=next(p[5:] for p in args if p.startswith('home:'))
-if 'soundcloud.com' in args[-1]:
+if 'soundcloud.com' in args[-1] and 'titled' not in args[-1]:
     print('[download] has already been recorded in the archive')
     sys.exit(0)
 if 'fail' in args[-1]: sys.exit(2)
@@ -80,9 +80,11 @@ deadline=time.monotonic()+15
 while not os.path.exists(resume):
     if time.monotonic()>deadline: sys.exit(3)
     time.sleep(.01)
-file=os.path.join(home,'Fixture.mp3')
+title='SoundCloud — \"雪\" live' if 'soundcloud.com' in args[-1] else 'YouTube — \"雪\" live'
+file=os.path.join(home,('SoundCloud' if 'soundcloud.com' in args[-1] else 'Solo' if 'solo' in args[-1] else 'Fixture')+'.mp3')
 with open(file,'xb') as output: output.write(b'fixture')
 print('BTX_FILE:'+json.dumps(file))
+if 'solo' in args[-1] or 'titled' in args[-1]: print('BTX_TITLE:'+json.dumps(title))
 """);
         File.SetUnixFileMode(exe,UnixFileMode.UserRead|UnixFileMode.UserWrite|UnixFileMode.UserExecute);
         File.WriteAllText(Path.Combine(fixture,"ffmpeg"),"");
@@ -92,7 +94,7 @@ print('BTX_FILE:'+json.dumps(file))
         window.Show();
         PumpUntil(()=>Button("↓  DOWNLOAD QUEUE").IsEffectivelyEnabled);
         input=window.GetVisualDescendants().OfType<TextBox>().Single(t=>t.AcceptsReturn&&!t.IsReadOnly);
-        input.Text="https://youtube.com/playlist?list=PL123\nhttps://youtu.be/fail\n"+
+        input.Text="https://youtube.com/playlist?list=PL123\nhttps://youtu.be/solo\nhttps://soundcloud.com/artist/titled\nhttps://youtu.be/fail\n"+
             string.Join("\n",Enumerable.Range(1,10).Select(i=>$"https://soundcloud.com/artist/track-{i}"));
         Button("↓  DOWNLOAD QUEUE").RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
         var scroll=QueueScroll();
@@ -108,8 +110,16 @@ print('BTX_FILE:'+json.dumps(file))
         PumpUntil(()=>Button("↓  DOWNLOAD QUEUE").IsEffectivelyEnabled);
         bool HasColor(string label,string color)=>QueueLabel(label)?.Foreground is ISolidColorBrush brush&&brush.Color==Color.Parse(color);
         if(!HasColor("Complete","#73E6AB")||!HasColor("Failed","#FF8695")||QueueLabel("Skipped") is null||
-           !window.GetVisualDescendants().OfType<TextBlock>().Any(t=>t.Text?.Contains("1 COMPLETE  /  10 SKIPPED  /  1 FAILED  /  0 REMAINING")==true))
+           !window.GetVisualDescendants().OfType<TextBlock>().Any(t=>t.Text?.Contains("3 COMPLETE  /  10 SKIPPED  /  1 FAILED  /  0 REMAINING")==true))
             throw new Exception("Expanded queue states, colors or summary were not rendered");
+        if(QueueLabel("YouTube — \"雪\" live") is null||QueueLabel("SoundCloud — \"雪\" live") is null)
+            throw new Exception("Single-track Unicode/quoted metadata titles missing");
+        var indicators=scroll.GetVisualDescendants().OfType<TextBlock>().Where(t=>t.Name=="AudioQueueOutcome").ToArray();
+        if(indicators.Count(t=>t.Text=="✓"&&t.Foreground is ISolidColorBrush b&&b.Color==Color.Parse("#73E6AB"))!=3||
+           indicators.Count(t=>t.Text=="✗"&&t.Foreground is ISolidColorBrush b&&b.Color==Color.Parse("#FF8695"))!=1||
+           indicators.Any(t=>Grid.GetColumn(t)!=1||t.Parent is not Grid row||
+               !row.Children.OfType<ComboBox>().Any(c=>Grid.GetColumn(c)==2)))
+            throw new Exception("Outcome icons must precede category and match actual complete/failed states");
         if(scroll.Offset.Y<=0)throw new Exception("Finishing the queue reset its scroll position");
         window.Close();
         Dispatcher.UIThread.RunJobs();

@@ -96,8 +96,7 @@ public static class YouTubeAudioQueue
                 var folder=Destination(root,item.Category);
                 item.Output=await download(item,folder,s=>
                 {
-                    if(s.State.StartsWith("Resolving — ",StringComparison.Ordinal))
-                        item.Title=s.State.Substring("Resolving — ".Length);
+                    if(!string.IsNullOrWhiteSpace(s.Title)) item.Title=s.Title;
                     if(s.State is "Downloading" or "Converting") item.State=s.State;
                     changed(item,s);
                 },token);

@@ -22,6 +22,7 @@ var argsList=YouTubeAudioService.DownloadArguments("https://www.youtube.com/watc
 Check(argsList[^1].Contains("&list=xyz")&&argsList[^2]=="--"&&argsList.Contains("--ignore-config")&&argsList.Contains("--no-playlist") &&
     argsList.Contains("--download-archive")&&argsList.Contains("--no-post-overwrites")&&
     argsList.Contains("home:/output path")&&argsList.Contains("temp:/stage path"),"Arguments/paths unsafe");
+Check(argsList.Contains("before_dl:BTX_TITLE:%(title)j")&&argsList.Contains("after_move:BTX_TITLE:%(title)j")&&argsList.Contains("utf-8"),"Structured title output/encoding missing");
 var soundCloudArgs=YouTubeAudioService.DownloadArguments("https://soundcloud.com/artist/track?si=code","/stage path","/ffmpeg","0","/output path");
 Check(soundCloudArgs[^1].Contains("soundcloud.com/artist/track")&&soundCloudArgs[^2]=="--"&&soundCloudArgs.Contains("--no-playlist")&&soundCloudArgs.Contains("mp3"),"SoundCloud argument handling unsafe");
 Check(YouTubeAudioService.Redact("error https://youtube.com/watch?v=secret")=="error [URL redacted]","Redaction");
@@ -66,6 +67,8 @@ archive=args[args.index('--download-archive')+1]
 identity='soundcloud 123' if 'soundcloud.com' in url else 'youtube abc'
 media_id='sc' if 'soundcloud.com' in url else 'yt'
 if '/tracks/42' in url: identity,media_id='soundcloud 42','sc42'
+if 'notitle' in url: print('BTX_TITLE:{unavailable')
+else: print('BTX_TITLE:'+json.dumps('SoundCloud Song' if 'soundcloud.com' in url else 'YouTube Song'))
 if os.path.isfile(archive) and identity in open(archive).read().splitlines():
     print('[download] '+identity+': has already been recorded in the archive')
     sys.exit(0)
@@ -91,11 +94,16 @@ print('BTX_FILE:'+json.dumps(file))
     var result=await service.DownloadAsync(options,"https://youtu.be/abc",s=>states.Add(s),s=>log.Add(s),default);
     Check(result is not null&&result.EndsWith("Song [yt].mp3")&&File.Exists(result),"YouTube MP3 output missing");
     Check(states.Any(s=>s.Percent==55)&&states.Last().State=="Complete","Progress/completion");
+    Check(states.Any(s=>s.Title=="YouTube Song")&&states.Any(s=>s.Title=="SoundCloud Song"),"Provider titles not emitted as metadata");
     Check(File.ReadAllLines(Path.Combine(root,".btx-audio-download-archive.txt")).Length==2,"Archive did not record both providers");
     // Archive skips even if the old output was moved away, because yt-dlp uses media IDs.
     File.Delete(result!);
     var archivedAgain=await service.DownloadAsync(options,"https://youtu.be/abc",s=>states.Add(s),s=>log.Add(s),default);
     Check(archivedAgain is null&&!File.Exists(result),"Previously archived media was downloaded twice");
+    var titleless=YouTubeAudioQueue.Parse("https://youtu.be/notitle",AudioCategory.Other);
+    await YouTubeAudioQueue.RunAsync(titleless,root,(item,folder,changed,ct)=>
+        service.DownloadAsync(options with{OutputFolder=folder},item.Url,changed,_=>{},ct),(_,_)=>{},default);
+    Check(titleless[0].State=="Complete"&&titleless[0].Title is null,"Unavailable title must not fail a completed download");
     await Fails<IOException>(()=>service.DownloadAsync(options,"https://youtu.be/badoutput",_=>{},_=>{},default));
     await Fails<IOException>(()=>service.DownloadAsync(options,"https://youtu.be/fail",_=>{},_=>{},default));
     using(var cancel=new CancellationTokenSource(250))await Fails<OperationCanceledException>(()=>service.DownloadAsync(options,"https://youtu.be/slow",_=>{},_=>{},cancel.Token));

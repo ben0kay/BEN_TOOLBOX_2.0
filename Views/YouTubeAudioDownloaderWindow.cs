@@ -42,7 +42,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
     private static readonly IBrush CancelledBrush=new SolidColorBrush(Color.Parse("#F8CC79"));
     private readonly List<AudioQueueItem> queue=new();
     private readonly Dictionary<AudioQueueItem,QueueRow> queueRows=new();
-    private sealed record QueueRow(TextBlock Name,TextBlock State,TextBlock Detail,ComboBox Category,Button Remove);
+    private sealed record QueueRow(TextBlock Name,TextBlock State,TextBlock Detail,TextBlock Indicator,ComboBox Category,Button Remove);
     private readonly ConcurrentQueue<string> messages=new();
     private readonly DispatcherTimer timer=new(){Interval=TimeSpan.FromMilliseconds(150)};
     private sealed record UiProgress(AudioQueueItem Item, AudioStatus Status);
@@ -213,7 +213,7 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         rows.Children.Clear();queueRows.Clear();
         foreach(var item in queue)
         {
-            var row=new Grid{ColumnDefinitions=new ColumnDefinitions("*,95,Auto"),ColumnSpacing=8};
+            var row=new Grid{ColumnDefinitions=new ColumnDefinitions("*,24,95,Auto"),ColumnSpacing=8};
             var info=new StackPanel{Spacing=3};
             var heading=new Grid{ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=8};
             var name=new TextBlock{FontSize=12,TextTrimming=TextTrimming.CharacterEllipsis};
@@ -226,14 +226,20 @@ public sealed class YouTubeAudioDownloaderWindow : Window
             detail.TextTrimming=TextTrimming.CharacterEllipsis;
             info.Children.Add(detail);row.Children.Add(info);
 
+            var indicator=new TextBlock
+            {
+                Name="AudioQueueOutcome",FontSize=20,FontWeight=FontWeight.Bold,
+                HorizontalAlignment=HorizontalAlignment.Center,VerticalAlignment=VerticalAlignment.Center
+            };
+            Grid.SetColumn(indicator,1);row.Children.Add(indicator);
             var category=new ComboBox{ItemsSource=new[]{"Music","Other"},SelectedIndex=(int)item.Category};
             BtxUiKit.ApplyInputStyle(category,compact:true);
             category.SelectionChanged+=(_,_)=>{if(category.SelectedIndex>=0)item.Category=(AudioCategory)category.SelectedIndex;};
-            Grid.SetColumn(category,1);row.Children.Add(category);
+            Grid.SetColumn(category,2);row.Children.Add(category);
             var remove=ActionButton("×",()=>{queue.Remove(item);RebuildRows();return Task.CompletedTask;});
-            Grid.SetColumn(remove,2);row.Children.Add(remove);
+            Grid.SetColumn(remove,3);row.Children.Add(remove);
             rows.Children.Add(row);
-            queueRows.Add(item,new(name,state,detail,category,remove));
+            queueRows.Add(item,new(name,state,detail,indicator,category,remove));
         }
         if(queue.Count==0)rows.Children.Add(MutedText("No links queued yet.",wrap:true));
         RefreshQueue();
@@ -243,9 +249,15 @@ public sealed class YouTubeAudioDownloaderWindow : Window
         queueActions.IsEnabled=active is null;
         foreach(var (item,row) in queueRows)
         {
-            row.Name.Text=item.Title??item.Url;
+            row.Name.Text=string.IsNullOrWhiteSpace(item.Title)?item.Url:item.Title;
+            ToolTip.SetTip(row.Name,string.IsNullOrWhiteSpace(item.Title)?item.Url:item.Title+Environment.NewLine+item.Url);
             var state=item.State;
             row.State.Text=state;
+            row.Indicator.Text=state=="Complete"?"✓":state=="Failed"?"✗":"";
+            row.Indicator.Foreground=state=="Failed"?FailedBrush:CompleteBrush;
+            ToolTip.SetTip(row.Indicator,state=="Complete"?"Download successful":state=="Failed"?"Download failed":null);
+            Avalonia.Automation.AutomationProperties.SetName(row.Indicator,
+                state=="Complete"?"Download successful":state=="Failed"?"Download failed":"No download outcome");
             if(state is "Complete" or "Failed" or "Cancelled")
                 row.State.Foreground=state=="Complete"?CompleteBrush:state=="Failed"?FailedBrush:CancelledBrush;
             else

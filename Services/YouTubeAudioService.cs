@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace BEN_TOOLBOX_2_0.Services;
 
 public sealed record YouTubeAudioOptions(string Executable, string FfmpegFolder, string OutputFolder, string Quality = "0");
-public sealed record AudioStatus(string State, double? Percent = null, string? Output = null);
+public sealed record AudioStatus(string State, double? Percent = null, string? Output = null, string? Title = null);
 
 public sealed class YouTubeAudioService
 {
@@ -145,7 +145,9 @@ public sealed class YouTubeAudioService
         return new(){"--ignore-config","--no-quiet","--no-playlist","--no-overwrites","--no-post-overwrites",
             "--download-archive",archive,"-f","bestaudio/best","-x","--audio-format","mp3","--audio-quality",quality,
             "--newline","--progress","--progress-template","download:BTX_PROGRESS:%(progress._percent_str)s",
-            "--print","after_move:BTX_FILE:%(filepath)j","--print","before_dl:BTX_TITLE:%(title)s",
+            "--print","after_move:BTX_FILE:%(filepath)j",
+            "--print","before_dl:BTX_TITLE:%(title)j","--print","after_move:BTX_TITLE:%(title)j",
+            "--encoding","utf-8",
             "--no-simulate","--windows-filenames","--ffmpeg-location",ffmpeg,
             "--paths","home:"+output,"--paths","temp:"+stage,
             "-o","%(title).150B [%(id)s].%(ext)s","--",ValidateTrackUrl(url)};
@@ -178,7 +180,20 @@ public sealed class YouTubeAudioService
                     status(new("Downloading",double.TryParse(raw,NumberStyles.Float,CultureInfo.InvariantCulture,out var n)?Math.Clamp(n,0,100):null));
                 }
                 else if(line.StartsWith("BTX_FILE:")) reported=JsonSerializer.Deserialize<string>(line.Substring(9));
-                else if(line.StartsWith("BTX_TITLE:")) { log("Title: "+line.Substring(10)); status(new("Resolving — "+line.Substring(10))); }
+                else if(line.StartsWith("BTX_TITLE:",StringComparison.Ordinal))
+                {
+                    // JSON preserves Unicode, quotes and embedded newlines in a single output line.
+                    try
+                    {
+                        var title=JsonSerializer.Deserialize<string>(line.Substring(10));
+                        if(!string.IsNullOrWhiteSpace(title) && title!="NA")
+                        {
+                            log("Title: "+title);
+                            status(new("Resolving",Title:title));
+                        }
+                    }
+                    catch(JsonException) { log("Title metadata unavailable; keeping the link or playlist title."); }
+                }
                 else
                 {
                     if(line.StartsWith("[download]",StringComparison.Ordinal) &&
@@ -240,7 +255,8 @@ public sealed class YouTubeAudioService
         token.ThrowIfCancellationRequested();
         exe=NormalizePath(exe);
         if(!Path.IsPathFullyQualified(exe)||!File.Exists(exe)) throw new FileNotFoundException("Select the exact yt-dlp executable first.");
-        var start=new ProcessStartInfo(exe){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
+        var start=new ProcessStartInfo(exe){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true,
+            StandardOutputEncoding=System.Text.Encoding.UTF8,StandardErrorEncoding=System.Text.Encoding.UTF8};
         foreach(var argument in arguments) start.ArgumentList.Add(argument);
         using var process=new Process{StartInfo=start}; process.Start();
         using var cancel=token.Register(()=>{try{if(!process.HasExited)process.Kill(true);}catch(InvalidOperationException){} catch(System.ComponentModel.Win32Exception){} });
