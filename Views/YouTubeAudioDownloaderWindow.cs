@@ -253,11 +253,17 @@ public sealed class YouTubeAudioDownloaderWindow : Window
             ToolTip.SetTip(row.Name,string.IsNullOrWhiteSpace(item.Title)?item.Url:item.Title+Environment.NewLine+item.Url);
             var state=item.State;
             row.State.Text=state;
-            row.Indicator.Text=state=="Complete"?"✓":state=="Failed"?"✗":"";
-            row.Indicator.Foreground=state=="Failed"?FailedBrush:CompleteBrush;
-            ToolTip.SetTip(row.Indicator,state=="Complete"?"Download successful":state=="Failed"?"Download failed":null);
-            Avalonia.Automation.AutomationProperties.SetName(row.Indicator,
-                state=="Complete"?"Download successful":state=="Failed"?"Download failed":"No download outcome");
+            (string icon, IBrush? color, string? description) = state switch
+            {
+                "Complete" => ("✓", CompleteBrush, "Download successful"),
+                "Failed" => ("✗", FailedBrush, "Download failed"),
+                "Skipped" => ("↷", CancelledBrush, "Skipped: already downloaded"),
+                _ => ("", null, null)
+            };
+            row.Indicator.Text=icon;
+            row.Indicator.Foreground=color;
+            ToolTip.SetTip(row.Indicator,description);
+            Avalonia.Automation.AutomationProperties.SetName(row.Indicator,description);
             if(state is "Complete" or "Failed" or "Cancelled")
                 row.State.Foreground=state=="Complete"?CompleteBrush:state=="Failed"?FailedBrush:CancelledBrush;
             else

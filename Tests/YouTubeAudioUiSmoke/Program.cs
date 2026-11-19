@@ -117,6 +117,7 @@ if 'solo' in args[-1] or 'titled' in args[-1]: print('BTX_TITLE:'+json.dumps(tit
         var indicators=scroll.GetVisualDescendants().OfType<TextBlock>().Where(t=>t.Name=="AudioQueueOutcome").ToArray();
         if(indicators.Count(t=>t.Text=="✓"&&t.Foreground is ISolidColorBrush b&&b.Color==Color.Parse("#73E6AB"))!=3||
            indicators.Count(t=>t.Text=="✗"&&t.Foreground is ISolidColorBrush b&&b.Color==Color.Parse("#FF8695"))!=1||
+           indicators.Count(t=>t.Text=="↷"&&t.Foreground is ISolidColorBrush b&&b.Color==Color.Parse("#F8CC79"))!=10||
            indicators.Any(t=>Grid.GetColumn(t)!=1||t.Parent is not Grid row||
                !row.Children.OfType<ComboBox>().Any(c=>Grid.GetColumn(c)==2)))
             throw new Exception("Outcome icons must precede category and match actual complete/failed states");
