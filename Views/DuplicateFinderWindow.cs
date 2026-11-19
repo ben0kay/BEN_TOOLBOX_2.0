@@ -11,6 +11,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using BEN_TOOLBOX_2_0.Services;
+using BEN_TOOLBOX_2_0.Shared.UI;
 using Microsoft.VisualBasic.FileIO;
 
 namespace BEN_TOOLBOX_2_0.Views;
@@ -37,32 +38,47 @@ public sealed class DuplicateFinderWindow : Window
     {
         Title="Duplicate File Finder / Avalonia";Width=1120;Height=820;MinWidth=820;MinHeight=620;
         WindowStartupLocation=WindowStartupLocation.CenterOwner;
-        Background=Brush.Parse("#091522");Foreground=Brush.Parse("#E8F4FF");
+        Classes.Add("btx-tool-window");
         var panel=new StackPanel { Margin=new Thickness(22),Spacing=12 };
-        panel.Children.Add(new TextBlock { Text="DUPLICATE FILE FINDER  /  NATIVE",FontSize=23,FontWeight=FontWeight.Bold,Foreground=Brush.Parse("#8BE4F6") });
-        panel.Children.Add(new TextBlock { Text="SOURCE FOLDER A   /   Files eligible for recycling" });
-        panel.Children.Add(PathRow(a));panel.Children.Add(subA);
-        panel.Children.Add(new TextBlock { Text="DESTINATION FOLDER B   /   Never deleted" });
-        panel.Children.Add(PathRow(b));panel.Children.Add(subB);panel.Children.Add(verify);
+        panel.Children.Add(BtxUiKit.CreateHeader("FILE TOOLBOX / NATIVE", "DUPLICATE FILE FINDER",
+            "Compare source A against destination B. Nothing is deleted during scanning."));
+        var setup=new StackPanel { Spacing=12 };
+        setup.Children.Add(BtxUiKit.CreateField("SOURCE FOLDER A / Files eligible for recycling",PathRow(a)));
+        setup.Children.Add(subA);
+        setup.Children.Add(BtxUiKit.CreateField("DESTINATION FOLDER B / Never deleted",PathRow(b)));
+        setup.Children.Add(subB);setup.Children.Add(verify);
+        foreach (var check in new[] { subA,subB,verify }) check.Classes.Add("btx-check");
+        panel.Children.Add(BtxUiKit.CreatePanel(setup));
         var buttons=new WrapPanel { ItemSpacing=10,LineSpacing=8 };
         foreach (var button in new[] { scan,cancel,export,delete,deleteAll })
         {
-            button.Padding=new Thickness(12,8);
-            button.Background=Brush.Parse(button==delete || button==deleteAll ? "#653347" : "#18526C");
+            BtxUiKit.ApplyButtonStyle(button,button==scan ? BtxUiKit.ButtonKind.Primary :
+                button==delete || button==deleteAll || button==cancel ? BtxUiKit.ButtonKind.Danger : BtxUiKit.ButtonKind.Secondary);
             buttons.Children.Add(button);
         }
-        panel.Children.Add(buttons);panel.Children.Add(status);
+        status.Classes.Add("btx-accent");
+        var actions=new StackPanel { Spacing=12 };
+        actions.Children.Add(buttons);actions.Children.Add(status);
+        panel.Children.Add(BtxUiKit.CreatePanel(actions));
         var grid=new Grid { ColumnDefinitions=new ColumnDefinitions("*,240"),ColumnSpacing=14 };
+        results.Classes.Add("btx-results");
         results.ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<DuplicateMatch>((item,_) =>
-            new TextBlock { Text=item.Description,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(6),
-                Foreground=Brush.Parse(item.Identical ? "#8FE3BF" : "#E4CD94") },true);
-        grid.Children.Add(results);
+        {
+            var label=new TextBlock { Text=item.Description,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(6) };
+            label.Classes.Add(item.Identical ? "btx-success" : "btx-warning");
+            return label;
+        },true);
+        var list=new StackPanel { Spacing=12 };
+        list.Children.Add(BtxUiKit.CreateText("COMPARISON RESULTS",BtxUiKit.TextKind.SectionHeading));
+        list.Children.Add(results);grid.Children.Add(BtxUiKit.CreatePanel(list));
         var right=new StackPanel { Spacing=12 };
-        right.Children.Add(new TextBlock { Text="IMAGE PREVIEW",Foreground=Brush.Parse("#8BE4F6") });
+        right.Children.Add(BtxUiKit.CreateText("IMAGE PREVIEW",BtxUiKit.TextKind.SectionHeading));
+        previewTitle.Classes.Add("btx-muted");
         right.Children.Add(preview);right.Children.Add(previewTitle);
-        Grid.SetColumn(right,1);grid.Children.Add(right);panel.Children.Add(grid);
-        panel.Children.Add(new TextBlock { Text="Deletion requires SHA-256 identity, a second verification, and confirmation. Files go to Windows Recycle Bin.",FontSize=12,TextWrapping=TextWrapping.Wrap });
-        Content=new ScrollViewer { Content=panel };
+        var previewPanel=BtxUiKit.CreatePanel(right);
+        Grid.SetColumn(previewPanel,1);grid.Children.Add(previewPanel);panel.Children.Add(grid);
+        panel.Children.Add(BtxUiKit.CreateText("Deletion requires SHA-256 identity, a second verification, and confirmation. Files go to Windows Recycle Bin."));
+        Content=new ScrollViewer { Content=panel,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled };
         scan.Click += async (_,_) => await Scan();
         cancel.Click += (_,_) => running?.Cancel();
         export.Click += async (_,_) => await Export();
@@ -79,8 +95,8 @@ public sealed class DuplicateFinderWindow : Window
     private Control PathRow(TextBox textbox)
     {
         var grid=new Grid { ColumnDefinitions=new ColumnDefinitions("*,110"),ColumnSpacing=8 };
-        grid.Children.Add(textbox);
-        var button=new Button { Content="BROWSE" };
+        grid.Children.Add(BtxUiKit.ApplyInputStyle(textbox));
+        var button=BtxUiKit.CreateButton("BROWSE");
         button.Click += async (_,_) =>
         {
             var selected=await StorageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions { AllowMultiple=false });
@@ -171,10 +187,11 @@ public sealed class DuplicateFinderWindow : Window
     private async Task<bool> Confirm(string message)
     {
         var popup=new Window { Title="Confirm deletion",Width=540,Height=220,WindowStartupLocation=WindowStartupLocation.CenterOwner };
+        popup.Classes.Add("btx-tool-window");
         var panel=new StackPanel { Margin=new Thickness(20),Spacing=16 };
         panel.Children.Add(new TextBlock { Text=message,TextWrapping=TextWrapping.Wrap });
-        var actions=new StackPanel { Orientation=Orientation.Horizontal,Spacing=12 };
-        var no=new Button { Content="CANCEL" };var yes=new Button { Content="YES, RECYCLE SOURCE FILES" };
+        var actions=new WrapPanel { ItemSpacing=12,LineSpacing=8 };
+        var no=BtxUiKit.CreateButton("CANCEL");var yes=BtxUiKit.CreateButton("YES, RECYCLE SOURCE FILES",BtxUiKit.ButtonKind.Danger);
         no.Click+=(_,_)=>popup.Close(false);yes.Click+=(_,_)=>popup.Close(true);
         actions.Children.Add(no);actions.Children.Add(yes);panel.Children.Add(actions);popup.Content=panel;
         return await popup.ShowDialog<bool>(this);
@@ -183,6 +200,7 @@ public sealed class DuplicateFinderWindow : Window
     {
         var popup=new Window { Title="Duplicate Finder",Width=530,Height=210,WindowStartupLocation=WindowStartupLocation.CenterOwner,
             Content=new TextBlock { Text=message,Margin=new Thickness(22),TextWrapping=TextWrapping.Wrap } };
+        popup.Classes.Add("btx-tool-window");
         await popup.ShowDialog(this);
     }
 }

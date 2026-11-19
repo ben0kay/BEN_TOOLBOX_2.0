@@ -85,6 +85,12 @@
   <Style Selector="Window.btx-tool-window">
     <Setter Property="Background" Value="{DynamicResource BtxWindowBackground}"/>
   </Style>
+  <Style Selector="TextBlock.btx-success">
+    <Setter Property="Foreground" Value="{DynamicResource BtxSuccess}"/>
+  </Style>
+  <Style Selector="TextBlock.btx-warning">
+    <Setter Property="Foreground" Value="{DynamicResource BtxWarning}"/>
+  </Style>
   <Style Selector="TextBlock.btx-accent">
     <Setter Property="Foreground" Value="{DynamicResource BtxAccent}"/>
   </Style>

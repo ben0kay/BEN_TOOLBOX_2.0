@@ -40,7 +40,7 @@ BtxUiKit.ApplyButtonStyle(existingButton, BtxUiKit.ButtonKind.Secondary);
 - Use Primary sparingly, Secondary normally, Danger for destructive/cancel, Quiet
   for low-priority actions. No idle decorative animation loops.
 - The Storage Analyzer SA0 toolbar and outer cards are a small first demonstration.
-  Folder Backup T3 is still unstarted; do not touch Asset Usage Finder accidentally.
+  Folder Backup T3 is coded; do not touch Asset Usage Finder accidentally.
 - Validate actual .NET 10 / Avalonia 12 build, Windows hover/focus and high DPI
   before marking the visual design accepted.
 
@@ -127,6 +127,42 @@ over central BTX factories. The new compact panel modifier is only 3 px
 corner rounding, not the angled tech frame: visual preservation takes
 priority over a redesign.
 
-T4 has been coded; actual .NET 10/Avalonia 12 compilation, Windows
-screenshots, 125–200% DPI, narrow widths and interaction checks are still
-required before marking it visually accepted.
+T4 is user-tested and accepted (confirmed 2026-11-19). T5-A preserves its
+current queue, layout and shared-kit implementation.
+
+
+## Starting a new native tool
+
+Use the shared kit by default for new utilities; existing windows migrate only
+when individually authorized. Compose ordinary controls instead of deriving
+from a new tool-window base class. App.axaml already registers the resources.
+A minimal constructor pattern (keep work in the tool's service):
+
+```csharp
+Classes.Add("btx-tool-window");
+var input = BtxUiKit.ApplyInputStyle(new TextBox { Watermark = "Target path" });
+var run = BtxUiKit.CreateButton("RUN", BtxUiKit.ButtonKind.Primary);
+var status = BtxUiKit.CreateText("Ready.");
+var form = new StackPanel { Spacing = 12 };
+form.Children.Add(BtxUiKit.CreateField("TARGET", input, "Choose a target before running."));
+form.Children.Add(run);
+form.Children.Add(status);
+var body = new StackPanel { Margin = new Avalonia.Thickness(20), Spacing = 14 };
+body.Children.Add(BtxUiKit.CreateHeader("TOOLBOX / NATIVE", "MY TOOL", "What this tool does."));
+body.Children.Add(BtxUiKit.CreatePanel(form));
+Content = new ScrollViewer { Content = body };
+// Attach existing commands/async handlers and cancellation explicitly.
+// For large lists, use a bounded Grid row so scrolling/virtualization can work.
+```
+
+Use shared classes on existing status labels (`btx-accent`, `btx-muted`,
+`btx-success`, `btx-warning`); retain textual state names as well as colour.
+Use `btx-results` for ordinary lists and `btx-check` for checkbox/radio text.
+Specialized maps/image editors may keep their own rendering and layout;
+document exceptions rather than creating competing palettes or factories.
+For long-running work, add progress only when it reflects real activity.
+Verify build, resizing, keyboard interaction and Windows DPI before acceptance.
+
+**T5-A example:** `Views/DuplicateFinderWindow.cs` uses these primitives for
+its existing folder comparison workflow. No new template/control hierarchy
+was needed. Clipboard to PNG is the recommended next migration, pending approval.

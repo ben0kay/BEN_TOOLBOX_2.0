@@ -1,6 +1,6 @@
 # BTX UI Kit — Shared Avalonia Visual Design System Implementation Plan
 
-> **STATUS: T0–T2 FOUNDATION CODED; T3 FOLDER BACKUP AND T4 DOWNLOADER MIGRATIONS CODED 2026-11-02; BUILD/WINDOWS VISUAL/REGRESSION PENDING. T5 NOT STARTED.**
+> **STATUS: T0–T2 FOUNDATION CODED; T3 FOLDER BACKUP CODED (WINDOWS ACCEPTANCE PENDING); T4 USER-TESTED AND ACCEPTED. T5-A DUPLICATE FILE FINDER CODED; VALIDATION RECORDED BELOW. T5-B AND FURTHER MIGRATIONS REQUIRE SEPARATE APPROVAL.**
 >
 > **Created:** 2026-10-24
 > **Repo:** ben0kay/BEN_TOOLBOX_2.0
@@ -156,8 +156,8 @@ These are **proposed** filenames. Codex may consolidate types/resources when it 
 | **T1 — Shared palette and styles** | Implement resource dictionary + semantic type/text/control classes with state styling, integrate opt-in theme safely alongside FluentTheme | **Code added; compilation/style-load/Windows verification pending** |
 | **T2 — Reusable layout components** | Implement minimal header, panel, field and optional status components/helpers; provide a simple usable example/template for future Codex jobs | **Code-built button/header/panel/field helpers added; status component and visual verification pending** |
 | **T3 — Folder Backup pilot** | Redesign **only backup mode** to the downloader-inspired panels, controls and status while keeping source/destination, exclusions, preview, backup, cancel behavior | **CODED; Windows build, feature regression and screenshot acceptance pending** |
-| **T4 — Downloader refactor/validation** | Gradually point Audio Downloader to shared styles/components, remove duplicated local colour/style methods, ensure screenshot closely matches original and functionality untouched | **CODED; .NET/Windows visual and downloader regression tests pending** |
-| **T5 — Adoption & staged rollout** | Document mandatory UI guidelines for future native tools, inventory other windows and migrate one approved window at a time; possible theme variants later | **NOT STARTED** |
+| **T4 — Downloader refactor/validation** | Gradually point Audio Downloader to shared styles/components, remove duplicated local colour/style methods, ensure screenshot closely matches original and functionality untouched | **USER-TESTED AND ACCEPTED; confirmed by user 2026-11-19** |
+| **T5 — Adoption & staged rollout** | Document mandatory UI guidelines for future native tools, inventory other windows and migrate one approved window at a time; possible theme variants later | **T5-A Duplicate File Finder coded; further migrations pending separate approval** |
 
 **Recommended execution order:** **T0 → T1 → T2 → T3**. Show the user Folder Backup's Windows result before implementing T4/T5. Do not alter existing downloader styling until the shared system is proven in the pilot, except to inspect/reference its original values.
 
@@ -191,6 +191,8 @@ These are **proposed** filenames. Codex may consolidate types/resources when it 
 - [ ] User reviews actual Windows appearance before applying to more windows.
 
 ### T4 — preserve downloader design & functionality
+
+**User-tested and accepted (2026-11-19).** The historical checklist below describes the acceptance criteria; it is not a claim that every automated or DPI scenario was independently rerun during T5-A.
 - [ ] Migrate `YouTubeAudioDownloaderWindow.cs` references to the validated shared resources/components with **minimal UI layout difference**.
 - [ ] Compare before/after Windows screenshots at same size/DPI, especially header, panel gradients, borders, foreground, button sizing, progress and log expander.
 - [ ] Multi-link queue/category, download, cancel, folder selection, update/version buttons, diagnostics, error messages and window close remain intact.
@@ -339,3 +341,94 @@ comparison at same size and DPI, queue add/edit/remove/clear, download and
 cancel with safe test URL, output folder and executable/FFmpeg pickers,
 settings reload, updates/version and diagnostics, resize at 700px min width.
 Do not claim T4 user acceptance from source-only review. T5 remains pending.
+
+
+### 2026-11-19 — T5-A adoption audit and Duplicate File Finder
+
+T4 is **user-tested and accepted**, as explicitly confirmed in this task.
+Earlier work-log entries remain historical records of their original validation state.
+Inspected root README/engineering principles, this plan, feature-folder backlog,
+App.axaml, shared factories/resources/frames, tool catalog/routing and all eight
+requested utilities. No additional AGENTS.md or code-preferences file was found.
+Audit baseline: `main` commit `79a5104`.
+
+The user clarified that “Audio Converter” meant the **YouTube/SoundCloud Audio
+Downloader**. There is no separate Audio Converter implementation or catalog
+entry on this revision; Pixel Art Converter is a different, untouched utility.
+
+| Utility | Adoption before T5-A | Evidence / disposition |
+| --- | --- | --- |
+| Audio Downloader (also intended by “Audio Converter”) | Fully adopted for its current visual surfaces | `Views/YouTubeAudioDownloaderWindow.cs`: shared panels, text, fields, compact inputs, buttons and tool-window class; native radio/checkbox semantics retained. Preserve current implementation. |
+| Duplicate File Finder | Independent styling → T5-A migrated | `Views/DuplicateFinderWindow.cs`: previously local window/title/button/result colours; now shared classes/factories. Windows visual acceptance pending. |
+| Sprite Batch Tool | Independent styling | `Views/SpriteBatchWindow.cs`: local colours and custom drop zone; not changed. |
+| Clipboard to PNG | Independent styling | `Views/ClipboardPngWindow.cs`: local colours and preview border; not changed. |
+| Content Inspector | Independent styling | `Views/ContentInspectorWindow.cs`: local panels and navigation colour handling; not changed. |
+| Internet Observatory | Independent styling | `Features/Inspectors/InternetObservatory/InternetObservatoryWindow.cs`: local text/panel factories and freshness colours; map rendering stays feature-specific. |
+| Seasonal Sprite Studio | Independent styling | `Views/SeasonalSpriteStudioWindow.cs`: local palette/dialogs and specialized editor; not changed. |
+
+None of the other audited tools has partial BTX adoption: visual similarity to
+navy/aqua alone does not count as shared-kit use. Outside this requested set,
+Folder Backup has the full T3 pilot and Storage Analyzer has partial adoption.
+
+**Existing downloader improvements preserved:** playlist-expanded entries and
+complete/skipped/failed status are merged into the bounded scrollable main
+queue; the right-side queue-status panel is a blank placeholder. Compact
+executable/FFmpeg picker rows and update/version actions retain more vertical
+space, READY aligns under setup on desktop, and narrow windows stack sections.
+These already compose shared BTX components. No alternate factory or new
+shared layout abstraction is warranted. Downloader source/services unchanged.
+
+**T5-A implemented:** only Duplicate File Finder receives shared window,
+header, labelled inputs/pickers, checkbox text, primary/secondary/danger
+buttons, panel treatments, results list and status/preview text. Existing
+source/destination order, action order, results/preview columns, outer scrolling,
+minimum sizes and all event handlers/services remain. Confirmation buttons use
+shared styles and wrap if necessary. Added opt-in `btx-success` / `btx-warning`
+text styles and named brushes using the existing result colours; textual
+IDENTICAL/DIFFERENT CONTENT/NAME MATCH labels remain. No global selector,
+dependency, dashboard, service or source-folder change.
+
+**Shared kit fit:** current header/panel/field/button/input/list primitives cover
+this utility without adding a window base class. Documented a compositional
+new-tool starting pattern in `Shared/UI/README.md`. Specialized map/image
+canvases and inspector navigation can remain feature-specific in later passes;
+shared status colours are now available without duplicated hex values.
+
+**Remaining rollout:** recommend **Clipboard to PNG** next because its small
+form and preview can reuse current primitives with minimal layout risk. Sprite
+Batch, Content Inspector, Internet Observatory and Seasonal Sprite Studio
+remain unmigrated. T5-B and all further tool migrations require separate user
+authorization. T5-A Windows acceptance must happen before broader rollout.
+
+**Validation:** see the final validation entry below. Windows checks remain:
+launch at 1120×820 and 820×620; 125–200% DPI; long folder paths/result rows;
+keyboard focus, hover and disabled states; folder pickers; scan with/without
+subfolders and hash verification; cancel; image preview/selection; CSV export;
+edit-path invalidation; confirmation cancel/accept with disposable files only;
+second hash verification and destination B protection; close during scan.
+
+
+**T5-A validation results (Linux, .NET SDK 10.0.404):**
+
+- `dotnet build BEN_TOOLBOX_2_0.csproj`: **passed, 0 errors**.
+- `dotnet run --project Tests/DuplicateFinderUiSmoke/DuplicateFinderUiSmoke.csproj`:
+  **passed**. Loads real App/BTX resources, checks styled controls and initial
+  action guards, scans disposable folders with SHA-256 on/off and recursion,
+  verifies selection guards and path/option invalidation, confirms fixture
+  content unchanged, and checks outer scrolling at 820×620. Skia headless
+  render inspected at minimum size; not a Windows screenshot or DPI acceptance.
+- `dotnet run --project Tests/YouTubeAudioUiSmoke/YouTubeAudioUiSmoke.csproj`:
+  **passed**, including unified queue, scrolling during downloads, status
+  colours, compact tools and responsive panel placement.
+- `dotnet run --project Tests/YouTubeAudioSmoke/YouTubeAudioSmoke.csproj`:
+  **passed**, including playlists, queue limits/retry/cancellation, URL/argv
+  guards, existing-file skip, progress and updater guard.
+- `git diff --check`: **passed**. Source review confirms no changes to
+  DuplicateScanService, downloader, dashboard or other tool windows.
+- Build reports existing obsolete API/platform/nullability warnings and NuGet
+  advisories for the existing ImageSharp 3.1.12 dependency. Dependency upgrades
+  are outside this UI-only pass; no new package/version introduced (UI smoke
+  uses the same Avalonia.Headless version already used by existing tests).
+- Native folder/save pickers, CSV save, modal confirmation, close/cancel races,
+  Windows Recycle Bin behaviour, hover/focus appearance and 125–200% DPI
+  remain manual Windows regression checks. No files were recycled by tests.
